@@ -12,7 +12,7 @@ import { storage } from "@/game/data";
 import { message, session } from "@/game/session";
 import type { SignInReason } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
-import { Cloud, Folder, IdentificationCard, Link, SignOut, Upload, UsersThree } from "@phosphor-icons/react";
+import { Folder, SignOut, Upload } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -45,15 +45,19 @@ const reasons: Record<SignInReason, { title: string; text: string }> = {
   upload: { title: "Log in to upload", text: "Uploads go to your account, so images can be bigger and share links stay short." },
 };
 
-/** Benefits of an account */
-const perks = [
-  { icon: Cloud, title: "Saved to your account", text: "Open your towns from any device" },
-  { icon: IdentificationCard, title: "Your trainer comes along", text: "Party, badges and story progress" },
-  { icon: Link, title: "Short share links", text: "Always show your latest version" },
-  { icon: UsersThree, title: "Publish and build together", text: "Explore, likes, forks and live rooms" },
-];
+/** Google "G" in its four colors */
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-[18px] shrink-0" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
 
-/** Sign in or create an account */
+/** Sign in (Google accounts only for now) */
 export function signIn(reason: SignInReason = "default") {
   if (!cloud.available) {
     toast.error("Online features aren't set up yet: see the README to connect Supabase.");
@@ -63,65 +67,30 @@ export function signIn(reason: SignInReason = "default") {
 }
 
 function SignIn({ reason, close }: { reason: SignInReason; close: () => void }) {
-  const [tab, setTab] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  //Google sends the player back to the editor, which finishes signing in
+  const google = async () => {
     setBusy(true);
     try {
-      if (tab === "login") {
-        await cloud.login(email, password);
-      } else {
-        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
-          throw new Error("Pick a username of 3 to 20 letters, numbers, _ or -");
-        }
-        if (!(await cloud.register(email, password, username.toLowerCase()))) {
-          close();
-          toast.success("Check your email to confirm your account, then log in.");
-          return;
-        }
-      }
-      close();
-      await session.signedIn();
-    } catch (e) {
-      toast.error(tab === "login" ? "Couldn't log in" : "Couldn't create your account", { description: message(e) });
-    } finally {
+      await session.persist();
+      storage.set("signin-pending", true);
+      await cloud.google();
+    } catch (error) {
+      toast.error("Couldn't continue with Google", { description: message(error) });
       setBusy(false);
     }
   };
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{reasons[reason].title}</DialogTitle>
           <DialogDescription>{reasons[reason].text}</DialogDescription>
         </DialogHeader>
-        <ul className="grid grid-cols-2 gap-x-4 gap-y-3">
-          {perks.map(({ icon: Icon, title, text }) => (
-            <li key={title} className="flex gap-2"><Icon size={16} className="mt-0.5 shrink-0" /><div><b className="block text-xs">{title}</b><small className="text-[11px] text-subtle-fg">{text}</small></div></li>
-          ))}
-        </ul>
-        <Button variant="outline" onClick={async () => {
-          await session.persist();
-          storage.set("signin-pending", true);
-          await cloud.google().catch((e) => toast.error("Couldn't continue with Google", { description: message(e) }));
-        }}>
-          <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.66 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3.3 14.7 2.3 12 2.3 6.7 2.3 2.4 6.6 2.4 12s4.3 9.7 9.6 9.7c5.5 0 9.2-3.9 9.2-9.4 0-.6-.1-1.1-.2-1.6H12z" /></svg>
-          Continue with Google
+        <Button size="lg" variant="outline" disabled={busy} onClick={google}>
+          <GoogleLogo />
+          {busy ? "Opening Google…" : "Continue with Google"}
         </Button>
-        <div className="flex items-center gap-3 text-xs text-subtle-fg"><span className="h-px flex-1 bg-border" />or with email<span className="h-px flex-1 bg-border" /></div>
-        <form className="grid grid-cols-1 gap-3" onSubmit={submit}>
-          <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-0.5">
-            {(["login", "register"] as const).map((value) => <button key={value} type="button" onClick={() => setTab(value)} className={cn("h-8 rounded text-sm", tab === value ? "bg-background shadow-sm" : "text-muted-foreground")}>{value === "login" ? "Log in" : "Create account"}</button>)}
-          </div>
-          {tab === "register" ? <Field label="Username" hint="Shown on your towns: 3 to 20 letters, numbers, _ or -"><Input value={username} autoComplete="username" placeholder="ash_ketchum" maxLength={20} onChange={(event) => setUsername(event.target.value)} /></Field> : null}
-          <Field label="Email"><Input type="email" required value={email} autoComplete="email" placeholder="you@example.com" onChange={(event) => setEmail(event.target.value)} /></Field>
-          <Field label="Password" hint={tab === "register" ? "At least 6 characters" : undefined}><Input type="password" required minLength={6} value={password} autoComplete={tab === "login" ? "current-password" : "new-password"} onChange={(event) => setPassword(event.target.value)} /></Field>
-          <Button type="submit" disabled={busy}>{tab === "login" ? "Log in" : "Create account"}</Button>
-        </form>
         <p className="text-center text-[11px] text-subtle-fg">Your towns in this browser stay here either way. After logging in you can bring them into your account.</p>
       </DialogContent>
     </Dialog>

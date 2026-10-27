@@ -9,7 +9,7 @@ DreamMist is a browser-based town builder for Pokémon fans. Paint maps with the
 - **Editor**: ground, object and above-player layers, stamps, auto-bordering terrains, select / copy / paste, random brush, minimap, undo / redo, real Hoenn towns and routes to start from.
 - **Story**: a timeline of steps, gates blocked by walls, objects or people, people who appear, leave, need steps, complete them and hand out rewards.
 - **Play**: walking, trainers with line of sight, gyms and badges, wild encounters, all 1,025 Pokémon with real types, stats and moves, doors into interiors.
-- **Together**: accounts (email or Google), online saves, live building rooms, publish, Explore, likes and forks.
+- **Together**: Google accounts, online saves, live building rooms, publish, Explore, likes and forks.
 - **Website**: landing page, Explore gallery and docs.
 
 ## Stack
@@ -66,20 +66,18 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 Restart `npm run dev`.
 
-### 3. Sign-in settings
+### 3. Google sign-in
 
-In Supabase, open **Authentication → URL Configuration**:
+DreamMist accounts sign in with Google only.
 
-- **Site URL**: your website, for example `https://your-app.vercel.app`
-- **Redirect URLs**: add `http://localhost:3000/**` and `https://your-app.vercel.app/**`
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create a project if you don't have one, then set up the **OAuth consent screen** (External, with your app name and email). While it's in testing, add your friends' Gmail addresses as **test users**, or publish the app.
+2. Create an **OAuth client ID** of type **Web application**. Under **Authorized redirect URIs**, add `https://your-project.supabase.co/auth/v1/callback` (your Project URL with `/auth/v1/callback` at the end).
+3. In Supabase, open **Authentication → Sign In / Providers → Google**, turn it on, paste the **Client ID** and **Client secret**, and save.
+4. In Supabase, open **Authentication → URL Configuration**:
+   - **Site URL**: your website, for example `https://your-app.vercel.app`
+   - **Redirect URLs**: add `http://localhost:3000/**`, `http://localhost:3001/**` and `https://your-app.vercel.app/**`
 
-Email sign-in works right away. By default new accounts must confirm their email first; for a small group of friends you can turn that off in **Authentication → Sign In / Providers → Email → Confirm email**. The built-in email sender only sends a few emails per hour.
-
-**Google sign-in** (optional):
-
-1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an **OAuth client ID** of type **Web application**.
-2. Add the **Authorized redirect URI** `https://your-project.supabase.co/auth/v1/callback`.
-3. In Supabase, open **Authentication → Sign In / Providers → Google**, turn it on and paste the client ID and secret.
+New players get a username from their Google name, shown on the towns they publish.
 
 ### 4. Deploy on Vercel
 

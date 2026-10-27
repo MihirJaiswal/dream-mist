@@ -82,25 +82,6 @@ export const cloud = {
     this.changed();
   },
 
-  /** Create an account (resolves false when the email must be confirmed first) */
-  async register(email: string, password: string, username: string) {
-    const { data, error } = await supabase().auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: `${location.origin}/editor` } });
-    if (error) {
-      fail(error);
-    }
-    await this.load(data.session?.user ?? null);
-    return Boolean(data.session);
-  },
-
-  /** Log in with email and password */
-  async login(email: string, password: string) {
-    const { data, error } = await supabase().auth.signInWithPassword({ email, password });
-    if (error) {
-      fail(error);
-    }
-    await this.load(data.user);
-  },
-
   /** Continue with Google (leaves the page, Supabase brings the player back to the editor) */
   async google() {
     const { error } = await supabase().auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${location.origin}/editor` } });

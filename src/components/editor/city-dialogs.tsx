@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { type Card, cloud } from "@/game/cloud";
 import { label, type Section, sections } from "@/game/hoenn";
-import { message, session } from "@/game/session";
+import { imageTypes, message, session } from "@/game/session";
 import { frameOf, image as loadImage, layouts } from "@/game/sprites";
 import { cn } from "@/lib/utils";
 import { CaretDown, CheckCircle, Copy, Image as ImageIcon, MusicNotes, Plus, Sparkle, Stack, Trash, TreeEvergreen, Upload, User, Warning, X } from "@phosphor-icons/react";
@@ -346,9 +346,9 @@ function ImportTileset({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader><DialogTitle>Import tileset</DialogTitle><DialogDescription>PNG, WebP or GIF tileset laid out on a grid, no spacing.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Import tileset</DialogTitle><DialogDescription>PNG, WebP, AVIF or GIF tileset laid out on a grid, no spacing.</DialogDescription></DialogHeader>
         <button onClick={async () => {
-          const chosen = await pick("image/png,image/webp,image/gif");
+          const chosen = await pick(imageTypes.join(","));
           if ((chosen) && (allowUpload(chosen, 512 * 1024))) {
             setFile(chosen);
             setName((current) => current || chosen.name.replace(/\.\w+$/, "").slice(0, 30));
@@ -504,7 +504,7 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader><DialogTitle>{kind === "person" ? "Upload a person sprite" : "Upload a Pokémon sprite"}</DialogTitle><DialogDescription className="sr-only">Upload your own sprite</DialogDescription></DialogHeader>
         <button onClick={async () => {
-          const chosen = await pick("image/png,image/webp,image/gif");
+          const chosen = await pick(imageTypes.join(","));
           if ((!chosen) || (!allowUpload(chosen, 256 * 1024))) {
             return;
           }
@@ -519,7 +519,7 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
         }} className="grid min-h-36 place-items-center gap-2 rounded-md border border-dashed border-border p-4 text-center text-muted-foreground hover:border-ring">
           {image && file
             ? <>{kind === "person" ? <Frames image={image} layout={layout} /> : <img src={image.src} alt="" style={{ width: image.width * 2 }} className="max-w-full [image-rendering:pixelated]" />}<small>{file.name} · {image.width}×{image.height} px</small></>
-            : <><ImageIcon size={24} /><b className="text-sm text-foreground">Choose an image</b><small>PNG, WebP or GIF with a transparent background</small></>}
+            : <><ImageIcon size={24} /><b className="text-sm text-foreground">Choose an image</b><small>PNG, WebP, AVIF or GIF with a transparent background</small></>}
         </button>
         <div className={cn("grid gap-2", kind === "person" && "grid-cols-2")}>
           <Field label="Name"><Input value={name} placeholder={kind === "person" ? "Ranger Jo" : "Flamefox"} maxLength={30} onChange={(event) => setName(event.target.value)} /></Field>

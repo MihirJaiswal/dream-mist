@@ -760,8 +760,8 @@ export class Session {
 
   /** Upload a portrait shown beside someone's dialogue (resolves with its url) */
   async uploadPortrait(file: File) {
-    if (!file.type.startsWith("image/")) {
-      throw new Error("Pick a PNG, WebP or GIF image");
+    if (!imageTypes.includes(file.type)) {
+      throw new Error("Pick a PNG, WebP, AVIF or GIF image");
     }
     return await this.#store(file, "sprite", "portrait", 256 * 1024);
   }
@@ -937,6 +937,9 @@ function download(name: string, blob: Blob) {
   Object.assign(document.createElement("a"), { href: url, download: name }).click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Image formats accepted for tilesets, sprites and portraits (all keep transparency) */
+export const imageTypes = ["image/png", "image/webp", "image/avif", "image/gif"];
 
 /** The editor session of this page */
 export const session = new Session();

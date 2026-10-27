@@ -16,6 +16,14 @@ describe("database migration", () => {
     }
   });
 
+  test("uploads accept every image format the editor offers", async () => {
+    const { imageTypes } = await import("@/game/session");
+    const allowed = new Set([...sql.matchAll(/'(image\/\w+)'/g)].map(([, type]) => type));
+    for (const type of imageTypes) {
+      expect(allowed, type).toContain(type);
+    }
+  });
+
   test("security definer functions pin their search path", () => {
     const functions = sql.split(/create or replace function /).slice(1).filter((body) => /security definer/.test(body.split(/\$\$/)[0]));
     expect(functions.length).toBeGreaterThan(0);

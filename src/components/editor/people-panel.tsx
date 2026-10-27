@@ -14,7 +14,7 @@ import { artwork, assets, npc as texture, portrait, preview, species } from "@/g
 import type { Npc, NpcStory } from "@/game/data";
 import { type Kind, kindOf, kinds } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
-import { message, session } from "@/game/session";
+import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { cn } from "@/lib/utils";
 import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
@@ -349,7 +349,7 @@ function PortraitField({ editor, npc, update }: { editor: EditorEngine; npc: Npc
                   {npc.portrait ? <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => update(() => delete npc.portrait)}><ArrowCounterClockwise />Default</Button> : null}
                 </div>
               </div>
-              <input ref={input} type="file" accept="image/png,image/webp,image/gif" hidden onChange={(event) => (upload(event.target.files?.[0]), event.target.value = "")} />
+              <input ref={input} type="file" accept={imageTypes.join(",")} hidden onChange={(event) => (upload(event.target.files?.[0]), event.target.value = "")} />
             </div>
             <Hint>For your own image: a square PNG with a transparent background, 96 to 256 px, from the waist up. Pixel art looks best.</Hint>
           </>
