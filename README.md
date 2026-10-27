@@ -32,6 +32,8 @@ npm run dev
 
 Open http://localhost:3000. The editor is at `/editor`.
 
+`npm install` also sets up Git hooks with Husky: each commit lints and fixes the staged files, and each push runs the typecheck and tests first.
+
 Without Supabase, everything works offline: cities and your trainer are saved in the browser. Online features (log in, Explore, publish, short links, live rooms, uploads) need a Supabase project, see below.
 
 | Command | What it does |
@@ -40,6 +42,7 @@ Without Supabase, everything works offline: cities and your trainer are saved in
 | `npm run build` / `npm start` | Production build and server |
 | `npm test` | Run the tests |
 | `npm run typecheck` | Check types |
+| `npm run lint` | Check the code with ESLint |
 | `npm run data` | Rebuild `public/game` from `maps/`, `copyrighted/` and PokeAPI (only needed after changing those) |
 
 ## Going online (Supabase and Vercel)

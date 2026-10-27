@@ -2,19 +2,17 @@
 
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
-import { Hint, NumberInput, TextInput, Tip } from "@/components/editor/widgets";
+import { Hint, NumberInput, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { assets } from "@/game/assets";
 import type { Zone } from "@/game/data";
 import { cn } from "@/lib/utils";
 import { Plus, X } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
 
 /** Encounter rate slider (saves when released) */
 function Rate({ zone, onCommit }: { zone: Zone; onCommit: (rate: number) => void }) {
-  const [value, setValue] = useState(Math.round(zone.rate * 100));
-  useEffect(() => setValue(Math.round(zone.rate * 100)), [zone.rate]);
+  const [value, setValue] = useDraft(Math.round(zone.rate * 100));
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground">
       <span className="w-24 shrink-0">Encounter rate</span>

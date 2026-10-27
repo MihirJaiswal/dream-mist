@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "data": "node scripts/build-data.mts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "husky"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -42,10 +43,15 @@
     "eslint": "^9",
     "eslint-config-next": "^16.4.3",
     "fast-xml-parser": "^4.5.7",
+    "husky": "^9.1.7",
     "jsdom": "^26.1.0",
+    "lint-staged": "^16.4.0",
     "pngjs": "^7.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mts,mjs}": "eslint --fix --no-warn-ignored"
   }
 }

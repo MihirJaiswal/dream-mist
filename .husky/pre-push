@@ -1,0 +1,3 @@
+# Check types and run the tests before anything leaves this machine
+npm run typecheck
+npm test

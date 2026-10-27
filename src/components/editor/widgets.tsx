@@ -6,6 +6,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
 
+/** Local draft of a value, reset whenever the value changes from outside (undo, another builder, another selection) */
+export function useDraft<T>(value: T) {
+  const [draft, setDraft] = useState(value);
+  const [source, setSource] = useState(value);
+  if (source !== value) {
+    setSource(value);
+    setDraft(value);
+  }
+  return [draft, setDraft] as const;
+}
+
 /** Shows a canvas or image element made by the engine (tile thumbnails, sprite previews) */
 export function CanvasView({ make, deps, className }: { make: () => HTMLElement | null; deps: unknown[]; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -30,8 +41,7 @@ export function Field({ label, hint, children, className }: { label: string; hin
 
 /** Number input that commits a clamped value on change */
 export function NumberInput({ value, min = 1, max = 100, onCommit, className, ...props }: { value: number; min?: number; max?: number; onCommit: (value: number) => void } & Omit<ComponentProps<"input">, "value" | "onChange">) {
-  const [text, setText] = useState(`${value}`);
-  useEffect(() => setText(`${value}`), [value]);
+  const [text, setText] = useDraft(`${value}`);
   const commit = () => {
     const next = Math.max(min, Math.min(max, Number(text) || min));
     setText(`${next}`);
@@ -44,8 +54,7 @@ export function NumberInput({ value, min = 1, max = 100, onCommit, className, ..
 
 /** Text input that commits on blur or Enter (avoids an undo step per keystroke) */
 export function TextInput({ value, onCommit, ...props }: { value: string; onCommit: (value: string) => void } & Omit<ComponentProps<"input">, "value" | "onChange">) {
-  const [text, setText] = useState(value);
-  useEffect(() => setText(value), [value]);
+  const [text, setText] = useDraft(value);
   const commit = () => text !== value && onCommit(text);
   return <Input value={text} onChange={(event) => setText(event.target.value)} onBlur={commit} onKeyDown={(event) => event.key === "Enter" && commit()} {...props} />;
 }

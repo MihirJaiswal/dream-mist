@@ -13,14 +13,17 @@ export function Dialogue({ speaker, pages, className }: { speaker: string; pages
   const text = pages[page];
   const done = shown >= text.length;
 
+  //Type each new page from the start
+  const [typing, setTyping] = useState(text);
+  if (typing !== text) {
+    setTyping(text);
+    setShown(0);
+  }
+
   //Type the current page, or show it at once when motion is reduced
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShown(text.length);
-      return;
-    }
-    setShown(0);
-    const timer = setInterval(() => setShown((n) => n >= text.length ? (clearInterval(timer), n) : n + 1), 32);
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = setInterval(() => setShown((n) => n >= text.length ? (clearInterval(timer), n) : reduced ? text.length : n + 1), 32);
     return () => clearInterval(timer);
   }, [text]);
 

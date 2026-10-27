@@ -33,10 +33,11 @@ export function share() {
 }
 
 function Share({ close }: { close: () => void }) {
-  useSession();
+  const live = useSession();
   const [links, setLinks] = useState<null | { visit: string; remix: string; packed: boolean }>(null);
   const [author, setAuthor] = useState(session.city.author);
-  useEffect(() => void session.links().then(setLinks), [session.online?.id]);
+  //Short links once the city is saved online
+  useEffect(() => void session.links().then(setLinks), [live.online?.id]);
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="sm:max-w-xl">

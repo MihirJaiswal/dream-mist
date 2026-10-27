@@ -1,7 +1,7 @@
 "use client";
 
 import { openDialog } from "@/components/editor/dialogs";
-import { CanvasView } from "@/components/editor/widgets";
+import { CanvasView, useDraft } from "@/components/editor/widgets";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,11 +58,13 @@ function PokemonPicker({ current, close }: { current: number; close: (id?: numbe
   }, [query, generation, type]);
 
   //Start from the top on new filters, but show the current Pokémon when opening
-  useEffect(() => {
+  const [shownFor, setShownFor] = useState<typeof results | null>(null);
+  if (shownFor !== results) {
     const index = results.findIndex(({ id }) => id === current);
+    setShownFor(results);
     setShown((query || (generation >= 0) || (type !== "all") || (index < 0)) ? batch : Math.ceil((index + 1) / batch) * batch);
-    scroller.current?.scrollTo({ top: 0 });
-  }, [results, current, query, generation, type]);
+  }
+  useEffect(() => scroller.current?.scrollTo({ top: 0 }), [results]);
   useEffect(() => {
     requestAnimationFrame(() => scroller.current?.querySelector("[data-current]")?.scrollIntoView({ block: "center" }));
   }, []);
@@ -124,8 +126,7 @@ function PokemonPicker({ current, close }: { current: number; close: (id?: numbe
 /** Pokémon field: its picture opens the picker, or type a name or number */
 export function SpeciesInput({ value, onChange, className }: { value: number; onChange: (id: number) => void; className?: string }) {
   const known = species(value);
-  const [text, setText] = useState(known ? `${known.name} #${value}` : "");
-  useEffect(() => setText(species(value) ? `${species(value).name} #${value}` : ""), [value]);
+  const [text, setText] = useDraft(known ? `${known.name} #${value}` : "");
   const commit = () => {
     const input = text.trim().toLowerCase();
     const match = input.match(/#?(\d+)$/);

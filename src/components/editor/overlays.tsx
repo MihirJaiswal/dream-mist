@@ -9,7 +9,7 @@ import { hp, named } from "@/game/trainer";
 import type { Portrait } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
 import { Eyedropper, Users, Warning, X } from "@phosphor-icons/react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 
 //=================================================================================================
 // Dialogue box
@@ -42,16 +42,23 @@ export function DialogueBox() {
   const pages = line ? line.text.split(/\n\s*\n/).map((page) => page.trim()).filter(Boolean) : [];
   const [page, setPage] = useState(0);
   const [shown, setShown] = useState(0);
-  const text = pages[page] ?? "";
-  useEffect(() => (setPage(0), setShown(0)), [line]);
-  useEffect(() => {
+  //Start over on a new line, and type again on a new page
+  const [at, setAt] = useState<{ line?: Line; page: number }>({ page: 0 });
+  if (at.line !== line) {
+    setAt({ line, page: 0 });
+    setPage(0);
     setShown(0);
+  } else if (at.page !== page) {
+    setAt({ line, page });
+    setShown(0);
+  }
+  const text = pages[page] ?? "";
+  useEffect(() => {
     const timer = setInterval(() => setShown((count) => count >= text.length ? (clearInterval(timer), count) : count + 1), 18);
     return () => clearInterval(timer);
-  }, [text]);
+  }, [text, line, page]);
   //Continue: finish typing, then next page, then close
-  const next = useRef(() => {});
-  next.current = () => {
+  const advance = () => {
     if (!line) {
       return;
     }
@@ -65,17 +72,18 @@ export function DialogueBox() {
     emitLines();
     line.done();
   };
+  const onKey = useEffectEvent((event: KeyboardEvent) => {
+    if ([" ", "enter", "z", "e"].includes(event.key.toLowerCase()) && !event.repeat) {
+      event.preventDefault();
+      event.stopPropagation();
+      advance();
+    }
+  });
   useEffect(() => {
     if (!line) {
       return;
     }
-    const keys = (event: KeyboardEvent) => {
-      if ([" ", "enter", "z", "e"].includes(event.key.toLowerCase()) && !event.repeat) {
-        event.preventDefault();
-        event.stopPropagation();
-        next.current();
-      }
-    };
+    const keys = (event: KeyboardEvent) => onKey(event);
     document.addEventListener("keydown", keys, true);
     return () => document.removeEventListener("keydown", keys, true);
   }, [line]);
@@ -84,7 +92,7 @@ export function DialogueBox() {
   }
   const typing = shown < text.length;
   return (
-    <div className="game-dialogue" role="dialog" aria-live="polite" aria-label={line.speaker || "Message"} onClick={() => next.current()}>
+    <div className="game-dialogue" role="dialog" aria-live="polite" aria-label={line.speaker || "Message"} onClick={advance}>
       {line.portrait ? <img key={line.portrait.src} className={cn("portrait", line.portrait.kind)} src={line.portrait.src} alt="" draggable={false} /> : null}
       <div className="box">
         {line.speaker ? <div className="speaker">{line.speaker}</div> : null}

@@ -1,5 +1,5 @@
 //Imports
-import { artwork, assets, type Move, species } from "./assets";
+import { assets, type Move, species } from "./assets";
 import { type Creature, grow, hp, named, stat, trainer } from "./trainer";
 import { sound } from "./audio";
 

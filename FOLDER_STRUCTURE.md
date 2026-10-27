@@ -62,9 +62,11 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 ├── supabase/migrations/      Database schema: tables, row level security, functions, storage bucket
 ├── tests/                    Vitest tests: city data, battles, editor helpers, game files, database rules
 │
+├── .husky/                   Git hooks: lint staged files on commit, typecheck and test on push
 ├── .cache/                   PokeAPI download for `npm run data` (ignored by git)
 ├── .env.example              Supabase variables to copy into .env.local
 ├── components.json           shadcn/ui settings
+├── eslint.config.mjs         ESLint rules (Next.js, React hooks, TypeScript)
 ├── next.config.mjs           Next.js settings (docs, redirect from the old /city.html)
 ├── source.config.ts          Fumadocs settings
 ├── vitest.config.mts         Test settings

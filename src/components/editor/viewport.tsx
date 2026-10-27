@@ -4,6 +4,7 @@ import { useEditor, useSession } from "@/components/editor/hooks";
 import { Tip } from "@/components/editor/widgets";
 import { size } from "@/game/assets";
 import { storage } from "@/game/data";
+import { session as engine } from "@/game/session";
 import { cn } from "@/lib/utils";
 import { Crosshair, GridFour, MapTrifold, Minus, Plus, Sidebar as SidebarIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
@@ -13,9 +14,10 @@ export function MapControls({ minimap, onMinimap, onPanel }: { minimap: boolean;
   const session = useSession();
   const editor = useEditor();
   const [zoom, setZoom] = useState(300);
+  //The map lives outside React: hook into it through the engine, and redo it when the map changes
   useEffect(() => {
-    if (session.map) {
-      session.map.onzoom = (scale: number) => setZoom(Math.round(scale * 100));
+    if (engine.map) {
+      engine.map.onzoom = (scale: number) => setZoom(Math.round(scale * 100));
     }
   }, [session.map]);
   const button = "grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground";
@@ -44,14 +46,14 @@ export function Minimap() {
   const frame = useRef<HTMLDivElement>(null);
   const scale = useRef(1);
   useEffect(() => {
-    const map = session.map;
+    const map = engine.map;
     if (!map) {
       return;
     }
     let timer = 0;
     const draw = () => {
       timer = 0;
-      if ((!session.area) || (!map.city) || (!canvas.current)) {
+      if ((!engine.area) || (!map.city) || (!canvas.current)) {
         return;
       }
       const { width, height } = map.city;

@@ -280,7 +280,7 @@ export default function Home() {
             points={["Live rooms with cursors and chat", "Publish to Explore, collect likes", "Anyone can fork your city and build on it"]}
             visual={<TogetherCard />}
           >
-            <p>Send an invite link and build the same city at the same time. When it's ready, publish it so anyone can play it from a link.</p>
+            <p>Send an invite link and build the same city at the same time. When it&apos;s ready, publish it so anyone can play it from a link.</p>
           </Entry>
         </div>
       </section>

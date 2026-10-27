@@ -2,7 +2,7 @@
 
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
-import { CanvasView, Field, Hint, NumberInput, TextInput, Tip } from "@/components/editor/widgets";
+import { CanvasView, Field, Hint, NumberInput, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ import { message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { cn } from "@/lib/utils";
 import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 /** Upload a custom sprite (resolves with its id) */
@@ -120,8 +120,7 @@ type Update = (fn: () => void) => void;
 
 /** Dialogue or message box (saves when leaving the field) */
 function Words({ label, value, placeholder, onCommit, rows = 3 }: { label: string; value: string; placeholder: string; onCommit: (value: string) => void; rows?: number }) {
-  const [text, setText] = useState(value);
-  useEffect(() => setText(value), [value]);
+  const [text, setText] = useDraft(value);
   return <Field label={label}><Textarea rows={rows} value={text} placeholder={placeholder} onChange={(event) => setText(event.target.value)} onBlur={() => text !== value && onCommit(text)} /></Field>;
 }
 

@@ -1,0 +1,2 @@
+# Lint and fix the staged files
+npx lint-staged
