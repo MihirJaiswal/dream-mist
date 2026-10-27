@@ -6,16 +6,20 @@ import { CanvasView, Field, Hint, NumberInput, TextInput, Tip } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { assets, npc as texture, portrait, preview, species } from "@/game/assets";
+import { artwork, assets, npc as texture, portrait, preview, species } from "@/game/assets";
 import type { Npc, NpcStory } from "@/game/data";
 import { type Kind, kindOf, kinds } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
+import { message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { cn } from "@/lib/utils";
-import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 /** Upload a custom sprite (resolves with its id) */
 type OnSprite = (kind: "person" | "pokemon") => Promise<string | undefined>;
@@ -148,6 +152,7 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
           ))}
         </div>
       </Field>
+      <PortraitField editor={editor} npc={npc} update={update} />
       <div className="grid grid-cols-2 gap-2">
         <Field label="Facing">
           <Select value={npc.dir} onValueChange={(dir) => update(() => npc.dir = dir as Npc["dir"])}>
@@ -235,6 +240,7 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
         </div>
       </Field>
       <Field label="Name"><TextInput value={npc.name} maxLength={24} onCommit={(name) => update(() => npc.name = name)} className="h-8" /></Field>
+      <PortraitField editor={editor} npc={npc} update={update} />
       <div className="grid gap-1.5">
         <p className="text-xs font-medium text-muted-foreground">When the player talks to it</p>
         <div className="grid grid-cols-2 gap-1.5">
@@ -259,6 +265,98 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
       <Words label={wild ? "Before the battle" : "Cry or message"} value={npc.dialogue} placeholder={wild ? "Snorlax is fast asleep… It woke up!" : "Pika pika!"} onCommit={(text) => update(() => npc.dialogue = text)} />
       {wild ? <Hint>Visitors battle it as a wild Pokémon and can catch it. Once beaten or caught, it&apos;s gone for that player.</Hint> : null}
     </>
+  );
+}
+
+/** Picture shown beside their dialogue: on or off, and the default (Pokémon artwork or their own map sprite), another sprite, or an uploaded image */
+function PortraitField({ editor, npc, update }: { editor: EditorEngine; npc: Npc; update: Update }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const upload = async (file?: File) => {
+    if (!file) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const url = await session.uploadPortrait(file);
+      update(() => npc.portrait = url);
+    } catch (error) {
+      toast.error(message(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const pick = (portrait: string) => {
+    update(() => npc.portrait = portrait);
+    setPicking(false);
+  };
+  const shown = !npc.hidePortrait;
+  const creature = npc.creature;
+  const sprite = npc.portrait?.startsWith("sprite:") ? npc.portrait.slice("sprite:".length) : "";
+  const image = "size-full object-contain [image-rendering:pixelated]";
+  //Sprites to pick from, and images already uploaded for others in this city
+  const sprites = [...(editor.world.sprites ?? []).filter(({ kind }) => kind === "person").map(({ id, name }) => ({ id: spriteKey(id), name })), ...assets.npcs.map((name) => ({ id: name, name }))];
+  const uploaded = [...new Set([editor.world, ...editor.world.interiors].flatMap((map) => map.npcs).map(({ portrait }) => portrait ?? "").filter((url) => url && !url.startsWith("sprite:")))];
+  const status = npc.portrait ? (sprite ? `Sprite: ${sprites.find(({ id }) => id === sprite)?.name ?? sprite}` : "Your image") : creature ? "Default: its artwork" : "Default: their map sprite";
+  return (
+    <div className="grid gap-2 rounded-lg border border-border p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="show-portrait" className="text-xs font-medium text-muted-foreground">Portrait when talking</Label>
+        <Switch id="show-portrait" checked={shown} onCheckedChange={(checked) => update(() => checked ? delete npc.hidePortrait : npc.hidePortrait = true)} />
+      </div>
+      {shown
+        ? (
+          <>
+            <div className="flex items-center gap-2.5">
+              <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-[linear-gradient(#f8f8f4,#e4e4dc)]">
+                {sprite
+                  ? <CanvasView make={() => preview(texture(sprite, "down"), 2 * scaleOf(sprite))} deps={[sprite]} />
+                  : npc.portrait
+                  ? <img src={npc.portrait} alt="" className={image} />
+                  : creature
+                  ? <img src={creatureImage(creature.look) || artwork(creature.species)} alt="" className={image} />
+                  : <CanvasView make={() => preview(texture(npc.sprite, "down"), 2 * scaleOf(npc.sprite))} deps={[npc.sprite]} />}
+              </span>
+              <div className="grid min-w-0 flex-1 gap-1">
+                <span className="truncate text-xs text-foreground">{status}</span>
+                <div className="flex flex-wrap gap-1">
+                  <Button variant="secondary" size="sm" className="h-7 px-2 text-xs" disabled={busy} onClick={() => input.current?.click()}><UploadSimple />{busy ? "Uploading…" : "Upload"}</Button>
+                  <Popover open={picking} onOpenChange={setPicking}>
+                    <PopoverTrigger asChild><Button variant="secondary" size="sm" className="h-7 px-2 text-xs"><UserSquare />Pick a sprite</Button></PopoverTrigger>
+                    <PopoverContent side="left" align="start" className="w-72 p-2">
+                      {uploaded.length
+                        ? (
+                          <>
+                            <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Uploaded in this city</p>
+                            <div className="mb-2 flex flex-wrap gap-1">
+                              {uploaded.map((url) => (
+                                <button key={url} onClick={() => pick(url)} className={cn("grid size-12 place-items-center overflow-hidden rounded-md border bg-[linear-gradient(#f8f8f4,#e4e4dc)]", npc.portrait === url ? "border-select" : "border-border hover:border-ring")}><img src={url} alt="" className={image} /></button>
+                              ))}
+                            </div>
+                          </>
+                        )
+                        : null}
+                      <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Sprites</p>
+                      <div className="flex max-h-56 flex-wrap gap-1 overflow-y-auto">
+                        {sprites.map(({ id, name }) => (
+                          <button key={id} title={name} onClick={() => pick(`sprite:${id}`)} className={cn("grid h-11 w-9 place-items-center rounded-md border bg-card", sprite === id ? "border-select" : "border-border hover:border-ring")}>
+                            <CanvasView make={() => preview(texture(id, "down"), 1.5 * scaleOf(id))} deps={[id]} />
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {npc.portrait ? <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => update(() => delete npc.portrait)}><ArrowCounterClockwise />Default</Button> : null}
+                </div>
+              </div>
+              <input ref={input} type="file" accept="image/png,image/webp,image/gif" hidden onChange={(event) => (upload(event.target.files?.[0]), event.target.value = "")} />
+            </div>
+            <Hint>For your own image: a square PNG with a transparent background, 96 to 256 px, from the waist up. Pixel art looks best.</Hint>
+          </>
+        )
+        : <Hint>Their words show without a picture.</Hint>}
+    </div>
   );
 }
 

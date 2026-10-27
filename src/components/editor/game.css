@@ -1,47 +1,147 @@
 /* Game overlays: dialogue box, battle scene and touch gamepad (play mode) */
 
 .game-dialogue {
+  /* Gen 3 style message window: dark rim, gold trim, paper panel */
+  --rim: #4a4e5e;
+  --rim-dark: #2c2f3a;
+  --trim: #e0b44c;
+  --paper: #f8f8f4;
+  --paper-shade: #e4e4dc;
+  --ink: #4a4a52;
+  --ink-shadow: #d4d4cc;
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: 24px;
   transform: translateX(-50%);
-  width: min(720px, calc(100% - 24px));
-  min-height: 92px;
-  background: #fbfbfb;
-  color: #303030;
-  border: 4px solid #5068a8;
-  outline: 3px solid #f8f8f8;
-  box-shadow: 0 0 0 7px #303850, 0 10px 30px rgba(0, 0, 0, 0.5);
-  border-radius: 10px;
-  padding: 14px 20px;
-  font-size: 18px;
+  width: min(780px, calc(100% - 24px));
   z-index: 70;
   cursor: pointer;
+  user-select: none;
+}
+.game-dialogue .box {
+  position: relative;
+  z-index: 1;
+  min-height: 112px;
+  padding: 16px 52px 18px 22px;
+  border-radius: 12px;
+  background: var(--paper);
+  /* Inner bevel, gold trim, rim and drop shadow drawn as rings */
+  box-shadow:
+    inset -4px -4px 0 var(--paper-shade),
+    inset 3px 3px 0 #ffffff,
+    0 0 0 3px var(--trim),
+    0 0 0 9px var(--rim),
+    0 0 0 11px var(--rim-dark),
+    0 16px 34px rgba(0, 0, 0, 0.45);
+  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  font-size: 24px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  text-shadow: 2px 2px 0 var(--ink-shadow);
   white-space: pre-wrap;
-  animation: toast-in 0.15s ease-out;
+  animation: dialogue-in 0.16s ease-out;
+}
+.game-dialogue .text .rest {
+  visibility: hidden;
 }
 .game-dialogue .speaker {
   position: absolute;
-  top: -18px;
-  left: 14px;
-  background: #5068a8;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 2px 10px;
-  border-radius: 6px;
+  top: -30px;
+  left: 18px;
+  padding: 3px 14px 4px;
+  border-radius: 8px 8px 0 0;
+  background: var(--rim);
+  box-shadow: inset 0 3px 0 #5e6376, 0 0 0 2px var(--rim-dark);
+  border-bottom: 3px solid var(--trim);
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.2;
+  text-shadow: 2px 2px 0 var(--rim-dark);
 }
+/* Red arrow: bounces down when the message continues, blinks at the end */
 .game-dialogue .next {
   position: absolute;
-  right: 14px;
-  bottom: 6px;
-  color: #e03030;
-  font-size: 12px;
-  animation: bounce 0.6s infinite alternate;
+  right: 22px;
+  bottom: 16px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid #e04838;
+  filter: drop-shadow(2px 2px 0 var(--ink-shadow));
+}
+.game-dialogue .next.more {
+  animation: bounce 0.5s steps(2) infinite alternate;
+}
+.game-dialogue .next.end {
+  animation: blink 1s steps(1) infinite;
+}
+/* Portrait standing on the right, behind the window */
+.game-dialogue .portrait {
+  position: absolute;
+  right: 24px;
+  bottom: calc(100% - 26px);
+  z-index: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+  animation: portrait-in 0.22s ease-out;
+}
+.game-dialogue .portrait.art {
+  width: 232px;
+  height: 232px;
+  object-fit: contain;
+  object-position: bottom;
+}
+.game-dialogue .portrait.sprite {
+  /* Map sprites are 16×32: drawn 6× bigger, legs hidden behind the window */
+  width: 96px;
+  height: 192px;
+  margin-bottom: -28px;
+  right: 48px;
+}
+@media (max-width: 640px) {
+  .game-dialogue .box {
+    min-height: 92px;
+    padding: 12px 40px 14px 16px;
+    font-size: 19px;
+  }
+  .game-dialogue .speaker {
+    font-size: 15px;
+    top: -26px;
+  }
+  .game-dialogue .portrait.art {
+    width: 150px;
+    height: 150px;
+  }
+  .game-dialogue .portrait.sprite {
+    width: 64px;
+    height: 128px;
+    margin-bottom: -18px;
+    right: 28px;
+  }
+}
+@keyframes dialogue-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes portrait-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
 }
 @keyframes bounce {
   to {
-    transform: translateY(3px);
+    transform: translateY(4px);
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
   }
 }
 

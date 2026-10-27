@@ -758,6 +758,14 @@ export class Session {
     return sprite;
   }
 
+  /** Upload a portrait shown beside someone's dialogue (resolves with its url) */
+  async uploadPortrait(file: File) {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Pick a PNG, WebP or GIF image");
+    }
+    return await this.#store(file, "sprite", "portrait", 256 * 1024);
+  }
+
   /** Remove a custom sprite (everyone using it gets a default look) */
   async removeSprite(id: string) {
     this.city.sprites = (this.city.sprites ?? []).filter((sprite) => sprite.id !== id);

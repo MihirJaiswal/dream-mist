@@ -87,6 +87,10 @@ export type Npc = {
   wander: boolean;
   /** Route walked over and over, starting from where they stand (replaces wandering) */
   path?: NpcPath;
+  /** Picture shown beside their dialogue instead of the default one: an uploaded image url, or "sprite:<name>" to show a map sprite */
+  portrait?: string;
+  /** Talk without any picture beside the dialogue box */
+  hidePortrait?: boolean;
   trainer?: {
     team: { species: number; level: number }[];
     gym: boolean;

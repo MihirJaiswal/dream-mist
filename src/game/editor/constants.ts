@@ -77,6 +77,8 @@ export function kindOf(npc: Npc): Kind {
 export function convert(npc: Npc, kind: Kind, city: string) {
   delete npc.creature;
   delete npc.trainer;
+  delete npc.portrait;
+  delete npc.hidePortrait;
   if (kind === "pokemon") {
     Object.assign(npc, { sprite: "", creature: { species: 25, level: 5 }, name: "Pikachu", dialogue: "Pika pika!", role: "talk", wander: true });
   } else if (kind === "sign") {

@@ -5,7 +5,7 @@ import { bring, confirm, guestName, signIn } from "@/components/editor/account-d
 import { importSprite, importTileset } from "@/components/editor/city-dialogs";
 import { DialogHost } from "@/components/editor/dialogs";
 import { useSession } from "@/components/editor/hooks";
-import { BattleScreen, DialogueBox, Fade, Gamepad, MapBanner, SaveNudge, say } from "@/components/editor/overlays";
+import { BattleScreen, DialogueBox, Fade, Gamepad, hush, MapBanner, SaveNudge, say } from "@/components/editor/overlays";
 import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
@@ -42,6 +42,7 @@ export function EditorApp() {
     installUi({
       toast: (text, type = "info") => toast[type](text),
       say,
+      hush,
       confirm,
       signIn,
       onboarding,
@@ -75,7 +76,7 @@ export function EditorApp() {
       <Gamepad />
       <Fade />
       <DialogHost />
-      <Toaster position="bottom-right" />
+      <Toaster position="bottom-right" closeButton />
     </TooltipProvider>
   );
 }

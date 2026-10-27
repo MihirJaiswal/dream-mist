@@ -197,6 +197,18 @@ function Fold({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Prompt for AI image generators, with a copy button */
+function AiPrompt({ prompt, children }: { prompt: string; children?: React.ReactNode }) {
+  return (
+    <div className="grid gap-2 border-t border-border p-3">
+      {children}
+      <Hint>Paste this into an image generator and replace the part in brackets. Most tools draw bigger than asked: generate it large, then shrink it to the exact size with nearest-neighbor scaling (Aseprite, Piskel, LibreSprite, or GIMP with interpolation set to None) so the pixels stay sharp.</Hint>
+      <Textarea readOnly rows={9} value={prompt} className="max-h-56 font-mono text-xs" />
+      <Button variant="outline" size="sm" className="justify-self-end" onClick={() => navigator.clipboard.writeText(prompt).then(() => toast.success("Prompt copied"), () => toast.warning("Couldn't copy: select the text and copy it"))}><Copy />Copy prompt</Button>
+    </div>
+  );
+}
+
 function Settings({ close }: { close: () => void }) {
   const area = session.area;
   const city = session.city;
@@ -286,6 +298,40 @@ function Settings({ close }: { close: () => void }) {
 //=================================================================================================
 // Import a tileset
 
+/** Kinds of tilesets, and a prompt for AI image generators for each (the tile size goes into the layout) */
+const tilesetKinds = {
+  ground: {
+    label: "Ground",
+    hint: "Terrain painted on the Ground layer: grass, paths, water. Tiles are solid and repeat seamlessly.",
+    prompt: (tile: number) => `Pixel art top-down tileset for a Pokémon-style game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Theme: [describe the place, for example a snowy mountain village].
+Contents: ground tiles only: plain ground, tall grass, a path, sand or dirt, water, flowers, and the edge and corner pieces where each path or water area meets the plain ground (a 3×3 block per terrain: four corners, four edges and the center).
+Layout: a grid of 8 columns and 8 rows where every tile is exactly ${tile}×${tile} pixels (the whole image is ${tile * 8}×${tile * 8} pixels), with no spacing, margins or gaps between tiles.
+Style: straight top-down view, crisp pixels, no anti-aliasing, no blur, a limited palette, soft GBA colors, every center tile seamless when repeated next to itself.
+Every tile is fully opaque. No text, no grid lines, no labels, no border.`,
+  },
+  objects: {
+    label: "Buildings and nature",
+    hint: "Things placed on the Objects and Above layers: houses, trees, fences, signs. The background is transparent.",
+    prompt: (tile: number) => `Pixel art top-down tileset of objects for a Pokémon-style game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Theme: [describe the place, for example a seaside fishing town].
+Contents: [list what you need, for example two small houses, a shop, trees, bushes, rocks, a fence, a mailbox, a sign post, flower pots].
+Layout: everything lined up on a grid of ${tile}×${tile} pixel tiles, 8 tiles wide (${tile * 8} pixels wide), with no spacing or margins. Big objects like houses and trees span several whole tiles and start exactly on a tile edge. Leave empty tiles fully transparent.
+Style: 3/4 top-down view like the Game Boy Advance games, crisp pixels, no anti-aliasing, no blur, a limited palette, a 1-pixel dark outline.
+Background: fully transparent. No ground under the objects, no shadows on the ground, no text, no grid lines, no border.`,
+  },
+  indoor: {
+    label: "Inside",
+    hint: "Interiors: floors, walls, doors, windows and furniture for houses, shops and gyms.",
+    prompt: (tile: number) => `Pixel art top-down interior tileset for a Pokémon-style game, in the style of the house and Pokémon Center interiors in Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Theme: [describe the room, for example a cozy wooden cabin or a modern gym].
+Contents: floor tiles that repeat seamlessly, a back wall with a top edge, a doorway and a door mat, windows, a bed, a table and chairs, a bookshelf, a TV, plants, a rug, stairs.
+Layout: everything lined up on a grid of ${tile}×${tile} pixel tiles, 8 tiles wide (${tile * 8} pixels wide), with no spacing or margins. Furniture spans whole tiles and starts exactly on a tile edge.
+Style: 3/4 top-down view, crisp pixels, no anti-aliasing, no blur, a limited palette, a 1-pixel dark outline.
+Background: floor and wall tiles are fully opaque; around furniture and on empty tiles the background is fully transparent. No text, no grid lines, no border.`,
+  },
+};
+
 export function importTileset() {
   return openDialog<void>((close) => <ImportTileset close={close} />);
 }
@@ -294,11 +340,12 @@ function ImportTileset({ close }: { close: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [tile, setTile] = useState("16");
+  const [kind, setKind] = useState<keyof typeof tilesetKinds>("ground");
   const [busy, setBusy] = useState(false);
   const preview = useMemo(() => file ? URL.createObjectURL(file) : "", [file]);
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader><DialogTitle>Import tileset</DialogTitle><DialogDescription>PNG, WebP or GIF tileset laid out on a grid, no spacing.</DialogDescription></DialogHeader>
         <button onClick={async () => {
           const chosen = await pick("image/png,image/webp,image/gif");
@@ -318,6 +365,32 @@ function ImportTileset({ close }: { close: () => void }) {
             </Select>
           </Field>
         </div>
+        <Collapsible className="rounded-lg border border-border bg-card">
+          <Fold>What makes a good tileset</Fold>
+          <CollapsibleContent>
+            <ul className="grid list-disc gap-1.5 border-t border-border py-3 pr-3 pl-7 text-xs leading-relaxed text-muted-foreground">
+              <li><b>A grid</b> of square tiles, all the same size, starting at the top-left corner with <b>no spacing or margins</b>. Pick that size under <b>Tile size</b>.</li>
+              <li><b>Width and height</b> a multiple of the tile size, for example 128×128 px for 8 × 8 tiles of 16 px. Extra pixels on the right or bottom are cut off.</li>
+              <li><b>16 px tiles</b> match the built-in Hoenn tiles. Bigger tiles are shrunk to fit the same grid on the map.</li>
+              <li><b>Transparent background</b> for objects, so the ground shows through. Ground tiles should be solid.</li>
+              <li><b>Big things</b> like houses span several tiles: select them together in the palette and paint them as one stamp.</li>
+              <li><b>Up to 512 KB</b> without an account, 4 MB when logged in. Fully empty tiles paint nothing, so they never cover what is below.</li>
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+        <Collapsible className="rounded-lg border border-border bg-card">
+          <Fold>Make it with AI</Fold>
+          <CollapsibleContent>
+            <AiPrompt prompt={tilesetKinds[kind].prompt(Number(tile))}>
+              <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-0.5">
+                {Object.entries(tilesetKinds).map(([key, { label }]) => (
+                  <button key={key} aria-pressed={kind === key} onClick={() => setKind(key as typeof kind)} className={cn("rounded px-2 py-1 text-xs", kind === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{label}</button>
+                ))}
+              </div>
+              <Hint>{tilesetKinds[kind].hint} The prompt uses the tile size chosen above ({tile} px). AI tools rarely line tiles up perfectly: check the grid in a pixel editor before importing.</Hint>
+            </AiPrompt>
+          </CollapsibleContent>
+        </Collapsible>
         <Button disabled={!file || busy} onClick={async () => {
           setBusy(true);
           try {
@@ -489,13 +562,7 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
         </Collapsible>
         <Collapsible className="rounded-lg border border-border bg-card">
           <Fold>Make it with AI</Fold>
-          <CollapsibleContent>
-          <div className="grid gap-2 border-t border-border p-3">
-            <Hint>Paste this into an image generator and replace the part in brackets. Most tools draw bigger than asked: generate it large, then shrink it to the exact size with nearest-neighbor scaling (Aseprite, Piskel, LibreSprite, or GIMP with interpolation set to None) so the pixels stay sharp.</Hint>
-            <Textarea readOnly rows={9} value={prompts[kind]} className="font-mono text-xs" />
-            <Button variant="outline" size="sm" className="justify-self-end" onClick={() => navigator.clipboard.writeText(prompts[kind]).then(() => toast.success("Prompt copied"), () => toast.warning("Couldn't copy: select the text and copy it"))}><Copy />Copy prompt</Button>
-          </div>
-          </CollapsibleContent>
+          <CollapsibleContent><AiPrompt prompt={prompts[kind]} /></CollapsibleContent>
         </Collapsible>
         <DialogFooter>
           <Button disabled={!ok || busy} onClick={async () => {

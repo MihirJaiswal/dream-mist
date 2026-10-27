@@ -1,6 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
-import { creatureSprite, npc as texture, size, species } from "./assets";
+import { artwork, creatureSprite, npc as texture, preview, size, species } from "./assets";
 import { frames } from "./brushes";
 import type { City, Direction, Door, Npc } from "./data";
 import type { CityMap } from "./map";
@@ -8,7 +8,7 @@ import { Battle } from "./battle";
 import { creatureImage, scaleOf } from "./sprites";
 import { create, trainer } from "./trainer";
 import { sound } from "./audio";
-import { ui } from "./ui-bridge";
+import { type Portrait, ui } from "./ui-bridge";
 
 /** Direction deltas */
 const deltas = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } } as const;
@@ -216,6 +216,7 @@ export class Play {
 
   /** Stop play mode */
   stop() {
+    ui.hush();
     this.#map.app.ticker.remove(this.#ticker);
     this.#listeners.forEach(([type, listener]) => document.removeEventListener(type, listener));
     this.#player.destroy();
@@ -572,23 +573,48 @@ export class Play {
     this.#refresh(true);
   }
 
+  /** Picture shown beside someone's dialogue: the one picked for them, a Pokémon's artwork, or their map sprite drawn bigger (signs have none) */
+  #portrait(data: Npc): Portrait | undefined {
+    if (data.hidePortrait) {
+      return undefined;
+    }
+    const sprite = (name: string): Portrait | undefined => {
+      try {
+        return { src: preview(texture(name, "down"), 1).toDataURL(), kind: "sprite" };
+      } catch {
+        //Images from another site without CORS can't be copied
+        return undefined;
+      }
+    };
+    if (data.portrait?.startsWith("sprite:")) {
+      return sprite(data.portrait.slice("sprite:".length));
+    }
+    if (data.portrait) {
+      return { src: data.portrait, kind: "art" };
+    }
+    if (data.creature) {
+      return { src: creatureImage(data.creature.look) || artwork(data.creature.species), kind: "art" };
+    }
+    return data.sprite ? sprite(data.sprite) : undefined;
+  }
+
   /** Talk to a NPC */
   async #talk({ data, index }: { data: Npc; index: number }) {
-    const speaker = data.name;
+    const voice = { speaker: data.name, portrait: this.#portrait(data) };
     const story = data.story;
     //Not ready yet in the story
     if ((story?.requires) && (!this.#done(story.requires))) {
-      await ui.say(story.locked || "I'm busy right now. Come back later!", { speaker });
+      await ui.say(story.locked || "I'm busy right now. Come back later!", voice);
       return;
     }
     //Their part of the story is already done
     if ((story?.completes) && (this.#done(story.completes)) && (story.done) && (data.role !== "healer")) {
-      await ui.say(story.done, { speaker });
+      await ui.say(story.done, voice);
       return;
     }
     if ((data.role === "wild") && (data.creature) && (species(data.creature.species))) {
       if (data.dialogue) {
-        await ui.say(data.dialogue, { speaker });
+        await ui.say(data.dialogue, voice);
       }
       if (!trainer.lead) {
         await ui.say("Your Pokémon are too tired to battle. Find someone to heal them!");
@@ -616,14 +642,14 @@ export class Play {
     }
     if ((data.role === "trainer") && (data.trainer?.team.length)) {
       if (this.#defeated(index)) {
-        await ui.say(data.trainer.defeat || "You're too strong!", { speaker });
+        await ui.say(data.trainer.defeat || "You're too strong!", voice);
         return;
       }
       if (!trainer.lead) {
-        await ui.say("Your Pokémon are too tired to battle. Find someone to heal them!", { speaker });
+        await ui.say("Your Pokémon are too tired to battle. Find someone to heal them!", voice);
         return;
       }
-      await ui.say(data.dialogue || "Let's battle!", { speaker });
+      await ui.say(data.dialogue || "Let's battle!", voice);
       const team = data.trainer.team.filter(({ species: id }) => species(id)).map(({ species: id, level }) => create(id, level, { shiny: false }));
       const outcome = await new Battle({ opponent: { name: data.name || "Trainer", sprite: data.sprite, team } }).start();
       if (outcome === "win") {
@@ -633,26 +659,26 @@ export class Play {
           trainer.profile!.badges.push({ city: this.#city.name, name: data.name, badge, date: Date.now() });
           trainer.profile!.bag.balls += 5;
           trainer.save();
-          await ui.say(`${data.trainer.defeat || "You beat me fair and square!"}\n\n${trainer.profile!.name} received the ${badge}!`, { speaker });
+          await ui.say(`${data.trainer.defeat || "You beat me fair and square!"}\n\n${trainer.profile!.name} received the ${badge}!`, voice);
           ui.toast(`🏅 ${badge} earned!`, "success");
         } else {
           trainer.profile!.bag.balls += 2;
           trainer.save();
-          await ui.say(`${data.trainer.defeat || "You're strong!"}\n\nYou got 2 Poké Balls.`, { speaker });
+          await ui.say(`${data.trainer.defeat || "You're strong!"}\n\nYou got 2 Poké Balls.`, voice);
         }
         await this.#progress(data);
       }
       await this.#after(outcome);
       return;
     }
-    await ui.say(data.dialogue || "Hello!", { speaker });
+    await ui.say(data.dialogue || "Hello!", voice);
     if (data.role === "healer") {
       trainer.heal();
       trainer.profile!.bag.potions = Math.max(trainer.profile!.bag.potions, 5);
       trainer.profile!.bag.balls = Math.max(trainer.profile!.bag.balls, 5);
       trainer.save();
       sound.play("victory");
-      await ui.say("Your Pokémon are fully healed! We hope to see you again!", { speaker });
+      await ui.say("Your Pokémon are fully healed! We hope to see you again!", voice);
     }
     await this.#progress(data);
   }

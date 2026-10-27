@@ -6,6 +6,7 @@ import { artwork } from "@/game/assets";
 import { Battle, type BattleSide } from "@/game/battle";
 import { cloud } from "@/game/cloud";
 import { hp, named } from "@/game/trainer";
+import type { Portrait } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
 import { Eyedropper, Users, Warning, X } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -13,17 +14,25 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 //=================================================================================================
 // Dialogue box
 
-type Line = { text: string; speaker: string; done: () => void };
+type Line = { text: string; speaker: string; portrait?: Portrait; done: () => void };
 let queue = [] as Line[];
 const lineListeners = new Set<() => void>();
 const emitLines = () => lineListeners.forEach((listener) => listener());
 
 /** Show a dialogue (blank lines split pages), resolves when the player dismisses the last page */
-export function say(text: string, { speaker = "" } = {}) {
+export function say(text: string, { speaker = "", portrait }: { speaker?: string; portrait?: Portrait } = {}) {
   return new Promise<void>((done) => {
-    queue = [...queue, { text, speaker, done }];
+    queue = [...queue, { text, speaker, portrait, done }];
     emitLines();
   });
+}
+
+/** Close the dialogue box, dropping pending lines without resolving them, so a stopped game doesn't carry on talking */
+export function hush() {
+  if (queue.length) {
+    queue = [];
+    emitLines();
+  }
 }
 
 /** Game dialogue box: types each page, Space/Enter/Z/E or a click continues */
@@ -73,11 +82,16 @@ export function DialogueBox() {
   if (!line) {
     return null;
   }
+  const typing = shown < text.length;
   return (
-    <div className="game-dialogue" role="dialog" aria-live="polite" onClick={() => next.current()}>
-      {line.speaker ? <div className="speaker">{line.speaker}</div> : null}
-      <div className="text">{text.slice(0, shown)}</div>
-      <div className="next" aria-hidden="true">▼</div>
+    <div className="game-dialogue" role="dialog" aria-live="polite" aria-label={line.speaker || "Message"} onClick={() => next.current()}>
+      {line.portrait ? <img key={line.portrait.src} className={cn("portrait", line.portrait.kind)} src={line.portrait.src} alt="" draggable={false} /> : null}
+      <div className="box">
+        {line.speaker ? <div className="speaker">{line.speaker}</div> : null}
+        {/* The full page is laid out invisibly so the box doesn't grow while typing */}
+        <div className="text"><span>{text.slice(0, shown)}</span><span className="rest" aria-hidden="true">{text.slice(shown)}</span></div>
+        {typing ? null : <div className={cn("next", page < pages.length - 1 ? "more" : "end")} aria-hidden="true" />}
+      </div>
     </div>
   );
 }

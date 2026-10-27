@@ -32,6 +32,57 @@ Removing a tileset erases every tile painted with it.
   DreamMist doesn't know which of your tiles are walls. Automatic collision blocks every custom tile on the Objects layer, so paint walkable decoration on the Ground layer, or fix it on the **Collision** layer.
 </Callout>
 
+### Making a tileset with AI
+
+**Import tileset → Make it with AI** has a prompt for each kind of tileset, adapted to the tile size you pick. Here they are for 16 px tiles. Replace the parts in brackets.
+
+AI tools usually draw bigger than asked and rarely line tiles up exactly. Shrink the result to the exact size with nearest-neighbor scaling (Aseprite, Piskel, LibreSprite, or GIMP with interpolation set to None), then check the grid in a pixel editor before importing.
+
+**Ground**: Terrain for the Ground layer. Tiles are solid and repeat seamlessly.
+
+<div className="prompt-block">
+
+```text
+Pixel art top-down tileset for a Pokémon-style game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Theme: [describe the place, for example a snowy mountain village].
+Contents: ground tiles only: plain ground, tall grass, a path, sand or dirt, water, flowers, and the edge and corner pieces where each path or water area meets the plain ground (a 3×3 block per terrain: four corners, four edges and the center).
+Layout: a grid of 8 columns and 8 rows where every tile is exactly 16×16 pixels (the whole image is 128×128 pixels), with no spacing, margins or gaps between tiles.
+Style: straight top-down view, crisp pixels, no anti-aliasing, no blur, a limited palette, soft GBA colors, every center tile seamless when repeated next to itself.
+Every tile is fully opaque. No text, no grid lines, no labels, no border.
+```
+
+</div>
+
+**Buildings and nature**: Houses, trees, fences and signs for the Objects and Above layers, on a transparent background.
+
+<div className="prompt-block">
+
+```text
+Pixel art top-down tileset of objects for a Pokémon-style game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Theme: [describe the place, for example a seaside fishing town].
+Contents: [list what you need, for example two small houses, a shop, trees, bushes, rocks, a fence, a mailbox, a sign post, flower pots].
+Layout: everything lined up on a grid of 16×16 pixel tiles, 8 tiles wide (128 pixels wide), with no spacing or margins. Big objects like houses and trees span several whole tiles and start exactly on a tile edge. Leave empty tiles fully transparent.
+Style: 3/4 top-down view like the Game Boy Advance games, crisp pixels, no anti-aliasing, no blur, a limited palette, a 1-pixel dark outline.
+Background: fully transparent. No ground under the objects, no shadows on the ground, no text, no grid lines, no border.
+```
+
+</div>
+
+**Inside**: Floors, walls and furniture for interiors.
+
+<div className="prompt-block">
+
+```text
+Pixel art top-down interior tileset for a Pokémon-style game, in the style of the house and Pokémon Center interiors in Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Theme: [describe the room, for example a cozy wooden cabin or a modern gym].
+Contents: floor tiles that repeat seamlessly, a back wall with a top edge, a doorway and a door mat, windows, a bed, a table and chairs, a bookshelf, a TV, plants, a rug, stairs.
+Layout: everything lined up on a grid of 16×16 pixel tiles, 8 tiles wide (128 pixels wide), with no spacing or margins. Furniture spans whole tiles and starts exactly on a tile edge.
+Style: 3/4 top-down view, crisp pixels, no anti-aliasing, no blur, a limited palette, a 1-pixel dark outline.
+Background: floor and wall tiles are fully opaque; around furniture and on empty tiles the background is fully transparent. No text, no grid lines, no border.
+```
+
+</div>
+
 ## Music
 
 Each city has two songs:
