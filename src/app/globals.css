@@ -1,0 +1,220 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset-legacy.css";
+
+/* DreamMist website: same shadcn neutral palette as the editor, white primary, pixel display face used sparingly */
+@theme {
+  --color-bg: #0a0a0a;
+  --color-surface: #171717;
+  --color-muted: #262626;
+  --color-line: #2e2e2e;
+  --color-input: #383838;
+  --color-fg: #fafafa;
+  --color-muted-fg: #a3a3a3;
+  --color-subtle-fg: #737373;
+  --color-ring: #a3a3a3;
+  --color-select: #f2bf4b;
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-pixel: var(--font-silkscreen), var(--font-plex-mono), monospace;
+  --font-game: var(--font-pixelify), var(--font-silkscreen), monospace;
+  /* Dream sky and Pokémon type accents (landing page) */
+  --color-dream: #c9a7f5;
+  --color-dream-deep: #3b2466;
+  --color-mist: #fbe4f6;
+  --color-grass: #78c850;
+  --color-fire: #f08030;
+  --color-water: #6890f0;
+  --color-psychic: #f85888;
+  --color-fairy: #ee99ac;
+  /* shadcn/ui tokens (editor and dialogs), same dark neutral palette */
+  --color-background: #0a0a0a;
+  --color-foreground: #fafafa;
+  --color-card: #171717;
+  --color-card-foreground: #fafafa;
+  --color-popover: #171717;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #fafafa;
+  --color-primary-foreground: #171717;
+  --color-secondary: #262626;
+  --color-secondary-foreground: #fafafa;
+  --color-muted-foreground: #a3a3a3;
+  --color-accent: #262626;
+  --color-accent-foreground: #fafafa;
+  --color-destructive: #f06a6a;
+  --color-border: #2e2e2e;
+  --color-success: #4cc28a;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+/* Fumadocs tokens follow the same palette */
+:root,
+.dark {
+  --color-fd-background: #0a0a0a;
+  --color-fd-foreground: #fafafa;
+  --color-fd-card: #171717;
+  --color-fd-card-foreground: #fafafa;
+  --color-fd-popover: #171717;
+  --color-fd-popover-foreground: #fafafa;
+  --color-fd-muted: #262626;
+  --color-fd-muted-foreground: #a3a3a3;
+  --color-fd-border: #2e2e2e;
+  --color-fd-accent: #262626;
+  --color-fd-accent-foreground: #fafafa;
+  --color-fd-primary: #fafafa;
+  --color-fd-primary-foreground: #171717;
+  --color-fd-secondary: #262626;
+  --color-fd-secondary-foreground: #fafafa;
+  --color-fd-ring: #a3a3a3;
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Long prompts in the docs wrap instead of scrolling sideways */
+.prompt-block pre {
+  width: auto;
+  min-width: 0;
+}
+.prompt-block pre .line {
+  white-space: pre-wrap;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.5em;
+  justify-content: center;
+  padding: 0 0.35em;
+  border: 1px solid var(--color-line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 500 0.8em/1.6 var(--font-mono);
+  color: var(--color-muted-fg);
+}
+
+/* Gen 3 dialogue box: white page, thick dark frame with a light inner line */
+.dialogue {
+  background: #f8f8f8;
+  color: #303040;
+  border: 4px solid #2a2540;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 3px #b9c6f2, 6px 6px 0 rgb(0 0 0 / 0.45);
+  font-family: var(--font-game);
+}
+
+/* Battle command menu */
+.battle-menu {
+  background: #f8f8f8;
+  border: 4px solid #2a2540;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 3px #e8a0c8, 6px 6px 0 rgb(0 0 0 / 0.45);
+  font-family: var(--font-game);
+}
+.battle-menu a {
+  position: relative;
+  padding-left: 1.4em;
+  color: #303040;
+}
+.battle-menu a::before {
+  content: "▶";
+  position: absolute;
+  left: 0.1em;
+  opacity: 0;
+  color: #303040;
+  font-size: 0.8em;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.battle-menu a:hover::before,
+.battle-menu a:focus-visible::before,
+.battle-menu a[data-default]:not(:is(.battle-menu:hover a))::before {
+  opacity: 1;
+}
+.battle-menu a:focus-visible {
+  outline: 2px dashed #2a2540;
+  outline-offset: 2px;
+}
+
+/* Pixel frame with a hard offset shadow */
+.pixel-frame {
+  border: 4px solid #1b1530;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.08), 8px 8px 0 rgb(0 0 0 / 0.5);
+  border-radius: 6px;
+}
+
+/* Pixel headline shadow */
+.pixel-shadow {
+  text-shadow: 3px 3px 0 var(--color-dream-deep), 0 0 24px rgb(201 167 245 / 0.5);
+}
+
+/* Stepped (choppy, retro) motion */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.float {
+  animation: float 3.2s steps(8) infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+.twinkle {
+  animation: twinkle 2.4s steps(4) infinite;
+}
+@keyframes drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.drift {
+  animation: drift 60s linear infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+.blink {
+  animation: blink 1s steps(1) infinite;
+}
+
+/* Soft mist band built from overlapping glows */
+.mist {
+  background:
+    radial-gradient(40% 60% at 10% 60%, rgb(251 228 246 / 0.55), transparent 70%),
+    radial-gradient(35% 55% at 35% 40%, rgb(233 205 250 / 0.45), transparent 70%),
+    radial-gradient(40% 60% at 60% 65%, rgb(251 228 246 / 0.5), transparent 70%),
+    radial-gradient(35% 55% at 85% 45%, rgb(233 205 250 / 0.45), transparent 70%);
+  filter: blur(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float,
+  .twinkle,
+  .drift,
+  .blink {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

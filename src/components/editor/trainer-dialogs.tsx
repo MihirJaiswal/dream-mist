@@ -1,0 +1,157 @@
+"use client";
+
+import { confirm } from "@/components/editor/account-dialogs";
+import { openDialog } from "@/components/editor/dialogs";
+import { useSession } from "@/components/editor/hooks";
+import { TypeBadge } from "@/components/editor/pokemon-picker";
+import { CanvasView, Field, Hint } from "@/components/editor/widgets";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { assets, npc as texture, portrait, preview, species } from "@/game/assets";
+import { colors } from "@/game/battle";
+import { cloud } from "@/game/cloud";
+import { session } from "@/game/session";
+import { type Creature, hp, named, starters, trainer } from "@/game/trainer";
+import { cn } from "@/lib/utils";
+import { Medal, Trash } from "@phosphor-icons/react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+//=================================================================================================
+// New trainer
+
+export function onboarding() {
+  return openDialog<void>((close) => <Onboarding close={close} />).then(() => undefined);
+}
+
+function Onboarding({ close }: { close: () => void }) {
+  const looks = ["may", "wally", "youngster", "lass", "ace_trainer", "hiker", "psychic", "rich_boy", "schoolkid_f", "schoolkid_m", "triathlete_f", "triathlete_m", "ranger", "sailor", "twin", "aroma"].filter((name) => assets.npcs.includes(name));
+  const [name, setName] = useState(cloud.user?.username ?? "");
+  const [sprite, setSprite] = useState("may");
+  const [starter, setStarter] = useState(starters[0]);
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Welcome, new trainer!</DialogTitle>
+          <DialogDescription>{cloud.user ? "Your trainer travels with you through every city. Progress is saved to your account." : "Your trainer travels with you through every city. Progress is saved in this browser (log in to keep it online)."}</DialogDescription>
+        </DialogHeader>
+        <Field label="Name"><Input autoFocus value={name} placeholder="Your trainer name" maxLength={16} onChange={(event) => setName(event.target.value)} /></Field>
+        <Field label="Looks">
+          <div className="flex flex-wrap gap-1">
+            {looks.map((look) => <button key={look} onClick={() => setSprite(look)} className={cn("grid h-14 w-11 place-items-center rounded-md border bg-card", sprite === look ? "border-select" : "border-border hover:border-ring")}><CanvasView make={() => preview(texture(look, "down"), 2)} deps={[look]} /></button>)}
+          </div>
+        </Field>
+        <Field label="Choose your partner">
+          <div className="grid grid-cols-3 gap-2">
+            {starters.map((id) => (
+              <button key={id} onClick={() => setStarter(id)} className={cn("grid justify-items-center gap-1 rounded-lg border bg-card p-2", starter === id ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-border hover:border-ring")} style={{ ["--accent" as string]: colors[species(id).types[0]] }}>
+                <CanvasView make={() => portrait(id, 2)} deps={[id]} />
+                <b className="text-sm">{species(id).name}</b>
+                <TypeBadge type={species(id).types[0]} />
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Button onClick={() => {
+          session.startTrainer(name, sprite, starter);
+          close();
+          toast.success(`${species(starter).name} joined your party!`);
+        }}>Start adventure</Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+//=================================================================================================
+// Party and PC box
+
+export function party() {
+  return openDialog<void>((close) => <Party close={close} />);
+}
+
+function CreatureRow({ creature, children }: { creature: Creature; children: React.ReactNode }) {
+  const ratio = creature.hp / hp(creature);
+  return (
+    <div className={cn("flex items-center gap-3 rounded-md border border-border p-2", creature.hp <= 0 && "opacity-60")}>
+      <CanvasView className="h-[60px] w-[68px] overflow-hidden" make={() => portrait(creature.species, 1, creature.art)} deps={[creature.species, creature.art]} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5"><b className="text-sm">{named(creature)}{creature.shiny ? " ✨" : ""}</b><span className="rounded bg-muted px-1.5 text-[11px]">Lv {creature.level}</span>{species(creature.species).types.map((type) => <TypeBadge key={type} type={type} />)}</div>
+        <div className="my-1 h-1.5 rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div>
+        <small className="block truncate text-[11px] text-subtle-fg">HP {creature.hp}/{hp(creature)} · {creature.moves.map(({ key }) => assets.moves[key]?.name ?? key).join(", ")}</small>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Party({ close }: { close: () => void }) {
+  useSession();
+  const profile = trainer.profile;
+  if (!profile) {
+    return null;
+  }
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader><DialogTitle>Your Pokémon</DialogTitle><DialogDescription>Bag: {profile.bag.balls} Poké Balls · {profile.bag.potions} Potions</DialogDescription></DialogHeader>
+        <div className="grid gap-1.5">
+          {profile.party.map((creature, i) => (
+            <CreatureRow key={i} creature={creature}>
+              {i ? <Button size="sm" variant="outline" title="Send first in battle" onClick={() => session.moveCreature("lead", i)}>Lead</Button> : <span className="rounded bg-muted px-2 py-1 text-xs">Lead</span>}
+              {profile.party.length > 1 ? <Button size="sm" variant="ghost" onClick={() => session.moveCreature("box", i)}>To box</Button> : null}
+            </CreatureRow>
+          ))}
+        </div>
+        {profile.box.length
+          ? (
+            <div className="grid gap-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">PC Box ({profile.box.length})</p>
+              {profile.box.map((creature, i) => <CreatureRow key={i} creature={creature}>{profile.party.length < 6 ? <Button size="sm" variant="outline" onClick={() => session.moveCreature("party", i)}>To party</Button> : null}</CreatureRow>)}
+            </div>
+          )
+          : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+//=================================================================================================
+// Trainer card
+
+export function card() {
+  return openDialog<void>((close) => <TrainerCard close={close} />);
+}
+
+function TrainerCard({ close }: { close: () => void }) {
+  const profile = trainer.profile;
+  if (!profile) {
+    return null;
+  }
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader><DialogTitle>Trainer card</DialogTitle><DialogDescription className="sr-only">Badges, Pokédex and progress</DialogDescription></DialogHeader>
+        <div className="flex items-center gap-4 rounded-lg border border-border bg-card p-3">
+          <CanvasView make={() => preview(texture(profile.sprite, "down"), 4)} deps={[profile.sprite]} />
+          <div><h3 className="text-lg font-semibold">{profile.name}</h3><p className="text-sm text-muted-foreground">Pokédex: {profile.seen.length} seen · {profile.caught.length} caught</p><p className="text-sm text-muted-foreground">Trainers defeated: {profile.defeated.length}</p></div>
+        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Badges ({profile.badges.length})</p>
+        {profile.badges.length
+          ? <div className="grid gap-1">{profile.badges.map(({ badge, city, name }, i) => <div key={i} className="flex items-center gap-2 rounded-md border border-border p-2"><Medal size={18} className="text-select" /><div><b className="block text-sm">{badge}</b><small className="text-xs text-subtle-fg">Beat {name} in {city}</small></div></div>)}</div>
+          : <Hint>Beat gym leaders in your friends&apos; cities to earn badges.</Hint>}
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Caught Pokémon</p>
+        <div className="flex flex-wrap gap-1">{profile.caught.slice().sort((a, b) => a - b).map((id) => <span key={id} title={species(id)?.name}><CanvasView className="h-[46px] w-[56px] overflow-hidden" make={() => portrait(id, 0.8)} deps={[id]} /></span>)}</div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" className="text-destructive" onClick={async () => {
+            if (await confirm("Start over?", { text: "This erases your trainer, party, badges and story progress.", action: "Start over", danger: true })) {
+              close();
+              await session.startOver();
+            }
+          }}><Trash />Start over</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

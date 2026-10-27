@@ -1,0 +1,79 @@
+---
+title: Editor basics
+description: The screen, the tools, moving around, selections and undo.
+---
+
+## The screen
+
+| Area | What's there |
+| --- | --- |
+| Top bar | The city name and menu, **Build** and **Play**, **Publish**, **Share**, your party and trainer card, and your account. |
+| Tool rail | On the far left: Brush, Eraser, Rectangle, Fill, Picker and Select, with Undo and Redo at the bottom. |
+| Side panel | **Maps** (outside and interiors), **Layers**, and the options of the selected layer. |
+| Map controls | At the bottom right: zoom, center, grid, minimap and side panel toggles. |
+| Minimap | Top right. Click or drag in it to jump around. |
+
+Hover any icon to see what it does and its shortcut. Drag the edge of the side panel to resize it, and double-click the edge to hide it.
+
+## Tools
+
+| Tool | Key | What it does |
+| --- | --- | --- |
+| Brush | <kbd>B</kbd> | Paints the current brush or stamp. Drag to paint a line. |
+| Eraser | <kbd>E</kbd> | Removes tiles from the current layer. |
+| Rectangle | <kbd>R</kbd> | Drag to fill a rectangle. Multi-tile stamps repeat as a pattern. |
+| Fill | <kbd>F</kbd> | Fills a connected area of the same tile. |
+| Picker | <kbd>I</kbd> | Click a tile on the map to use it as the brush. |
+| Select | <kbd>S</kbd> | Drag to select an area to copy, cut, paste or clear. |
+
+Tools work on the selected layer. On gameplay layers like Collision and Encounters they paint that layer's value instead of tiles.
+
+## Layers
+
+Select a layer in the side panel or with <kbd>1</kbd> to <kbd>9</kbd>. Hover a layer to show two buttons:
+
+- **Eye**: hide the layer while you edit. Visitors always see every layer.
+- **Lock**: prevent painting on it by mistake.
+
+See [How a game works](/docs/how-it-works#layers) for what each layer holds.
+
+## Moving around
+
+| Do this | With |
+| --- | --- |
+| Pan | Two-finger swipe, right-drag, or <kbd>Space</kbd>+drag |
+| Zoom | Pinch, <kbd>Ctrl</kbd>+scroll, <kbd>+</kbd> and <kbd>−</kbd> |
+| Fit the map | <kbd>0</kbd> or the center button |
+| Jump | Click or drag in the minimap |
+| Toggle the grid | <kbd>G</kbd> |
+
+Zoom goes from 50% to 800% and stays anchored under your cursor. The zoom label in the map controls resets it to 300%.
+
+## Selecting, copying and pasting
+
+Press <kbd>S</kbd> and drag on the map. A selection takes **every layer** of the area: tiles, collisions, encounter zones and story gates. That makes it easy to duplicate a whole house, a fenced garden or a patch of grass.
+
+- <kbd>⌘</kbd> <kbd>C</kbd> copies, <kbd>⌘</kbd> <kbd>X</kbd> cuts, <kbd>Delete</kbd> clears.
+- <kbd>⌘</kbd> <kbd>V</kbd> enters paste mode: click to place as many copies as you like, <kbd>Esc</kbd> to stop.
+- **Use as brush** turns the selection into a stamp you can paint with.
+
+People and doors are not copied. Place them again after pasting.
+
+## Undo and redo
+
+<kbd>⌘</kbd> <kbd>Z</kbd> undoes, <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Z</kbd> redoes. Every change is undoable, including people, story steps and doors. Resizing a map clears the history.
+
+## The city menu
+
+The arrow next to the city name opens:
+
+- **City settings**: map size, music and tilesets.
+- **Your cities**: every city on this device and in your account. Open, delete, or import a `.json` file.
+- **New city**: start from the starter town, an empty field, or one of 60 real Hoenn maps.
+- **Export image**: a PNG of the current map at full size.
+- **Export .json**: the whole city as a file you can back up or import later.
+- **Turn sound off** or on, **Explore cities**, **Docs** and **DreamMist home**.
+
+## Starting from Hoenn
+
+**New city** lists 60 towns, cities and routes from Pokémon Ruby, Sapphire and Emerald. They come with their tiles, collisions, wild Pokémon zones from the real games, and people in their original spots. Collisions are worked out from the tiles, so check them before sharing.

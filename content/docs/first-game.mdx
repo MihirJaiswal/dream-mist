@@ -1,0 +1,226 @@
+---
+title: Make your first game
+description: A full walkthrough, from an empty town to a published game with a Professor, a rival, a gym and a road that opens at the end.
+---
+
+This guide builds a complete little game called **Mistwood Town**. It takes about half an hour and touches almost every feature. Here is the plan:
+
+1. The player starts at home. The road out of town is blocked by a small tree.
+2. The **Professor** in the Lab gives them Poké Balls, and the tree disappears.
+3. On the route south, wild Pokémon live in the tall grass and a Youngster wants to battle.
+4. The **rival** shows up and challenges them. A Hiker blocks the gym until the rival is beaten.
+5. The **Gym Leader** gives the *Mist Badge*, and a boulder blocking the way north is gone.
+
+<Callout title="Test as you go">
+  Press **Play** after each part. If a step is already done and you want to try it again, open the **Story** layer and press **Restart my progress**.
+</Callout>
+
+## Part 1: the town
+
+<Steps>
+<Step>
+
+### Create the city
+
+Open the city menu (the arrow next to the city name) and choose **New city**. Name it *Mistwood Town* and pick **Starter town**. You get trees around the edge, paths, a Pokémon Center, a house, a Nurse, a sign and a patch of tall grass.
+
+</Step>
+<Step>
+
+### Make room for a route
+
+Open **City settings** from the city menu. Set the size to **40 × 60** and press **Resize**. The town stays at the top and new grass appears below it: that's where the route goes.
+
+</Step>
+<Step>
+
+### Add the Lab
+
+Select the **Objects** layer (<kbd>2</kbd>), pick the **Lab** stamp and click an open spot in town. Stamps go on the right layer and set their own collisions, so the Lab is already solid.
+
+</Step>
+<Step>
+
+### Set where the player starts
+
+Select the **Spawn** layer (<kbd>9</kbd>) and click the tile just below the house door. Visitors start there, facing down.
+
+</Step>
+</Steps>
+
+## Part 2: the story
+
+Plan the story before placing people, so you can link them to it.
+
+<Steps>
+<Step>
+
+### Add three steps
+
+Select the **Story** layer (<kbd>6</kbd>) and press **Add step** three times. Rename them:
+
+1. *Meet the Professor*
+2. *Beat your rival*
+3. *Win the Mist Badge*
+
+</Step>
+<Step>
+
+### Block the route with a tree
+
+Click step 1. Under **Blocked by** choose **Object**, then pick **Small tree**. Paint gate tiles across the path that leads south out of town. A small tree appears on each gate tile. Make sure there's no other way around: every open tile in the fence of trees needs a gate.
+
+</Step>
+<Step>
+
+### Block the way north with a boulder
+
+Click step 3, choose **Object** and **Boulder**, and paint gates across the north exit of the town. Change the message to something like *“A huge boulder. The Gym Leader said they would move it for champions.”*
+
+</Step>
+</Steps>
+
+## Part 3: the Professor
+
+<Steps>
+<Step>
+
+### Put a door on the Lab
+
+Select the **Doors** layer (<kbd>7</kbd>) and click the Lab's door tile. In **Leads to** choose **+ New house**. A 14 × 10 room is created with walls, a floor, an exit door and a Mom inside. Rename it *Lab* under **Maps** in the side panel.
+
+</Step>
+<Step>
+
+### Turn Mom into the Professor
+
+Press **Open Lab**. Select the **People** layer (<kbd>8</kbd>) and click the Mom. Change:
+
+- **Name**: *Professor Birch*
+- **Looks**: the scientist
+- **Walks around**: off
+- **Dialogue**: *“Ah, you're finally here! The world is full of Pokémon.”*, then an empty line, then *“Take these Poké Balls and go explore Route 1!”*
+
+An empty line starts a new page of dialogue.
+
+</Step>
+<Step>
+
+### Link the Professor to the story
+
+Scroll to **Story** in the same panel. Set **Talking completes** to *1. Meet the Professor*. A **Reward** section appears: give **5 Poké Balls** and **3 Potions**. In **Says afterwards** write *“Good luck out there! Come back if you need anything.”*
+
+</Step>
+<Step>
+
+### Try it
+
+Click **Outside** under **Maps**, then press **Play**. The tree blocks the road. Enter the Lab, talk to the Professor, and walk back out: the tree is gone.
+
+</Step>
+</Steps>
+
+## Part 4: the route
+
+<Steps>
+<Step>
+
+### Paint the route
+
+Below the town, use the **Sand path** or **Light grass** terrain to draw a winding path. Line it with **Tree** stamps. Add a few patches of **Tall grass (wild Pokémon)**: this stamp paints the grass and its encounter zone at the same time.
+
+</Step>
+<Step>
+
+### Pick the wild Pokémon
+
+Select the **Encounters** layer (<kbd>5</kbd>). The **Tall grass** zone already has Zigzagoon, Wurmple, Poochyena and Ralts at levels 2 to 5. Change them if you like: type a name in the Pokémon box and set the level range. Keep the **Encounter rate** around 10 to 15%.
+
+</Step>
+<Step>
+
+### Add a route trainer
+
+Select **People** and click an empty tile next to the path. Name them *Youngster Joey*, pick the youngster look, set **Role** to **Trainer** and face them across the path. Give them one Pokémon, like Zigzagoon at level 5. Trainers see 4 tiles in front of them and walk up to the player when they spot them.
+
+</Step>
+</Steps>
+
+## Part 5: the rival and the gym
+
+<Steps>
+<Step>
+
+### Add the rival
+
+Back in town, add a person called *Wally*. Set **Role** to **Trainer** with a team of two Pokémon around level 6 and 7. In **Story**:
+
+- **Shows up**: *1. Meet the Professor*, so they arrive after the Lab.
+- **Beating them completes**: *2. Beat your rival*.
+- **Says afterwards**: *“I'll get stronger, just you wait!”*
+
+</Step>
+<Step>
+
+### Build the gym
+
+Place a **House** stamp where the gym should be. Select **Doors**, click its door and choose **+ New gym**. The gym comes with a Gym Leader who has a Geodude and a Nosepass.
+
+</Step>
+<Step>
+
+### Tune the Gym Leader
+
+Open the gym and click the leader. Lower the team to around levels 9 and 11 so a player who caught a few Pokémon on the route can win. Check **Gym leader** is ticked and set **Badge name** to *Mist Badge*. In **Story**, set **Beating them completes** to *3. Win the Mist Badge*.
+
+</Step>
+<Step>
+
+### Guard the gym door
+
+Go back outside, select the **Story** layer and click step 2. Choose **Blocked by → Person** and press **Place a person in the way**. Click the tile in front of the gym door. A Hiker appears there. Press **Edit** to change their dialogue to *“The Gym Leader only sees trainers who beat their rival.”* They walk away once step 2 is done.
+
+</Step>
+<Step>
+
+### Add a Pokémon Center door
+
+Select **Doors**, click the Pokémon Center's door and choose **+ New Pokémon Center**. The Nurse inside heals the party.
+
+</Step>
+</Steps>
+
+## Part 6: finish and share
+
+<Steps>
+<Step>
+
+### Add a reward for the end
+
+Outside, add a person near the boulder with **Shows up** set to *3. Win the Mist Badge* and the dialogue *“You did it! The road north is open.”*
+
+</Step>
+<Step>
+
+### Play it from the start
+
+In the Story layer press **Restart my progress**, then **Play** and go through the whole game. Check that every gate holds, every trainer can be beaten, and the player can always get back to a Nurse.
+
+</Step>
+<Step>
+
+### Publish
+
+Press **Publish** in the top bar, write a short description and publish. Your game shows up on [Explore](/explore), where anyone can play it or fork it.
+
+</Step>
+</Steps>
+
+## Where to next
+
+<Cards>
+  <Card title="Design a good game" href="/docs/game-design" description="Level curves, pacing and map layout." />
+  <Card title="Story recipes" href="/docs/recipes" description="More quest patterns to copy." />
+  <Card title="Trainers and gyms" href="/docs/trainers" description="Teams, line of sight and badges." />
+  <Card title="Custom tilesets and music" href="/docs/custom-assets" description="Give your game its own look and sound." />
+</Cards>

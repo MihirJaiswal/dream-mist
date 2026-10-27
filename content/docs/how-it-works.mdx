@@ -1,0 +1,62 @@
+---
+title: How a game works
+description: The building blocks of a DreamMist game and how they fit together.
+---
+
+Everything you make in DreamMist is a **city**. A city is a small game: one outside map, the interiors you can walk into, the people in them, the wild Pokémon, a story, and optional custom tilesets and music.
+
+## Maps
+
+| Map | What it is |
+| --- | --- |
+| Outside | The main map. Visitors start here, at the **spawn** point. |
+| Interiors | Houses, Pokémon Centers, gyms and rooms, reached through doors. A city can have up to 40. |
+
+Every map has its own tiles, collisions, people, doors and story gates. The **story**, the **wild Pokémon zones**, the **tilesets** and the **music** belong to the whole city, so interiors share them.
+
+## Layers
+
+Each map is a grid of 16×16 pixel tiles drawn in layers. You pick the layer in the side panel, or with the number keys.
+
+| Layer | Key | What it holds |
+| --- | --- | --- |
+| Ground | <kbd>1</kbd> | Grass, paths, water and floors. Always under everything. |
+| Objects | <kbd>2</kbd> | Buildings, trees, fences and signs. Drawn below the player. |
+| Above | <kbd>3</kbd> | Roofs and tree tops. Drawn over the player, so they can walk behind things. |
+| Collision | <kbd>4</kbd> | Red tiles that can't be walked on. |
+| Encounters | <kbd>5</kbd> | Where each wild Pokémon zone applies. |
+| Story | <kbd>6</kbd> | The story timeline and the gate tiles it locks. |
+| Doors | <kbd>7</kbd> | Tiles that move the player to another map. |
+| People | <kbd>8</kbd> | Villagers, trainers, nurses, Pokémon and signs. |
+| Spawn | <kbd>9</kbd> | Where visitors arrive. |
+
+The first three are what visitors see. The other six are gameplay: they're shown only in the editor.
+
+## People
+
+Everyone on the map is a **person** with a look, a direction, a name and some dialogue. Their **role** decides what they do:
+
+- **Talks**: says their dialogue. Most of the story is built from people who talk.
+- **Trainer**: battles the player with a team of up to six Pokémon. A trainer can be a **Gym Leader** and award a badge.
+- **Nurse**: heals the party and tops up Poké Balls and Potions.
+
+The People layer also holds **Pokémon** standing on the map, which make their cry or start a wild battle, and **signs**, which the player reads by facing them.
+
+## Story
+
+The story is a list of **steps**, like *Meet the Professor* or *Beat the Gym Leader*. A step is done when the player talks to, or beats, the person you chose to complete it. Steps change the world:
+
+- **Gates**: tiles that stay blocked until a step is done, shown as an invisible wall, an object like a tree or boulder, or a person standing in the way.
+- **People**: they can show up after a step, leave after a step, refuse to help until a step is done, and give a reward when they complete one.
+
+## The player
+
+Visitors play as their own **trainer**, which they create the first time they press Play. The trainer keeps their party, PC box, bag, Pokédex, badges and story progress, and brings them along to every city they visit. Story progress and beaten trainers are remembered per city, so each city plays from the start for a new visitor.
+
+<Callout title="Building versus playing">
+  Changing your city never changes a player's progress. If you edit a step after finishing it, press **Restart my progress** in the Story layer to play it fresh.
+</Callout>
+
+## Saving and sharing
+
+The city saves on its own while you build: in this browser, or in your account when you're logged in. From there you can send a link, publish it on [Explore](/explore), or invite friends to build with you live.

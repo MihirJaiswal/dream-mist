@@ -1,0 +1,117 @@
+---
+title: Story recipes
+description: Copy-ready patterns for quests, blocked paths, rivals, rewards and endings.
+---
+
+Each recipe uses only the **Story** layer and a person's **Story** settings. To learn what each setting does, see [Story and events](/docs/story).
+
+## The Professor gives you a Pokémon
+
+The player gets a second partner at the start of the game.
+
+1. Add a step *Meet the Professor*.
+2. Add the Professor. In **Story**, set **Talking completes** to *Meet the Professor*.
+3. In **Reward**, pick the Pokémon and its level, for example Ralts at level 5.
+4. In **Says afterwards**: *“Take good care of it!”*
+
+The reward is given once per player. If the party already has six Pokémon, it goes to the PC box.
+
+## Cut the small tree
+
+A tree blocks a shortcut until the player has met someone.
+
+1. Add a step *Learn Cut*. Choose **Blocked by → Object → Small tree**.
+2. Paint gate tiles where the tree should stand.
+3. Add a person who **completes** *Learn Cut* with the dialogue *“Here, I'll teach your Pokémon how to cut small trees.”*
+4. Set the step's message to *“A small tree. Maybe it could be cut down…”*
+
+## The sleeping Snorlax
+
+A Snorlax blocks the road. The player can battle it, catch it, and then the road is open.
+
+1. Select the **People** layer, choose the **Pokémon** tab, and click the middle of the road.
+2. Click its image and pick Snorlax. Set its level to 30.
+3. Under **When the player talks to it**, choose **Wild battle**.
+4. Write the message *“Snorlax is fast asleep… It woke up!”*
+
+Once beaten or caught, Snorlax is gone and the road is free. To open more of the map at the same time, add a step and set Snorlax's **Beating or catching it completes** to it.
+
+## A legendary at the end
+
+1. Build a small room behind a locked door or a story gate.
+2. Place a **Pokémon** with a **Wild battle**, like Latias at level 40.
+3. Set its **Shows up** to the last step of your story, so it only appears at the end.
+
+## The guard who wants a badge
+
+A person stands in the road and only moves once the gym is beaten.
+
+1. Add a step *Win the badge*. Choose **Blocked by → Person**.
+2. Press **Place a person in the way** and click the road.
+3. Press **Edit** on the new person. Give them the dialogue *“Only trainers with a badge may pass.”*
+4. Set the Gym Leader's **Beating them completes** to *Win the badge*.
+
+The guard fades away right after the badge is earned.
+
+## The rival who shows up later
+
+1. Add a rival with **Role → Trainer**.
+2. Set **Shows up** to the step before the rival's scene, for example *Meet the Professor*.
+3. Optionally set **Beating them completes** to a step like *Beat your rival* and use it to open the next area.
+
+Trainers who show up later still spot the player from 4 tiles away, so place them where the player will walk past.
+
+## A trainer who isn't ready yet
+
+A Gym Leader who won't battle until the player has done something else.
+
+1. Set the leader's **Needs first** to a step like *Beat your rival*.
+2. Write **Says until then**: *“Come back when you've proven yourself!”*
+
+Until that step is done, the leader doesn't spot the player and says the waiting line when spoken to.
+
+## A chain of tasks
+
+Make the player do things in order: get a parcel, deliver it, receive a reward.
+
+1. Add steps *Get the parcel* and *Deliver the parcel*.
+2. The shopkeeper **completes** *Get the parcel*.
+3. The Professor **Needs first** *Get the parcel* and **completes** *Deliver the parcel*, with a reward of 10 Poké Balls.
+
+Steps are only finished by the person who completes them. **Needs first** is what keeps them in order.
+
+## Someone who leaves town
+
+A person who's there at the start and gone later, like a Mom who goes to the market.
+
+- Set **Leaves** to the step after which they're gone.
+
+Combine it with **Shows up** on a second copy of the person somewhere else to make them “move” across the map.
+
+## A message that changes
+
+A villager says one thing before a step and another after it, without being part of the quest themselves.
+
+1. Set **Needs first** to the step.
+2. Write the line before it in **Says until then**, and the line after it in **Dialogue**.
+
+When the person completes their own step, use **Says afterwards** instead: **Dialogue** is said the first time, **Says afterwards** every time after.
+
+## A road that opens at the end
+
+1. Add a final step like *Become champion*, blocked by a **Boulder** object.
+2. Paint the gates across the exit.
+3. The last trainer **completes** it.
+4. Add a person who **Shows up** after it to congratulate the player and point to the open road.
+
+## A secret area
+
+1. Paint a dead end with trees, and a gap hidden under an **Above** layer tree top.
+2. Leave the gap walkable on the **Collision** layer.
+3. Put a reward giver or a rare encounter zone behind it.
+
+Players who explore find it, everyone else walks past.
+
+## A door that opens later
+
+Paint story gates on the tile in front of a door. The door can't be reached until the step is done, so it works for locked gyms, caves and secret rooms.

@@ -1,0 +1,142 @@
+---
+title: Custom sprites
+description: Your own looks for people and Pokémon, the exact sizes, and prompts for AI image tools.
+---
+
+Give people and Pokémon on your map a look of their own: a ranger in your town's colors, a gym leader who looks like your friend, or a brand new Pokémon.
+
+## Adding a sprite
+
+<Steps>
+<Step>
+
+### Open the upload window
+
+Select someone on the **People** layer:
+
+- **Person**: press the **+** tile at the start of **Looks**.
+- **Pokémon**: press the **+** tile at the end of **Look**.
+
+You can also add sprites from **City settings → Sprites for people and Pokémon**.
+
+</Step>
+<Step>
+
+### Choose the image
+
+Pick a PNG, WebP or GIF with a transparent background. The window previews what the game will use: for a person, each direction walking in place, so a wrong row shows up right away. It also checks the size.
+
+</Step>
+<Step>
+
+### Name it and add it
+
+The sprite is selected for the person or Pokémon you were editing, and shows up in their picker for everyone else on the map.
+
+</Step>
+</Steps>
+
+Sprites belong to the city, like tilesets: interiors, live rooms, share links and forks all carry them. Logged in, an image can be up to 1 MB. Logged out, it's stored inside the city, up to 256 KB.
+
+## People: a walking sheet
+
+A person needs every direction and a walking step, all in one image.
+
+| | |
+| --- | --- |
+| Grid | 3 columns × 4 rows, every frame the same size |
+| Frame size | **16×32 px**, the size of the game's own characters (the whole image is **48×128 px**) |
+| Bigger frames | 32×32, 32×48 or 32×64 work too, and are scaled to one tile wide |
+| Rows, top to bottom | facing **down**, **up**, **left**, **right** |
+| Columns, left to right | **standing**, **left foot forward**, **right foot forward** |
+| Background | transparent, with the feet at the bottom of each frame |
+
+```
+          standing   left foot   right foot
+down    [  16×32  ][   16×32   ][   16×32   ]
+up      [         ][           ][           ]
+left    [         ][           ][           ]
+right   [         ][           ][           ]
+```
+
+### RPG Maker sheets
+
+Many character sheets online use RPG Maker layouts. Pick the matching **Layout** in the upload window:
+
+| Layout | Grid | Rows | Frames used |
+| --- | --- | --- | --- |
+| DreamMist | 3 × 4 | down, up, left, right | standing, step, step |
+| RPG Maker VX / MV | 3 × 4 | down, left, right, up | middle column stands |
+| RPG Maker XP | 4 × 4 | down, left, right, up | first column stands |
+
+A sheet with 4 columns is detected as RPG Maker XP. VX/MV and DreamMist sheets look the same from the outside, so choose VX/MV by hand when the rows are down, left, right, up.
+
+## Pokémon: one image
+
+| | |
+| --- | --- |
+| Image | the whole Pokémon in one picture |
+| Facing | **left**, in a front 3/4 view (it's flipped when it walks right, and in your party) |
+| Size | **64×64 px** is ideal, from 32×32 up to 96×96, at most 256×256 |
+| Background | transparent, with the feet near the bottom |
+
+The image is used on the map, at about two tiles tall, and in battle. The **species** you pick still decides its types, stats, moves and catch rate, so choose one that matches your creature. If you give it a name of its own, like *Flamefox*, battles use that name and the player keeps it as a nickname after catching it.
+
+## Making sprites with AI
+
+Image generators can draw a good starting point. Paste one of these prompts, replace the part in brackets, and clean the result up as described below. The same prompts are in the upload window under **Make it with AI**, with a copy button.
+
+<Tabs items={["Person", "Pokémon"]}>
+<Tab value="Person">
+
+<div className="prompt-block">
+
+```text
+Pixel art character sprite sheet for a top-down Pokémon game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+Character: [describe your character, for example a young ranger with a green cap, a brown vest and a backpack].
+Layout: a grid of 3 columns and 4 rows where every cell is exactly the same size, 16×32 pixels per cell (the whole image is 48×128 pixels).
+Rows from top to bottom: facing down (toward the viewer), facing up (away from the viewer), facing left, facing right.
+Columns from left to right: standing still, left foot forward, right foot forward.
+Style: crisp pixels, no anti-aliasing, no blur, a limited palette of about 16 colors, a 1-pixel dark outline, a 3/4 top-down view, the feet touching the bottom of each cell, the same character and proportions in every cell.
+Background: fully transparent. No text, no grid lines, no shadow, no border.
+```
+
+</div>
+
+</Tab>
+<Tab value="Pokémon">
+
+<div className="prompt-block">
+
+```text
+Pixel art sprite of an original creature for a Pokémon-style game, in the style of the Pokémon Black and White battle sprites.
+Creature: [describe your creature, for example a small fire fox with a flame-tipped tail].
+Pose: full body, front 3/4 view, facing left, centered, the feet touching the bottom of the image.
+Size: 64×64 pixels.
+Style: crisp pixels, no anti-aliasing, no blur, a limited palette of about 16 colors, a 1-pixel dark outline, bright readable colors.
+Background: fully transparent. No text, no shadow, no border.
+```
+
+</div>
+
+</Tab>
+</Tabs>
+
+### Cleaning up an AI image
+
+AI tools rarely hit exact pixel sizes, and often add a background or blurry edges. A few minutes in a pixel editor fixes it:
+
+1. **Shrink it to the exact size** with *nearest neighbor* scaling, so pixels stay sharp. In GIMP: *Image → Scale Image*, interpolation **None**. Aseprite, Piskel and LibreSprite have the same option.
+2. **Remove the background** if it isn't transparent. Most editors have a magic wand or *color to alpha*.
+3. **Line up the frames.** For a person, every frame should sit in its cell with the feet on the bottom row of pixels. Generating each direction separately and pasting them into a 48×128 grid is often easier than asking for the whole sheet at once.
+4. **Check the walk.** Upload it: the preview walks each direction in place, so frames in the wrong order stand out.
+
+<Callout title="Tip">
+  Ask the generator for something 8 times bigger, like 384×1024 for a person or 512×512 for a Pokémon, then shrink it down. Big pixel art scales down cleanly; asking for a tiny image usually gives a blurry one.
+</Callout>
+
+## Removing a sprite
+
+Open **City settings** and press the trash button next to it. Everyone using it goes back to a default look.
+
+Only upload art you made or are allowed to use, and credit the artists in your city's description on Explore.

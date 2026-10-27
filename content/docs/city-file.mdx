@@ -1,0 +1,141 @@
+---
+title: City file format
+description: What's inside an exported .json city, for backups, scripts and tools.
+---
+
+**Export .json** saves the whole city as one JSON file. You can edit it with a script and bring it back with **Import file** in **Your cities**. Missing or broken fields are filled in with defaults on import.
+
+## City
+
+```ts
+type City = {
+  v: 1;
+  id: string;
+  name: string;           // up to 40 characters
+  author: string;
+  width: number;          // tiles
+  height: number;
+  layers: {
+    ground: number[];     // width × height tile values, row by row
+    decor: number[];      // the Objects layer
+    above: number[];
+  };
+  solid: number[];        // 1 = blocked
+  zone: number[];         // 0 = none, n = zones[n - 1]
+  gate: number[];         // 0 = open, n = the story step whose `n` is n
+  zones: Zone[];
+  npcs: Npc[];
+  spawn: { x: number; y: number };
+  doors: Door[];
+  story: Step[];
+  interiors: City[];      // same shape, without story, zones, tilesets, music
+  tilesets?: Tileset[];
+  sprites?: Sprite[];     // custom looks for people and Pokémon
+  music?: { town?: string; battle?: string };
+  updated: number;        // timestamp in milliseconds
+};
+```
+
+Every grid is a flat array of `width × height` numbers. The tile at column `x` and row `y` is at index `y * width + x`.
+
+## Tile values
+
+| Value | Meaning |
+| --- | --- |
+| `0` | Empty |
+| `1` to `9999` | Built-in Hoenn tileset: frame number + 1 |
+| `(k + 1) × 10000 + frame + 1` | Frame of the custom tileset at index `k` in `tilesets` |
+
+## Story steps
+
+```ts
+type Step = {
+  id: string;             // used by people's story settings
+  n: number;              // used by gate tiles, stays the same when steps are reordered
+  name: string;
+  blocked: string;        // message at the gates
+  blocker?: "wall" | "object" | "person";
+  tile?: number;          // tile drawn on the gates when blocker is "object"
+};
+```
+
+## People
+
+```ts
+type Npc = {
+  x: number;
+  y: number;
+  sprite: string;         // "" for signs and Pokémon, "custom:<id>" for a custom sprite
+  creature?: { species: number; level: number; look?: string };  // a Pokémon on the map, look = custom sprite id
+  dir: "up" | "down" | "left" | "right";
+  name: string;
+  dialogue: string;       // an empty line starts a new page
+  role: "talk" | "trainer" | "healer" | "wild";  // "wild": a Pokémon to battle and catch
+  wander: boolean;
+  path?: {
+    points: { x: number; y: number }[];  // stops after where they stand
+    loop: boolean;        // true: back to the start, false: walk back the same way
+    run: boolean;
+    pause: number;        // seconds at each stop
+  };
+  trainer?: {
+    team: { species: number; level: number }[];  // national Pokédex numbers, 1 to 1025
+    gym: boolean;
+    badge: string;
+    defeat: string;
+  };
+  story?: {
+    after?: string;       // Shows up (step id)
+    until?: string;       // Leaves
+    requires?: string;    // Needs first
+    locked?: string;      // Says until then
+    completes?: string;   // Talking (or beating them) completes
+    done?: string;        // Says afterwards
+    reward?: { species?: number; level?: number; balls?: number; potions?: number };
+  };
+};
+```
+
+## Zones, doors and tilesets
+
+```ts
+type Zone = {
+  name: string;
+  rate: number;           // 0.01 to 0.4, chance per step
+  color: number;          // editor overlay color, like 0x2ecc40
+  creatures: { species: number; min: number; max: number }[];
+};
+
+type Door = {
+  x: number;
+  y: number;
+  to: string;             // interior id, "" for outside, "?" for nowhere yet
+  tx: number;             // arrival tile, -1 to arrive next to the matching door
+  ty: number;
+};
+
+type Tileset = {
+  id: string;
+  name: string;
+  url: string;            // uploaded file or data: URL
+  tile: number;           // tile size in pixels
+  columns: number;
+  rows: number;
+};
+```
+
+```ts
+type Sprite = {
+  id: string;
+  name: string;
+  url: string;            // uploaded file or data: URL
+  kind: "person" | "pokemon";
+  layout?: "dreammist" | "rpgvx" | "rpgxp";  // person sheets
+  w: number;              // frame size in pixels
+  h: number;
+};
+```
+
+<Callout title="Keep tileset order">
+  Custom tile values depend on the tileset's position in `tilesets`. Don't reorder or remove entries, or painted tiles will point to the wrong image.
+</Callout>

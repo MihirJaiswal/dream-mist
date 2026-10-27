@@ -1,0 +1,68 @@
+---
+title: Design a good game
+description: Level curves, pacing, map layout and testing, so your city is fun to play.
+---
+
+A DreamMist game is short, so every part counts. These guidelines come from how the engine works and from what makes the original games feel good.
+
+## Plan the path first
+
+Before painting, write down what the player does, in order. Each line usually becomes a story step:
+
+1. Where they start, and the first thing they should do.
+2. What blocks them, and who opens the way.
+3. Where they catch Pokémon and train.
+4. The big fight at the end, and what it unlocks.
+
+Three to six steps is plenty for one city. A longer adventure works better as several cities, or as one city with interiors.
+
+## Balance the levels
+
+Every new trainer starts with a **level 5** starter, 10 Poké Balls and 5 Potions. Players who arrive from other cities may be stronger, but plan for a fresh trainer.
+
+| Part of the game | Suggested levels |
+| --- | --- |
+| First wild Pokémon | 2 to 5 |
+| First route trainers | 4 to 7, one or two Pokémon |
+| Rival | 1 or 2 levels above the route |
+| First Gym Leader | 9 to 12, two or three Pokémon, strongest last |
+| Later routes | +3 to +5 levels per area |
+
+Pokémon grow on the "medium fast" curve: reaching level *n* needs *n*³ experience points. Beating trainers gives 1.5 times more experience than wild Pokémon, so a route with two or three trainers is usually enough to prepare for a gym.
+
+<Callout title="Give the player options">
+  Put wild Pokémon of different types on the route before a gym. If the Gym Leader uses Rock types, add a Water or Grass Pokémon to the grass so players can catch an answer.
+</Callout>
+
+## Heal points
+
+Players who lose all their Pokémon go back to the **spawn point of the map they're on**, healed. That's forgiving, but a Nurse nearby still matters:
+
+- Put a Pokémon Center, or a Nurse standing outside, before every gym.
+- Avoid long routes with many trainers and no way to heal.
+- A Nurse also refills Poké Balls and Potions up to 5 each, so nobody gets stuck without balls.
+
+## Make the map readable
+
+- **Paths lead somewhere.** Use sand, gravel or light grass to show where to go, and trees, fences or water to show where not to go.
+- **Gates must be closed.** A gate only blocks the tiles you paint. Check the whole edge so the player can't walk around it.
+- **Use the Above layer** for roofs and tree tops so the player can walk behind them.
+- **Signs help.** A sign at the entrance with the town name and a hint (“Route 1, north: Mistwood Gym”) goes a long way.
+- **Tall grass in patches.** Players should be able to avoid wild battles when they just want to walk through.
+
+## Write short dialogue
+
+The dialogue box shows a few lines at a time. Keep each page to one or two sentences and use an empty line to start a new page. Say what the player should do next: *“The gym is just north. Beat your rival first!”*
+
+## Test like a visitor
+
+1. Press **Restart my progress** in the Story layer to forget your own steps and beaten trainers.
+2. Play from the spawn point without using Build mode to cheat.
+3. Try to break it: walk along every gate, talk to people out of order, lose a battle on purpose.
+4. Ask a friend to play it before you publish.
+
+## Before you publish
+
+- Give the city a name and a description that says what it is (“A seaside town with a Water gym and a hidden cave”).
+- Check the publish checklist: people to talk to, wild Pokémon, trainers, a story and interiors.
+- Make sure the outside map looks good from above. It's the preview picture on Explore.

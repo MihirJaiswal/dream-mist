@@ -1,0 +1,51 @@
+{
+  "name": "dreammist",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "data": "node scripts/build-data.mts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
+    "@types/mdx": "^2.0.14",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "fumadocs-core": "^16.17.8",
+    "fumadocs-mdx": "^15.4.10",
+    "fumadocs-ui": "^16.17.8",
+    "lucide-react": "^1.62.0",
+    "next": "^16.4.3",
+    "next-themes": "^0.4.6",
+    "pixi.js": "^6.5.10",
+    "radix-ui": "^1.8.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pngjs": "^6.0.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.4.3",
+    "fast-xml-parser": "^4.5.7",
+    "jsdom": "^26.1.0",
+    "pngjs": "^7.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  }
+}

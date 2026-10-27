@@ -1,0 +1,75 @@
+---
+title: Story and events
+description: Steps, gates that open later, people who appear and leave, and rewards.
+---
+
+The story is what turns a map into a game. It's a list of **steps**, like *Meet the Professor*, *Beat your rival* or *Win the badge*. Each step is done when the player talks to, or beats, a person you choose. When a step is done, the world changes: paths open, people show up or leave, and new dialogue appears.
+
+## The timeline
+
+Select the **Story** layer (<kbd>6</kbd>). The panel shows the timeline:
+
+- **Add step** adds a step at the end. Click a step to select it.
+- Click its name to rename it. Use the arrows to move it earlier or later, and the cross to delete it.
+- Under each step, a summary tells you who completes it, how many gate tiles it has, and who it shows or hides.
+
+The order is how you plan the story. The player only finishes a step by meeting the person who completes it, so use **Needs first** to make steps happen in a strict order.
+
+<Callout title="The story belongs to the whole city">
+  Interiors share the outside map's story, so a Professor inside the Lab can open a road outside.
+</Callout>
+
+## What blocks the way
+
+Select a step to choose what stands in the way until it's done:
+
+| Blocked by | How it works |
+| --- | --- |
+| Wall | Invisible gate tiles. The player can't cross them and sees your message when bumping into them. |
+| Object | A small tree, dry bush, boulder, rocks, sign, fence, posts or the tile of your current brush, drawn on each gate tile. It fades away when the step is done. |
+| Person | Someone standing in the way. They block the tile they stand on and walk away when the step is done. |
+
+For **walls** and **objects**, select the step and paint gate tiles on the map with the Brush or Rectangle tool. Erase to remove them. Gates can go on any map, outside or in an interior.
+
+For a **person**, press **Place a person in the way** and click where they should stand, or pick someone already on the map from the list. Press **Edit** to change their looks and dialogue.
+
+<Callout type="warn" title="Close every gap">
+  Gates only block the tiles you paint. Walk along the edge in Play mode to check the player can't go around them.
+</Callout>
+
+## People in the story
+
+Open a person in the **People** layer and scroll to **Story**:
+
+| Setting | What it does |
+| --- | --- |
+| Shows up | They're only there after this step. Use it for rivals, visitors and people who arrive with news. |
+| Leaves | They disappear after this step. Use it for guards and people who go home. |
+| Needs first | They won't help until this step is done. Trainers don't spot the player and won't battle. |
+| Says until then | What they say while waiting for **Needs first**. |
+| Talking completes | Talking to them finishes this step. For trainers, it's **Beating them completes**. |
+| Reward | A Pokémon and its level, Poké Balls and Potions, given when they complete their step. |
+| Says afterwards | What they say every time once their step is done. |
+
+### What happens when the player talks to someone
+
+1. If they **need** a step that isn't done, they say their waiting line, and nothing else happens.
+2. If their step is already done and they have something to **say afterwards**, they say it.
+3. Otherwise they say their **dialogue**. Trainers battle, and Nurses heal.
+4. If they **complete** a step that isn't done yet, it's done now: the reward is given, a *Story* notice appears, gates open and people show up or leave.
+
+Rewards are given once per player. A Pokémon reward goes to the party, or the PC box when the party has six.
+
+## Progress
+
+Story progress belongs to each player, per city. A visitor starts your story from the beginning, and their progress is kept in their trainer profile.
+
+To test your own story again, press **Restart my progress** in the Story panel. It forgets your finished steps and the trainers you beat in this city. Badges and caught Pokémon stay.
+
+## Deleting a step
+
+Deleting a step opens all its gates and removes it from every person's story settings.
+
+## Ideas
+
+See [Story recipes](/docs/recipes) for ready-made patterns: a Professor who gives a Pokémon, a guard who wants a badge, a rival, a chain of tasks, a road that opens at the end, and more.

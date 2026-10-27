@@ -1,0 +1,80 @@
+---
+title: FAQ and troubleshooting
+description: Answers to common questions and fixes for common problems.
+---
+
+<Accordions type="multiple">
+<Accordion title="The player walks through walls, trees or water">
+
+Open the **Collision** layer and paint red tiles where the player shouldn't go. Objects block automatically only when **Objects block movement automatically** is on, and custom tiles always need a check. See [Collision and spawn](/docs/collision).
+
+</Accordion>
+<Accordion title="The player can't walk somewhere they should">
+
+Look at the **Collision** layer for red tiles, and at the **Story** layer for gate tiles of a step that isn't done. A person standing there also blocks the tile.
+
+</Accordion>
+<Accordion title="The player walks around my story gate">
+
+Gates only block the tiles you paint. Walk along the gate in Play mode and paint the missing tiles, or close the gaps with trees or fences.
+
+</Accordion>
+<Accordion title="I finished a step and can't test it again">
+
+Press **Restart my progress** in the Story layer. It forgets your finished steps and beaten trainers in this city.
+
+</Accordion>
+<Accordion title="A person doesn't appear in Play mode">
+
+Check their **Shows up** and **Leaves** settings. Someone who shows up after a step only appears once that step is done, and someone who leaves is gone after it. Signs have no sprite, so they're never visible.
+
+</Accordion>
+<Accordion title="A trainer doesn't battle me">
+
+- They only see 4 tiles straight ahead, and walls block their view.
+- They don't battle again once beaten. Restart your progress to fight them again.
+- They don't battle if they **need** a step you haven't done.
+- They don't battle if none of your Pokémon can fight. Heal first.
+
+</Accordion>
+<Accordion title="I never meet wild Pokémon">
+
+The tile needs an encounter zone (check the **Encounters** layer) with at least one Pokémon, and your party needs a Pokémon able to fight. With a low encounter rate it can take a while.
+
+</Accordion>
+<Accordion title="A door says it leads nowhere">
+
+Select the **Doors** layer, click the door and choose a destination in **Leads to**.
+
+</Accordion>
+<Accordion title="I come out of the wrong door">
+
+The player comes out next to the first door that leads into the interior they left. Give each building its own interior.
+
+</Accordion>
+<Accordion title="My share link is very long">
+
+Without an account, the whole city is packed inside the link. Log in and save the city online to get a short link.
+
+</Accordion>
+<Accordion title="My city is gone">
+
+Cities saved without an account live in this browser only. Check **Your cities** in the city menu, and log in to keep cities online. Export `.json` backups of cities you care about.
+
+</Accordion>
+<Accordion title="Can I use my own art and music?">
+
+Yes. Import tilesets and upload music in **City settings**. See [Custom tilesets and music](/docs/custom-assets).
+
+</Accordion>
+<Accordion title="Can I make a game with more than one town?">
+
+A city has one outside map and up to 40 interiors, so you can build caves, houses, gyms and rooms in one city. For a bigger world, make several cities and link them from signs or descriptions. Your players' trainers, Pokémon and badges travel with them.
+
+</Accordion>
+<Accordion title="Do I need to know how to code?">
+
+No. Everything in a game is built in the editor: maps, people, battles, story and doors.
+
+</Accordion>
+</Accordions>

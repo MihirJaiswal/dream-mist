@@ -1,0 +1,63 @@
+---
+title: Battles
+description: How turns, damage, catching and experience work, so you can balance your game.
+---
+
+DreamMist battles follow the Generation 3 rules, simplified to one-on-one battles with Poké Balls and Potions. Knowing the numbers helps when you set levels for your trainers and wild Pokémon.
+
+## A turn
+
+Each turn you choose one of:
+
+| Option | What it does |
+| --- | --- |
+| Fight | Use one of your Pokémon's moves. Each move has limited PP. |
+| Bag | Throw a **Poké Ball** (wild battles only) or use a **Potion** (+20 HP). |
+| Pokémon | Switch to another Pokémon. The opponent still attacks this turn. |
+| Run | Try to escape. Not possible against trainers. |
+
+The move with the higher priority goes first, then the faster Pokémon. When a Pokémon runs out of PP on every move, it uses **Struggle**.
+
+## Damage
+
+Damage uses the Generation 3 formula with the attacker's level, the move's power, and Attack against Defense (or Special Attack against Special Defense for special moves). On top of that:
+
+| Effect | Multiplier |
+| --- | --- |
+| Same type as the attacker (STAB) | × 1.5 |
+| Super effective | × 2 for each weak type, up to × 4 |
+| Not very effective | × 0.5 for each resisting type |
+| No effect | × 0 |
+| Critical hit (1 in 16) | × 2 |
+| Random spread | × 0.85 to × 1 |
+
+Moves can miss based on their accuracy. Opponents pick moves at random, but favour strong, effective moves that match their own type.
+
+## Stats
+
+Stats come from the real base stats of each Pokémon at its level, with the same average genes for every Pokémon and no training. Two Pokémon of the same species and level always have the same stats.
+
+## Moves
+
+Pokémon know the last four moves of their real level-up list for their level. When they level up and learn a new move with four already known, they forget the oldest one.
+
+## Experience
+
+| Battle | Experience |
+| --- | --- |
+| Wild Pokémon | base experience × level ÷ 7 |
+| Trainer's Pokémon | the same × 1.5 |
+
+Experience is split between the Pokémon that fought the fainted opponent and are still standing. Every Pokémon grows on the medium-fast curve: level *n* needs *n*³ total experience, so level 10 needs 1,000 and level 20 needs 8,000.
+
+## Catching
+
+Throw a Poké Ball at a wild Pokémon. The chance uses the Generation 3 catch formula: it goes up as the Pokémon's HP goes down, and depends on its species' catch rate. Easy Pokémon like Zigzagoon are caught often at full HP, while rare ones need to be weakened first.
+
+The ball shakes up to three times before the Pokémon is caught or breaks free. Wild Pokémon have a 1 in 128 chance to be shiny.
+
+## Winning and losing
+
+- Winning a trainer battle gives **2 Poké Balls**, or a badge and **5 Poké Balls** for a Gym Leader.
+- When your last Pokémon faints, you black out and return to the spawn point of the map, healed.
+- Running away from a wild battle succeeds more often when your Pokémon is faster.

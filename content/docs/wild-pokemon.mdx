@@ -1,0 +1,43 @@
+---
+title: Wild Pokémon
+description: Encounter zones, the Pokémon in them, levels and rates.
+---
+
+Wild Pokémon live in **encounter zones**. Each zone is a list of Pokémon and an encounter rate, painted on the tiles where it applies.
+
+## Painting zones
+
+Select the **Encounters** layer (<kbd>5</kbd>). Each zone has a color. Click a zone to select it, then paint where it applies with the Brush, Rectangle or Fill tool. The Eraser removes zones from tiles.
+
+The **Tall grass** stamp does both at once: it paints the grass and its zone. Erasing tall grass removes the zone too.
+
+Zones work on any tile, not just grass. Paint one over a cave floor, a sandy beach or water you can't reach to make it a fishing spot for later.
+
+## Zone settings
+
+| Setting | What it does |
+| --- | --- |
+| Name | Shown only in the editor, like *Tall grass* or *Cave*. |
+| Encounter rate | The chance of a battle on each step, from 1% to 40%. Around 10% feels like the original games. |
+| Pokémon | Each one has a level range. Type a name to pick it. |
+
+Press **+ Add Pokémon** to add more, and **+ New zone** for another zone, like a cave with Zubat and Geodude next to a grassy route.
+
+## How an encounter is picked
+
+On every step inside a zone:
+
+1. The encounter rate decides if a battle starts.
+2. One Pokémon of the list is picked, each with the same chance. Add a Pokémon twice to make it twice as common.
+3. Its level is picked between the minimum and the maximum.
+4. It has a 1 in 128 chance of being shiny.
+
+Players with no Pokémon able to fight don't meet wild Pokémon.
+
+## Available Pokémon
+
+All 1,025 Pokémon, from Bulbasaur to Pecharunt, with their real types, base stats and catch rates. Pokémon up to Deoxys use their Emerald moves and Ruby/Sapphire sprites; later ones use the moves of the most recent game they appear in, and the sprites of their own era.
+
+## Zones in interiors
+
+Zones belong to the whole city, so interiors can use the same zones as the outside map. Paint them in any interior to make caves, forests or haunted houses.

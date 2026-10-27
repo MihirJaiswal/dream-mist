@@ -1,0 +1,42 @@
+---
+title: Collision and spawn
+description: Where the player can walk, and where they arrive.
+---
+
+## Automatic collision
+
+With **Objects block movement automatically** turned on (the default, in the Collision and Objects panels):
+
+- Tiles painted on the **Objects** layer block movement, except walkable ones like flowers and small decorations.
+- **Water** on the Ground layer blocks movement.
+- The **Above** layer never blocks.
+- Erasing an object makes the tile walkable again.
+
+Turn it off when you want to paint objects without touching collisions, for example to fix a map by hand.
+
+## Painting collision by hand
+
+Select the **Collision** layer (<kbd>4</kbd>). Blocked tiles show in red. Paint with the Brush, Rectangle or Fill tool to block, and with the Eraser to open.
+
+Common fixes:
+
+- Make the bottom row of a house walkable except for the walls, and leave the door open.
+- Block the edges of cliffs and ledges.
+- Block invisible walls at the edge of the map where trees don't reach.
+
+<Callout>
+  The map border always blocks, so the player can never walk off the map.
+</Callout>
+
+## What else blocks the player
+
+- **People** block the tile they stand on. People who wander move around their starting tile, up to two tiles away.
+- **Story gates** block until their step is done. See [Story and events](/docs/story).
+- **Pokémon** on the map block their tile too.
+- **Signs** don't block. A new sign gets a sign post under it, which does.
+
+## Spawn
+
+Select the **Spawn** layer (<kbd>9</kbd>) and click a tile. Visitors start there facing down. Each interior has its own spawn too, used when a door leads into it without a matching door back.
+
+Players who lose all their Pokémon also come back to the spawn of the map they're on.

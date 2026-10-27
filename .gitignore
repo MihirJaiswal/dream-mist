@@ -1,0 +1,21 @@
+# Dependencies and builds
+node_modules
+.next
+.source
+out
+next-env.d.ts
+*.tsbuildinfo
+
+# PokeAPI download used by `npm run data`
+.cache
+
+# Secrets and local settings
+.env
+.env*.local
+.vercel
+
+# Editor and OS files
+.claude
+.kilo
+.DS_Store
+

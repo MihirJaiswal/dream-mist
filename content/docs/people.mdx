@@ -1,0 +1,99 @@
+---
+title: People, Pokémon and signs
+description: Villagers, nurses, Pokémon standing on the map, wild encounters and signs.
+---
+
+Select the **People** layer (<kbd>8</kbd>). At the top of the panel, **Add to the map** has three tabs:
+
+| Tab | What a click places |
+| --- | --- |
+| Person | A villager, trainer or nurse. |
+| Pokémon | A Pokémon standing on the map, to talk to or to battle. |
+| Sign | An invisible sign visitors can read. A sign post is drawn on the tile if nothing is there yet. |
+
+Pick a tab, then click an empty tile. The new one opens for editing right away. Click anyone on the map to edit them, and drag to move them. **On this map** lists everyone with a tag for their role, like *trainer*, *nurse* or *wild · Lv 30*.
+
+While editing, the arrow goes back to the list and the trash button removes them. The three tabs also turn someone into another kind: they keep their place and story settings.
+
+Players talk to anyone by facing them and pressing <kbd>Space</kbd>, <kbd>Enter</kbd>, <kbd>Z</kbd> or <kbd>E</kbd>.
+
+## People
+
+| Setting | What it does |
+| --- | --- |
+| Name | Shown with their dialogue, up to 24 characters. |
+| Looks | A character sprite from the Hoenn games, or your own: press **+** to upload one. See [Custom sprites](/docs/custom-sprites). |
+| Facing | The direction they look. Matters for trainers, who only see in front of them. |
+| Role | **Talks**, **Trainer** or **Nurse**. |
+| Movement | **Stays**, **Wanders** or follows a **Path**. See [Movement](#movement). |
+| Dialogue | What they say. An empty line starts a new page. |
+
+| Role | What happens |
+| --- | --- |
+| Talks | Says their dialogue, then completes their story step if they have one. |
+| Trainer | Battles the player. See [Trainers and gyms](/docs/trainers). |
+| Nurse | Says their dialogue, heals the whole party, and tops up Poké Balls and Potions to at least 5 each. |
+
+## Pokémon
+
+A Pokémon on the map can be any of the 1,025. Click its image to open the Pokémon picker, where you can search by name or number and filter by generation and type.
+
+| Setting | What it does |
+| --- | --- |
+| Pokémon and level | Which one it is. The level matters for wild battles. |
+| Look | The species' own look, or a [custom sprite](/docs/custom-sprites) used on the map and in battle. |
+| Name | Defaults to the species name and follows it until you change it. |
+| When the player talks to it | **Makes its cry** or **Wild battle**. |
+| Movement | **Stays**, **Wanders** or follows a **Path**, like people. |
+| Message | Its cry, or what's said before the battle. |
+
+**Makes its cry** says the message, like a Pikachu going *“Pika pika!”*.
+
+**Wild battle** starts a battle against it as a wild Pokémon, like Snorlax or a legendary. The player can beat it or catch it with a Poké Ball. Once beaten or caught, it's gone for that player. If they run away or lose, it stays. Wild battles stay where you placed them, and are never shiny.
+
+On the map, a **!** marks Pokémon with a wild battle.
+
+## Movement
+
+People and Pokémon have three ways to move:
+
+| Movement | What they do |
+| --- | --- |
+| Stays | Stands where you placed them, turning to face the player when spoken to. |
+| Wanders | Strolls up to two tiles around where you placed them, every few seconds. |
+| Path | Walks a route you draw, over and over. |
+
+### Drawing a path
+
+1. Select someone and choose **Path** under **Movement**. Drawing starts right away.
+2. Click tiles on the map to add stops, in order. The path shows as an amber line with numbered stops.
+3. Press **Done drawing** or <kbd>Esc</kbd>.
+
+Between two stops they walk across first, then up or down, which is how the line is drawn too. **Edit the path** adds more stops, the undo button removes the last stop, and the trash button clears the path. Dragging someone on the map moves their whole path with them.
+
+| Path setting | What it does |
+| --- | --- |
+| At the end | **Walk back** the same way, or **Loop to start**. |
+| Speed | **Walk** (3 tiles a second) or **Run** (6). |
+| Pause | Seconds they wait at each stop, 0 to 10. |
+
+When someone or something is in the way, they wait and try again. Trainers on a path watch where they're facing as they go, so a patrolling guard can spot the player.
+
+## Signs
+
+A sign has only **Text**: what visitors read when they face its tile. An empty line starts a new page. Signs are invisible and don't block movement, so they rely on the sign post (or any object) under them to stop the player walking through.
+
+Good uses for signs: town names, route directions, hints and a bit of lore.
+
+## Story settings
+
+People, Pokémon and signs all have a **Story** section to show up later, leave, wait for a step, complete a step and hand out a reward. It appears once your city has at least one story step.
+
+| Kind | Completes its step when |
+| --- | --- |
+| Person who talks, nurse | The player talks to them |
+| Trainer | The player beats them |
+| Pokémon with a wild battle | The player beats or catches it |
+| Pokémon that cries, sign | The player talks to it or reads it |
+
+See [Story and events](/docs/story) and the [Snorlax recipe](/docs/recipes#the-sleeping-snorlax).

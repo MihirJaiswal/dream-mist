@@ -1,0 +1,53 @@
+---
+title: Doors and interiors
+description: Houses, Pokémon Centers, gyms and rooms you can walk into.
+---
+
+A city has an **Outside** map and up to 40 **interiors**. They're listed under **Maps** at the top of the side panel. Click one to edit it.
+
+## Add an interior
+
+There are two ways:
+
+- **From a door**: select the **Doors** layer (<kbd>7</kbd>), click the door of a building, and in **Leads to** choose **+ New house**, **+ New Pokémon Center** or **+ New gym**. The door is linked right away.
+- **From the Maps list**: press **+ Interior** and pick a template, then add a door to it.
+
+| Template | What you get |
+| --- | --- |
+| House | A tiled floor, and a Mom who walks around. |
+| Pokémon Center | A stone floor and a Nurse who heals. |
+| Gym | A brick floor and a Gym Leader with a Geodude and a Nosepass. |
+| Empty room | A stone floor and nobody inside. |
+
+Every template is 14 × 10 tiles with walls around it and an exit door at the bottom that leads back outside. Change the size in **City settings** while the interior is open.
+
+Rename an interior in the Maps list. The trash button deletes it, along with every door leading to it.
+
+## Doors
+
+A door is a tile that moves the player to another map when they step on it.
+
+- Click a tile on the **Doors** layer to add a door, then pick where it **leads to**.
+- Click an existing door to change it. **Open** jumps to its destination, **Remove door** deletes it.
+- Doors inside an interior can lead **Outside** or to another interior, so you can chain rooms together, like a two-floor house.
+
+### Where the player arrives
+
+The player arrives one tile away from the door that leads back where they came from. So when a house's exit door leads outside, and the house's outside door leads into the house, walking in and out just works.
+
+If the destination has no door back, the player arrives at its spawn point.
+
+<Callout title="One door per interior">
+  If several doors outside lead into the same interior, the player always comes out of the first one. Give each building its own interior.
+</Callout>
+
+## What interiors share
+
+Interiors have their own tiles, collisions, people, doors, spawn point and story gates. They share the city's **story**, **wild Pokémon zones**, **tilesets** and **music**.
+
+## Ideas
+
+- A **cave**: an empty room with a dark floor, rocks on the Objects layer and a cave encounter zone.
+- A **two-floor house**: two interiors with a staircase door between them.
+- A **locked gym**: story gates on the tile in front of the gym door outside.
+- A **secret base**: a door hidden behind trees that leads to a room with a reward giver.
