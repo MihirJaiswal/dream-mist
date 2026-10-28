@@ -78,6 +78,44 @@ body {
   color: var(--color-fg);
 }
 
+/* Scrollbars: a thin rounded thumb on a clear track, everywhere (sidebar, dialogs, palette, docs).
+   The thumb only shows while scrolling (ScrollbarActivity marks the element with data-scrolling) or when hovered. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background: transparent padding-box;
+}
+[data-scrolling]::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #575757;
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: #6e6e6e;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+/* Firefox has no scrollbar pseudo-elements: use its thin dark scrollbar */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  [data-scrolling] {
+    scrollbar-color: #3a3a3a transparent;
+  }
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

@@ -1,5 +1,6 @@
 "use client";
 
+import { removeTileset } from "@/components/editor/city-dialogs";
 import { useEditor } from "@/components/editor/hooks";
 import { CanvasView, Hint, Tip } from "@/components/editor/widgets";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,7 @@ import { targets } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
 import { decode } from "@/game/tilesets";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Shuffle } from "@phosphor-icons/react";
+import { Minus, Plus, Shuffle, Trash } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 /** Palette scroll positions per tileset (kept while switching tabs and panels) */
@@ -178,6 +179,9 @@ function Palette({ editor, onImport }: { editor: EditorEngine; onImport: () => v
         {[{ index: -1, name: "Hoenn" }, ...editor.sheets()].map(({ index, name }) => (
           <button key={index} role="tab" aria-selected={sheet === index} onClick={() => editor.setSheet(index)} className={cn("h-7 rounded-md px-2.5 text-xs", sheet === index ? "bg-muted text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground")}>{name}</button>
         ))}
+        {sheet >= 0
+          ? <Tip label="Remove this tileset" description="Tiles painted with it are erased"><button aria-label="Remove this tileset" onClick={() => removeTileset(sheet)} className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive"><Trash size={13} /></button></Tip>
+          : null}
         <button title="Import your own tileset image" onClick={onImport} className="flex h-7 items-center gap-1 rounded-md border border-dashed border-border px-2 text-xs text-muted-foreground hover:border-ring hover:text-foreground"><Plus size={12} />Import</button>
       </div>
       <div className="relative">

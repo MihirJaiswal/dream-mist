@@ -11,7 +11,6 @@ import { cloud } from "@/game/cloud";
 import { storage } from "@/game/data";
 import { message, session } from "@/game/session";
 import type { SignInReason } from "@/game/ui-bridge";
-import { cn } from "@/lib/utils";
 import { Folder, SignOut, Upload } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,7 +26,7 @@ export function confirm(title: string, { text = "", action = "Confirm", danger =
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => close(false)}>Cancel</AlertDialogCancel>
-          <AlertDialogAction className={cn(danger && "bg-destructive text-white hover:bg-destructive/90")} onClick={() => close(true)}>{action}</AlertDialogAction>
+          <AlertDialogAction variant={danger ? "destructive" : "default"} onClick={() => close(true)}>{action}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

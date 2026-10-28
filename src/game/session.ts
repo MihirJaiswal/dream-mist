@@ -4,11 +4,11 @@ import { load as loadAssets, size } from "./assets";
 import { sound } from "./audio";
 import { frames, template } from "./brushes";
 import { type Card, cloud, isCloudId } from "./cloud";
-import { area, blank, type City, decode, type Direction, type Door, library, resize, sanitize, storage, uid } from "./data";
+import { area, blank, type City, decode, type Direction, type Door, library, type Npc, resize, sanitize, storage, uid } from "./data";
 import { EditorEngine } from "./editor/engine";
 import { load as hoenn, type Section } from "./hoenn";
 import { CityMap } from "./map";
-import { Play } from "./play";
+import { Play, portraitOf } from "./play";
 import { type Edit, type Peer, Room } from "./room";
 import { frameOf, layouts, load as loadSprites, type Sprite } from "./sprites";
 import { dataURL, load as loadTilesets, prepare, range } from "./tilesets";
@@ -67,6 +67,10 @@ export class Session {
   map = null as unknown as CityMap;
   editor = null as unknown as EditorEngine;
   play = null as null | Play;
+  /** Right-click menu on the map (Build only): the tile, and where on screen to open it */
+  menu = null as null | { tile: { x: number; y: number }; left: number; top: number };
+  /** Where you were building before pressing Play (map and camera), to come back to it */
+  #building = null as null | { area: string; x: number; y: number; scale: number };
   readonly #cursors = new Map<string, PIXI.Container>();
   readonly #listeners = new Set<() => void>();
   #version = 0;
@@ -165,8 +169,8 @@ export class Session {
     await this.setMode(mode);
   }
 
-  /** Switch between edit and play */
-  async setMode(mode: "edit" | "play"): Promise<void> {
+  /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
+  async setMode(mode: "edit" | "play", from: null | { x: number; y: number } = null): Promise<void> {
     if ((mode === "play") && (!trainer.exists)) {
       await ui.onboarding();
       if (!trainer.exists) {
@@ -176,18 +180,61 @@ export class Session {
         mode = "edit";
       }
     }
+    //Remember where you were building, to come back to it after playing
+    if ((mode === "play") && (this.mode === "edit")) {
+      this.#building = { area: this.#areaId(), x: this.map.world.x, y: this.map.world.y, scale: this.map.world.scale.x };
+    }
+    this.menu = null;
     this.mode = mode;
     this.play?.stop();
     this.play = null;
     this.editor.stop();
     if (mode === "edit") {
+      const view = this.#building;
+      this.#building = null;
+      if ((view) && (view.area !== this.#areaId()) && (area(this.city, view.area))) {
+        //Playing walked through a door: go back to the map you were building
+        this.area = area(this.city, view.area)!;
+        this.map.load(this.area);
+      }
       this.editor.start(this.area, this.city);
+      if (view) {
+        this.map.world.scale.set(view.scale);
+        this.map.world.position.set(view.x, view.y);
+        this.map.onzoom?.(view.scale);
+      }
     } else {
       this.map.scale(3);
-      this.#play();
+      this.#play(from ? { ...from, dir: "down" } : null);
     }
     this.notify();
     setTimeout(() => this.map.app.resize(), 0);
+  }
+
+  /** Id of the open map ("" = outside) */
+  #areaId() {
+    return this.area === this.city ? "" : this.area.id;
+  }
+
+  /** Play from a tile of the open map (the spawn when none is given) */
+  playFrom(tile: null | { x: number; y: number }) {
+    if ((tile) && (!this.map.inside(tile))) {
+      tile = null;
+    }
+    return this.setMode("play", tile);
+  }
+
+  /** Close the map's right-click menu */
+  closeMenu() {
+    if (this.menu) {
+      this.menu = null;
+      this.notify();
+    }
+  }
+
+  /** Show what someone says in the real dialogue box, without leaving Build */
+  preview(npc: Npc, text: string) {
+    return ui.say(text.trim() || "…", { speaker: npc.name, portrait: portraitOf(npc) });
   }
 
   /** Start play mode on the current map */
@@ -729,6 +776,23 @@ export class Session {
     return sheet;
   }
 
+  /** How many tiles are painted with a custom tileset, across every map of the city */
+  tilesetUses(index: number) {
+    const min = (index + 1) * range, max = min + range;
+    let count = 0;
+    for (const map of [this.city, ...this.city.interiors]) {
+      for (const layer of ["ground", "decor", "above"] as const) {
+        count += map.layers[layer].filter((value) => (value >= min) && (value < max)).length;
+      }
+    }
+    return count;
+  }
+
+  /** How many people and Pokémon look like a custom sprite, or show it as their portrait */
+  spriteUses(id: string) {
+    return [this.city, ...this.city.interiors].flatMap((map) => map.npcs).filter((npc) => (npc.sprite === `custom:${id}`) || (npc.creature?.look === id) || (npc.portrait === `sprite:custom:${id}`)).length;
+  }
+
   /** Remove a custom tileset (tiles painted with it are erased, other tilesets keep their position) */
   async removeTileset(index: number) {
     const sheets = this.city.tilesets ?? [];
@@ -766,7 +830,7 @@ export class Session {
     return await this.#store(file, "sprite", "portrait", 256 * 1024);
   }
 
-  /** Remove a custom sprite (everyone using it gets a default look) */
+  /** Remove a custom sprite (everyone using it gets a default look and portrait) */
   async removeSprite(id: string) {
     this.city.sprites = (this.city.sprites ?? []).filter((sprite) => sprite.id !== id);
     for (const map of [this.city, ...this.city.interiors]) {
@@ -776,6 +840,9 @@ export class Session {
         }
         if (npc.creature?.look === id) {
           delete npc.creature.look;
+        }
+        if (npc.portrait === `sprite:custom:${id}`) {
+          delete npc.portrait;
         }
       }
     }
@@ -911,6 +978,14 @@ export class Session {
     this.editor.onmap = (id) => this.openArea(id);
     this.editor.onmaps = () => (this.room?.meta({ interiors: this.city.interiors }), this.changed(), this.editor.refresh(), this.notify());
     this.editor.onrestart = () => this.restartStory();
+    this.editor.onplay = (tile) => void this.playFrom(tile);
+    this.map.oncontext = (tile, screen) => {
+      if ((this.mode !== "edit") || (!this.map.inside(tile))) {
+        return;
+      }
+      this.menu = { tile, left: screen.x, top: screen.y };
+      this.notify();
+    };
     if (!(await this.#route())) {
       const last = library.list().find(({ id }) => id === storage.get("last", "")) ?? library.list()[0];
       if ((last) && (isCloudId(last.id)) && (cloud.user)) {

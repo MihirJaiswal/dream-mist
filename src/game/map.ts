@@ -43,6 +43,12 @@ export class CityMap {
   /** Pointer listener (left button only, panning is handled internally) */
   onpointer = null as null | PointerHandler;
 
+  /** Right click without dragging (dragging pans): the tile, and where to open a menu on screen */
+  oncontext = null as null | ((tile: { x: number; y: number }, screen: { x: number; y: number }) => void);
+
+  /** The pointer left the map */
+  onleave = null as null | (() => void);
+
   /** Allow user panning */
   pannable = true;
 
@@ -297,12 +303,13 @@ export class CityMap {
 
   /** Mouse, touch and wheel inputs */
   #inputs(view: HTMLCanvasElement) {
-    let panning = null as null | { x: number; y: number; wx: number; wy: number };
+    let panning = null as null | { x: number; y: number; wx: number; wy: number; button: number };
     view.addEventListener("contextmenu", (event) => event.preventDefault());
+    view.addEventListener("pointerleave", () => this.onleave?.());
     view.addEventListener("pointerdown", (event) => {
       view.setPointerCapture(event.pointerId);
       if ((this.pannable) && ((event.button === 1) || (event.button === 2) || (this.#space) || (!this.onpointer))) {
-        panning = { x: event.clientX, y: event.clientY, wx: this.world.x, wy: this.world.y };
+        panning = { x: event.clientX, y: event.clientY, wx: this.world.x, wy: this.world.y, button: event.button };
         view.style.cursor = "grabbing";
         return;
       }
@@ -319,8 +326,13 @@ export class CityMap {
     });
     view.addEventListener("pointerup", (event) => {
       if (panning) {
+        //A right click that barely moved opens the menu instead of panning
+        const click = (panning.button === 2) && (Math.hypot(event.clientX - panning.x, event.clientY - panning.y) < 4);
         panning = null;
         view.style.cursor = "";
+        if (click) {
+          this.oncontext?.(this.tile(event.clientX, event.clientY), { x: event.clientX, y: event.clientY });
+        }
         return;
       }
       this.onpointer?.("up", this.tile(event.clientX, event.clientY), event);

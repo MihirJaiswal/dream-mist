@@ -102,6 +102,31 @@ class Actor {
 /** Person walking around the city */
 type Person = { actor: Actor; data: Npc; index: number; home: { x: number; y: number }; next: number; bubble: null | PIXI.Text; hidden: boolean; leg: number; way: 1 | -1 };
 
+/** Picture shown beside someone's dialogue: the one picked for them, a Pokémon's artwork, or their map sprite drawn bigger (signs have none) */
+export function portraitOf(data: Npc): Portrait | undefined {
+  if (data.hidePortrait) {
+    return undefined;
+  }
+  const sprite = (name: string): Portrait | undefined => {
+    try {
+      return { src: preview(texture(name, "down"), 1).toDataURL(), kind: "sprite" };
+    } catch {
+      //Images from another site without CORS can't be copied
+      return undefined;
+    }
+  };
+  if (data.portrait?.startsWith("sprite:")) {
+    return sprite(data.portrait.slice("sprite:".length));
+  }
+  if (data.portrait) {
+    return { src: data.portrait, kind: "art" };
+  }
+  if (data.creature) {
+    return { src: creatureImage(data.creature.look) || artwork(data.creature.species), kind: "art" };
+  }
+  return data.sprite ? sprite(data.sprite) : undefined;
+}
+
 /**
  * Play mode.
  * Walk around a city, talk to people, battle trainers and catch wild creatures.
@@ -573,34 +598,9 @@ export class Play {
     this.#refresh(true);
   }
 
-  /** Picture shown beside someone's dialogue: the one picked for them, a Pokémon's artwork, or their map sprite drawn bigger (signs have none) */
-  #portrait(data: Npc): Portrait | undefined {
-    if (data.hidePortrait) {
-      return undefined;
-    }
-    const sprite = (name: string): Portrait | undefined => {
-      try {
-        return { src: preview(texture(name, "down"), 1).toDataURL(), kind: "sprite" };
-      } catch {
-        //Images from another site without CORS can't be copied
-        return undefined;
-      }
-    };
-    if (data.portrait?.startsWith("sprite:")) {
-      return sprite(data.portrait.slice("sprite:".length));
-    }
-    if (data.portrait) {
-      return { src: data.portrait, kind: "art" };
-    }
-    if (data.creature) {
-      return { src: creatureImage(data.creature.look) || artwork(data.creature.species), kind: "art" };
-    }
-    return data.sprite ? sprite(data.sprite) : undefined;
-  }
-
   /** Talk to a NPC */
   async #talk({ data, index }: { data: Npc; index: number }) {
-    const voice = { speaker: data.name, portrait: this.#portrait(data) };
+    const voice = { speaker: data.name, portrait: portraitOf(data) };
     const story = data.story;
     //Not ready yet in the story
     if ((story?.requires) && (!this.#done(story.requires))) {

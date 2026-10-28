@@ -6,6 +6,7 @@ import { type Card, edit, like } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { GitFork, Heart, PencilSimple, Play } from "@phosphor-icons/react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 /** Relative date */
 function ago(time: number) {
@@ -19,19 +20,19 @@ function short(value: number) {
 }
 
 /** Published city card */
-export function CityCard({ city: initial, user, onError }: { city: Card; user?: string | null; onError?: (message: string) => void }) {
+export function CityCard({ city: initial, user }: { city: Card; user?: string | null }) {
   const [city, setCity] = useState(initial);
   const mine = city.mine ?? (Boolean(user) && city.owner === user);
   const meta = [`${city.width}×${city.height}`, city.interiors ? `${city.interiors} interior${city.interiors > 1 ? "s" : ""}` : "", city.story ? `${city.story}-step story` : ""].filter(Boolean);
   const toggle = async () => {
     if (!user) {
-      return onError?.("Log in from the editor to like cities");
+      return toast.warning("Log in to like cities", { description: "Likes belong to your account.", action: { label: "Log in", onClick: () => location.assign(edit()) } });
     }
     try {
       const result = await like(city.id);
       setCity({ ...city, liked: result.liked, likes: result.likes });
     } catch (error) {
-      onError?.((error as Error).message);
+      toast.error("Couldn't update your like", { description: (error as Error).message });
     }
   };
   return (

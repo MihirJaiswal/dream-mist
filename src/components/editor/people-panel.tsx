@@ -1,5 +1,6 @@
 "use client";
 
+import { removeSprite } from "@/components/editor/city-dialogs";
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
 import { CanvasView, Field, Hint, NumberInput, TextInput, Tip, useDraft } from "@/components/editor/widgets";
@@ -17,7 +18,7 @@ import type { EditorEngine } from "@/game/editor/engine";
 import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { cn } from "@/lib/utils";
-import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Eye, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -118,16 +119,30 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
 
 type Update = (fn: () => void) => void;
 
+/** An upload in a picker grid, with a small remove button that shows on hover */
+function Removable({ label, onRemove, children }: { label: string; onRemove: () => void; children: React.ReactNode }) {
+  return (
+    <div className="group relative">
+      {children}
+      <button aria-label={label} title={label} onClick={onRemove} className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full border border-border bg-background text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"><X size={9} weight="bold" /></button>
+    </div>
+  );
+}
+
 /** Dialogue or message box (saves when leaving the field) */
-function Words({ label, value, placeholder, onCommit, rows = 3 }: { label: string; value: string; placeholder: string; onCommit: (value: string) => void; rows?: number }) {
+function Words({ label, value, placeholder, onCommit, rows = 3, speaker }: { label: string; value: string; placeholder: string; onCommit: (value: string) => void; rows?: number; speaker?: Npc }) {
   const [text, setText] = useDraft(value);
-  return <Field label={label}><Textarea rows={rows} value={text} placeholder={placeholder} onChange={(event) => setText(event.target.value)} onBlur={() => text !== value && onCommit(text)} /></Field>;
+  //Preview shows the text as typed, even before it's saved
+  const preview = speaker
+    ? <Tip label="Preview" description="See it in the game's dialogue box"><button onClick={() => session.preview(speaker, text || placeholder)} className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"><Eye size={13} />Preview</button></Tip>
+    : null;
+  return <Field label={label} action={preview}><Textarea rows={rows} value={text} placeholder={placeholder} onChange={(event) => setText(event.target.value)} onBlur={() => text !== value && onCommit(text)} /></Field>;
 }
 
 function SignForm({ npc, update }: { npc: Npc; update: Update }) {
   return (
     <>
-      <Words label="Text" rows={4} value={npc.dialogue} placeholder="Route 101 · North to Oldale Town" onCommit={(text) => update(() => npc.dialogue = text)} />
+      <Words label="Text" rows={4} speaker={npc} value={npc.dialogue} placeholder="Route 101 · North to Oldale Town" onCommit={(text) => update(() => npc.dialogue = text)} />
       <Hint>Visitors read it by facing it and pressing Space. An empty line starts a new page. Signs are invisible, so keep a sign post or object under them.</Hint>
     </>
   );
@@ -144,11 +159,14 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
           <Tip label="Upload your own sprite" description="A walking sheet: 3 frames for each of the 4 directions">
             <button aria-label="Upload your own sprite" onClick={async () => { const id = await onSprite("person"); if (id) update(() => npc.sprite = spriteKey(id)); }} className="grid h-11 w-9 place-items-center rounded-md border border-dashed border-border text-muted-foreground hover:border-ring hover:text-foreground"><Plus size={16} /></button>
           </Tip>
-          {looks.map(({ id, name }) => (
-            <button key={id} title={name} onClick={() => update(() => npc.sprite = id)} className={cn("grid h-11 w-9 place-items-center rounded-md border bg-card", npc.sprite === id ? "border-select" : "border-border hover:border-ring")}>
-              <CanvasView make={() => preview(texture(id, "down"), 1.5 * scaleOf(id))} deps={[id]} />
-            </button>
-          ))}
+          {looks.map(({ id, name }) => {
+            const look = (
+              <button key={id} title={name} onClick={() => update(() => npc.sprite = id)} className={cn("grid h-11 w-9 place-items-center rounded-md border bg-card", npc.sprite === id ? "border-select" : "border-border hover:border-ring")}>
+                <CanvasView make={() => preview(texture(id, "down"), 1.5 * scaleOf(id))} deps={[id]} />
+              </button>
+            );
+            return id.startsWith("custom:") ? <Removable key={id} label={`Remove ${name}`} onRemove={() => removeSprite(id.slice("custom:".length))}>{look}</Removable> : look;
+          })}
         </div>
       </Field>
       <PortraitField editor={editor} npc={npc} update={update} />
@@ -181,7 +199,7 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
         </Field>
       </div>
       <Movement editor={editor} npc={npc} update={update} />
-      <Words label="Dialogue" rows={4} value={npc.dialogue} placeholder="Leave an empty line to start a new page" onCommit={(text) => update(() => npc.dialogue = text)} />
+      <Words label="Dialogue" rows={4} speaker={npc} value={npc.dialogue} placeholder="Leave an empty line to start a new page" onCommit={(text) => update(() => npc.dialogue = text)} />
       {(npc.role === "trainer") && (npc.trainer) ? <TrainerForm npc={npc} update={update} city={editor.city.name} /> : null}
     </>
   );
@@ -203,7 +221,7 @@ function TrainerForm({ npc, update, city }: { npc: Npc; update: Update; city: st
       {trainer.team.length < 6 ? <Button variant="ghost" size="sm" className="justify-start text-muted-foreground" onClick={() => update(() => trainer.team.push({ species: 1 + Math.floor(Math.random() * assets.pokedex.length), level: trainer.team.at(-1)?.level ?? 5 }))}><Plus />Add Pokémon</Button> : null}
       <Label className="flex items-center gap-2 text-xs font-normal text-muted-foreground"><Checkbox checked={trainer.gym} onCheckedChange={(value) => update(() => trainer.gym = value === true)} />Gym leader (gives a badge)</Label>
       {trainer.gym ? <Field label="Badge name"><TextInput value={trainer.badge} placeholder={`${city} Badge`} onCommit={(badge) => update(() => trainer.badge = badge)} className="h-8" /></Field> : null}
-      <Field label="When defeated"><TextInput value={trainer.defeat} onCommit={(text) => update(() => trainer.defeat = text)} className="h-8" /></Field>
+      <Words label="When defeated" rows={2} speaker={npc} value={trainer.defeat} placeholder="You're tough!" onCommit={(text) => update(() => trainer.defeat = text)} />
       <Hint>Trainers spot visitors in front of them (4 tiles) and challenge them.</Hint>
     </div>
   );
@@ -228,11 +246,14 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
       </div>
       <Field label="Look">
         <div className="flex flex-wrap gap-1">
-          {[{ id: "", name: `${species(creature.species)?.name} (default)` }, ...own].map(({ id, name }) => (
-            <button key={id || "default"} title={name} onClick={() => update(() => id ? creature.look = id : delete creature.look)} className={cn("grid h-11 w-12 place-items-center overflow-hidden rounded-md border bg-card", (creature.look ?? "") === id ? "border-select" : "border-border hover:border-ring")}>
-              <CanvasView make={() => portrait(creature.species, 0.75, id ? creatureImage(id) : "")} deps={[creature.species, id]} />
-            </button>
-          ))}
+          {[{ id: "", name: `${species(creature.species)?.name} (default)` }, ...own].map(({ id, name }) => {
+            const look = (
+              <button key={id || "default"} title={name} onClick={() => update(() => id ? creature.look = id : delete creature.look)} className={cn("grid h-11 w-12 place-items-center overflow-hidden rounded-md border bg-card", (creature.look ?? "") === id ? "border-select" : "border-border hover:border-ring")}>
+                <CanvasView make={() => portrait(creature.species, 0.75, id ? creatureImage(id) : "")} deps={[creature.species, id]} />
+              </button>
+            );
+            return id ? <Removable key={id} label={`Remove ${name}`} onRemove={() => removeSprite(id)}>{look}</Removable> : look;
+          })}
           <Tip label="Upload your own Pokémon sprite" description="One image, used on the map and in battle">
             <button aria-label="Upload your own Pokémon sprite" onClick={async () => { const id = await onSprite("pokemon"); if (id) update(() => creature.look = id); }} className="grid h-11 w-12 place-items-center rounded-md border border-dashed border-border text-muted-foreground hover:border-ring hover:text-foreground"><Plus size={16} /></button>
           </Tip>
@@ -261,7 +282,7 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
         </div>
       </div>
       <Movement editor={editor} npc={npc} update={update} />
-      <Words label={wild ? "Before the battle" : "Cry or message"} value={npc.dialogue} placeholder={wild ? "Snorlax is fast asleep… It woke up!" : "Pika pika!"} onCommit={(text) => update(() => npc.dialogue = text)} />
+      <Words label={wild ? "Before the battle" : "Cry or message"} speaker={npc} value={npc.dialogue} placeholder={wild ? "Snorlax is fast asleep… It woke up!" : "Pika pika!"} onCommit={(text) => update(() => npc.dialogue = text)} />
       {wild ? <Hint>Visitors battle it as a wild Pokémon and can catch it. Once beaten or caught, it&apos;s gone for that player.</Hint> : null}
     </>
   );
@@ -467,7 +488,7 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
               <span>Poké Balls</span><NumberInput min={0} max={99} value={reward.balls ?? 0} onCommit={(value) => set("reward", { ...reward, balls: value })} className="w-14" />
               <span>Potions</span><NumberInput min={0} max={99} value={reward.potions ?? 0} onCommit={(value) => set("reward", { ...reward, potions: value })} className="w-14" />
             </div>
-            <Words label="Says afterwards" rows={2} value={settings.done ?? ""} placeholder="Good luck on your journey!" onCommit={(text) => set("done", text)} />
+            <Words label="Says afterwards" rows={2} speaker={npc} value={settings.done ?? ""} placeholder="Good luck on your journey!" onCommit={(text) => set("done", text)} />
           </div>
         )
         : null}

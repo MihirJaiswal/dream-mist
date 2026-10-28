@@ -74,6 +74,12 @@ export class EditorEngine {
   onmeta = null as null | ((patch: Partial<City>) => void);
   oncursor = null as null | ((x: number, y: number) => void);
 
+  /** Play from a tile (P key: the hovered tile, or the spawn when the pointer is off the map) */
+  onplay = null as null | ((tile: null | { x: number; y: number }) => void);
+
+  /** Tile under the pointer */
+  #hovered = null as null | { x: number; y: number };
+
   constructor({ map, city, onchange }: { map: CityMap; city: City; onchange: () => void }) {
     this.#map = map;
     this.#city = this.#world = city;
@@ -199,6 +205,7 @@ export class EditorEngine {
     this.#map.containers.overlay.addChild(this.#marquee);
     this.#map.containers.actors.addChild(this.#markers);
     this.#map.onpointer = (type, tile) => this.#pointer(type, tile);
+    this.#map.onleave = () => (this.#hovered = null, this.#coordsListeners.forEach((listener) => listener(null)));
     this.#map.overlays.grid.visible = storage.get("grid", true);
     document.addEventListener("keydown", this.#keys);
     this.#markersRefresh();
@@ -209,6 +216,8 @@ export class EditorEngine {
   /** Deactivate the editor (play mode) */
   stop() {
     this.#map.onpointer = null;
+    this.#map.onleave = null;
+    this.#hovered = null;
     this.#ghost.parent?.removeChild(this.#ghost);
     this.#marquee.parent?.removeChild(this.#marquee);
     this.#markers.parent?.removeChild(this.#markers);
@@ -619,6 +628,7 @@ export class EditorEngine {
   #pointer(type: "down" | "move" | "up", tile: { x: number; y: number }) {
     const { x, y } = tile;
     const inside = this.#map.inside(tile);
+    this.#hovered = inside ? { x, y } : null;
     this.oncursor?.(x, y);
     this.#coordsListeners.forEach((listener) => listener(inside ? tile : null));
 
@@ -752,6 +762,10 @@ export class EditorEngine {
     }
     if (key === "g") {
       this.toggleGrid();
+    }
+    if (key === "p") {
+      event.preventDefault();
+      return this.onplay?.(this.#hovered);
     }
     if (((key === "delete") || (key === "backspace")) && (this.#selected >= 0)) {
       this.deleteNpc();

@@ -6,7 +6,7 @@ import { size } from "@/game/assets";
 import { storage } from "@/game/data";
 import { session as engine } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { Crosshair, GridFour, MapTrifold, Minus, Plus, Sidebar as SidebarIcon } from "@phosphor-icons/react";
+import { Crosshair, GridFour, MapPin, MapTrifold, Minus, Play, Plus, Sidebar as SidebarIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 /** Floating map controls: zoom, center, grid, minimap and side panel */
@@ -35,6 +35,45 @@ export function MapControls({ minimap, onMinimap, onPanel }: { minimap: boolean;
         <Tip label="Minimap" description="Overview of the whole map, click it to jump around"><button aria-label="Minimap" aria-pressed={minimap} className={cn(button, minimap && "text-foreground")} onClick={onMinimap}><MapTrifold size={15} /></button></Tip>
         {edit ? <Tip label="Side panel" description="Show or hide the layers and tiles panel"><button aria-label="Side panel" className={button} onClick={onPanel}><SidebarIcon size={15} /></button></Tip> : null}
       </div>
+    </div>
+  );
+}
+
+/** Right-click menu on a map tile (Build only) */
+export function MapMenu() {
+  const session = useSession();
+  const menu = session.menu;
+  const ref = useRef<HTMLDivElement>(null);
+  //Close on a click elsewhere, Escape, or when the map moves
+  useEffect(() => {
+    if (!menu) {
+      return;
+    }
+    const outside = (event: Event) => !ref.current?.contains(event.target as Node) && engine.closeMenu();
+    const escape = (event: KeyboardEvent) => event.key === "Escape" && engine.closeMenu();
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("wheel", outside, true);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("wheel", outside, true);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [menu]);
+  if ((!menu) || (session.mode !== "edit")) {
+    return null;
+  }
+  const { tile } = menu;
+  const item = "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent";
+  return (
+    <div ref={ref} role="menu" style={{ left: Math.min(menu.left, window.innerWidth - 216), top: Math.min(menu.top, window.innerHeight - 140) }} className="fixed z-50 w-52 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg">
+      <p className="px-2 pb-1 pt-0.5 font-mono text-[11px] text-subtle-fg">Tile {tile.x}, {tile.y}</p>
+      <button role="menuitem" className={item} onClick={() => void engine.playFrom(tile)}>
+        <Play size={15} weight="fill" />Play from here<kbd className="ml-auto font-mono text-[11px] text-subtle-fg">P</kbd>
+      </button>
+      <button role="menuitem" className={item} onClick={() => (engine.editor.mutate(() => engine.area.spawn = { ...tile }), engine.closeMenu())}>
+        <MapPin size={15} />Visitors arrive here
+      </button>
     </div>
   );
 }
@@ -107,7 +146,11 @@ export function StatusBar() {
       <span className="text-muted-foreground">{session.area && session.area !== session.city ? session.area.name : "Outside"}</span>
       <span className="w-14 font-mono">{tile ? `${tile.x}, ${tile.y}` : ""}</span>
       <span className="truncate">{session.saved}</span>
-      <span className="ml-auto hidden truncate lg:inline">Two-finger swipe or right-drag to pan · Pinch or Ctrl+scroll to zoom · 0 centers · G grid · Play: WASD, Shift runs, Space talks</span>
+      <span className="ml-auto hidden truncate lg:inline">
+        {session.mode === "play"
+          ? "WASD or arrows to walk · Shift runs · Space talks · Build takes you back where you were"
+          : "Right-click a tile or press P to play from there · Right-drag or two-finger swipe to pan · Ctrl+scroll zooms · 0 centers · G grid"}
+      </span>
     </footer>
   );
 }

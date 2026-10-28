@@ -259,12 +259,7 @@ function Settings({ close }: { close: () => void }) {
             <div key={sheet.id} className={row}>
               <ImageIcon size={16} />
               <div className="min-w-0 flex-1"><b className="block truncate text-sm">{sheet.name}</b><small className="text-xs text-subtle-fg">{sheet.columns}×{sheet.rows} tiles of {sheet.tile}px</small></div>
-              <Button size="icon" variant="ghost" aria-label="Remove tileset" title="Remove tileset" onClick={async () => {
-                if (await confirm(`Remove ${sheet.name}?`, { text: "Tiles drawn with this tileset will be erased.", action: "Remove", danger: true })) {
-                  await session.removeTileset(index);
-                  update();
-                }
-              }}><Trash className="text-destructive" /></Button>
+              <Button size="icon" variant="ghost" aria-label="Remove tileset" title="Remove tileset" onClick={async () => (await removeTileset(index), update())}><Trash className="text-destructive" /></Button>
             </div>
           ) : null)}
           {(city.tilesets ?? []).every(({ url }) => !url) ? <Hint>Only the built-in Hoenn tileset is used.</Hint> : null}
@@ -276,12 +271,7 @@ function Settings({ close }: { close: () => void }) {
             <div key={sprite.id} className={row}>
               {sprite.kind === "person" ? <User size={16} /> : <Sparkle size={16} />}
               <div className="min-w-0 flex-1"><b className="block truncate text-sm">{sprite.name}</b><small className="text-xs text-subtle-fg">{sprite.kind === "person" ? `Person · ${layouts[sprite.layout ?? "dreammist"].label}` : "Pokémon"} · {sprite.w}×{sprite.h} px frames</small></div>
-              <Button size="icon" variant="ghost" aria-label="Remove sprite" title="Remove sprite" onClick={async () => {
-                if (await confirm(`Remove ${sprite.name}?`, { text: "Everyone using it goes back to a default look.", action: "Remove", danger: true })) {
-                  await session.removeSprite(sprite.id);
-                  update();
-                }
-              }}><Trash className="text-destructive" /></Button>
+              <Button size="icon" variant="ghost" aria-label="Remove sprite" title="Remove sprite" onClick={async () => (await removeSprite(sprite.id), update())}><Trash className="text-destructive" /></Button>
             </div>
           ))}
           {(city.sprites ?? []).length ? null : <Hint>No custom sprites yet.</Hint>}
@@ -293,6 +283,42 @@ function Settings({ close }: { close: () => void }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+//=================================================================================================
+// Remove uploads
+
+/** Remove a custom tileset after confirming (says how many painted tiles go with it) */
+export async function removeTileset(index: number) {
+  const sheet = session.city.tilesets?.[index];
+  if (!sheet?.url) {
+    return false;
+  }
+  const uses = session.tilesetUses(index);
+  const text = uses ? `${uses} tile${uses > 1 ? "s" : ""} painted with it will be erased from your maps.` : "No tiles on your maps use it.";
+  if (!(await confirm(`Remove the ${sheet.name} tileset?`, { text, action: "Remove", danger: true }))) {
+    return false;
+  }
+  await session.removeTileset(index);
+  toast.success(`${sheet.name} removed`);
+  return true;
+}
+
+/** Remove a custom sprite after confirming (says how many people or Pokémon go back to a default look) */
+export async function removeSprite(id: string) {
+  const sprite = session.city.sprites?.find((sprite) => sprite.id === id);
+  if (!sprite) {
+    return false;
+  }
+  const uses = session.spriteUses(id);
+  const who = sprite.kind === "person" ? (uses > 1 ? "people" : "person") : "Pokémon";
+  const text = uses ? `${uses} ${who} using it will go back to a default look.` : "Nobody on your maps uses it.";
+  if (!(await confirm(`Remove the ${sprite.name} sprite?`, { text, action: "Remove", danger: true }))) {
+    return false;
+  }
+  await session.removeSprite(id);
+  toast.success(`${sprite.name} removed`);
+  return true;
 }
 
 //=================================================================================================

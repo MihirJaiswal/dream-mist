@@ -30,7 +30,7 @@ export function ZonesPanel() {
     <div className="grid grid-cols-1 gap-2">
       <Hint>Pick a zone, then paint where it applies. Visitors walking there may meet these Pokémon.</Hint>
       {zones.map((zone, z) => (
-        <div key={z} onClick={(event) => !(event.target as HTMLElement).closest("input, button, [role=slider]") && editor.setZone(z + 1)} className={cn("grid gap-2 rounded-lg border bg-card p-2.5", editor.zone === z + 1 ? "border-ring" : "border-border")}>
+        <div key={z} onClick={(event) => !(event.target as HTMLElement).closest("input, button, [role=slider]") && editor.setZone(z + 1)} className={cn("grid gap-2 rounded-lg border bg-card p-2.5", editor.zone === z + 1 ? "border-select" : "border-border")}>
           <div className="flex items-center gap-2">
             <span className="size-3 shrink-0 rounded-sm" style={{ background: `#${zone.color.toString(16).padStart(6, "0")}` }} />
             <TextInput aria-label="Zone name" value={zone.name} onCommit={(name) => editor.mutate(() => zone.name = name)} className="h-8" />

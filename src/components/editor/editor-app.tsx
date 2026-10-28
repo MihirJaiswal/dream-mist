@@ -10,7 +10,7 @@ import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
 import { onboarding } from "@/components/editor/trainer-dialogs";
-import { MapControls, Minimap, StatusBar, usePreference } from "@/components/editor/viewport";
+import { MapControls, MapMenu, Minimap, StatusBar, usePreference } from "@/components/editor/viewport";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { message, session } from "@/game/session";
@@ -64,6 +64,7 @@ export function EditorApp() {
             <div ref={viewport} className="absolute inset-0 [&_canvas]:block" />
             {session.ready && minimap ? <Minimap /> : null}
             {session.ready ? <MapControls minimap={minimap} onMinimap={() => setMinimap(!minimap)} onPanel={() => setCollapsed(!collapsed)} /> : null}
+            {session.ready ? <MapMenu /> : null}
             <MapBanner />
             <SaveNudge onLogin={() => signIn("save")} />
             {session.ready ? null : <Loading progress={progress} />}

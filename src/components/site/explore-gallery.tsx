@@ -20,7 +20,6 @@ const sorts = [
 export function ExploreGallery() {
   const [cards, setCards] = useState<Card[] | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [user, setUser] = useState<string | null>(null);
   const [sort, setSort] = useState<typeof sorts[number]["key"]>("new");
   const [query, setQuery] = useState("");
@@ -28,12 +27,6 @@ export function ExploreGallery() {
     explore().then(setCards).catch((error: Error) => (setError(error.message), setCards([])));
     me().then((user) => setUser(user?.username ?? null));
   }, []);
-  useEffect(() => {
-    if (notice) {
-      const timer = setTimeout(() => setNotice(""), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notice]);
   const shown = useMemo(() => {
     const order = sorts.find(({ key }) => key === sort)!;
     const search = query.trim().toLowerCase();
@@ -68,9 +61,8 @@ export function ExploreGallery() {
               {!error && !query ? <ButtonLink href={edit()} size="sm" className="mt-2"><Plus size={14} /> Build a city</ButtonLink> : null}
             </div>
           )
-          : shown.map((city) => <CityCard key={city.id} city={city} user={user} onError={setNotice} />)}
+          : shown.map((city) => <CityCard key={city.id} city={city} user={user} />)}
       </section>
-      {notice ? <div role="status" className="fixed bottom-6 right-6 z-40 rounded-lg border border-line bg-surface px-4 py-3 text-[13px] shadow-xl">{notice}</div> : null}
     </div>
   );
 }

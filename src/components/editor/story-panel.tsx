@@ -27,7 +27,7 @@ export function StoryPanel() {
               const active = step.n === current;
               const by = editor.people("completes", step.id), shows = editor.people("after", step.id), hides = editor.people("until", step.id), count = editor.gates(step.n);
               return (
-                <li key={step.id} onClick={(event) => !(event.target as HTMLElement).closest("input, button, textarea, [role=combobox]") && editor.setStep(step.n)} className={cn("relative flex gap-2 rounded-lg border p-2", active ? "border-ring bg-card" : "border-transparent hover:bg-muted/50")}>
+                <li key={step.id} onClick={(event) => !(event.target as HTMLElement).closest("input, button, textarea, [role=combobox]") && editor.setStep(step.n)} className={cn("relative flex gap-2 rounded-lg border p-2", active ? "border-select bg-card" : "border-transparent hover:bg-muted/50")}>
                   <span className={cn("z-10 grid size-6 shrink-0 place-items-center rounded-full border font-mono text-[11px]", active ? "border-foreground bg-foreground text-background" : "border-border bg-background text-muted-foreground")}>{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-0.5">

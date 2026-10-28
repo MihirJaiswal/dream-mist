@@ -28,11 +28,13 @@ export function CanvasView({ make, deps, className }: { make: () => HTMLElement 
   return <span ref={ref} className={cn("pixelated inline-flex items-center justify-center [&_canvas]:[image-rendering:pixelated] [&_img]:[image-rendering:pixelated]", className)} />;
 }
 
-/** Labeled field */
-export function Field({ label, hint, children, className }: { label: string; hint?: string; children: ReactNode; className?: string }) {
+/** Labeled field (with an optional button beside the label) */
+export function Field({ label, hint, action, children, className }: { label: string; hint?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={cn("grid gap-1.5", className)}>
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      {action
+        ? <div className="flex items-center justify-between gap-2"><Label className="text-xs font-medium text-muted-foreground">{label}</Label>{action}</div>
+        : <Label className="text-xs font-medium text-muted-foreground">{label}</Label>}
       {children}
       {hint ? <p className="text-xs text-subtle-fg">{hint}</p> : null}
     </div>

@@ -1,5 +1,6 @@
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
+import { ScrollbarActivity } from "@/components/scrollbars";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Pixelify_Sans, Silkscreen } from "next/font/google";
 import type { ReactNode } from "react";
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <RootProvider theme={{ forcedTheme: "dark", defaultTheme: "dark" }} search={{ options: { type: "static" } }}>
           {children}
         </RootProvider>
+        <ScrollbarActivity />
       </body>
     </html>
   );

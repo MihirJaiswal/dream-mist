@@ -8,7 +8,8 @@ import { cloud } from "@/game/cloud";
 import { hp, named } from "@/game/trainer";
 import type { Portrait } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
-import { Eyedropper, Users, Warning, X } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { Eyedropper, Users } from "@phosphor-icons/react";
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 
 //=================================================================================================
@@ -211,20 +212,27 @@ export function MapBanner() {
   );
 }
 
-/** Reminder to log in after building a while logged out (once per visit) */
+/** Reminder to log in after building a while logged out (a toast, once per visit) */
 export function SaveNudge({ onLogin }: { onLogin: () => void }) {
   const session = useSession();
-  const [dismissed, setDismissed] = useState(() => typeof sessionStorage !== "undefined" && Boolean(sessionStorage.getItem("dreammist.reminded")));
-  if ((dismissed) || (cloud.user) || (!cloud.available) || (session.edits < 40)) {
-    return null;
-  }
-  const close = () => (sessionStorage.setItem("dreammist.reminded", "1"), setDismissed(true));
-  return (
-    <div role="status" className="absolute bottom-20 left-1/2 z-30 flex w-[min(560px,calc(100%-32px))] -translate-x-1/2 items-center gap-3 rounded-xl border border-select/45 bg-card p-3 shadow-xl">
-      <Warning size={18} className="shrink-0 text-select" />
-      <div className="min-w-0 flex-1"><b className="block text-sm">Your town only lives in this browser</b><small className="text-xs text-muted-foreground">Clearing your browser data or switching devices would lose it. Log in to keep it safe.</small></div>
-      <Button size="sm" onClick={() => (close(), onLogin())}>Log in</Button>
-      <button aria-label="Not now" title="Not now" onClick={close} className="grid size-7 place-items-center rounded text-muted-foreground hover:text-foreground"><X size={14} /></button>
-    </div>
-  );
+  const due = (cloud.available) && (!cloud.user) && (session.edits >= 40);
+  useEffect(() => {
+    if ((!due) || (sessionStorage.getItem("dreammist.reminded"))) {
+      return;
+    }
+    sessionStorage.setItem("dreammist.reminded", "1");
+    toast.warning("Your town only lives in this browser", {
+      id: "save-nudge",
+      description: "Clearing your browser data or switching devices would lose it. Log in to keep it safe.",
+      duration: Infinity,
+      action: { label: "Log in", onClick: onLogin },
+    });
+  }, [due, onLogin]);
+  //Logging in some other way makes the reminder pointless
+  useEffect(() => {
+    if (cloud.user) {
+      toast.dismiss("save-nudge");
+    }
+  });
+  return null;
 }
