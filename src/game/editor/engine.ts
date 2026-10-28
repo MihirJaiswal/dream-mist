@@ -12,8 +12,8 @@ import { type Clip, convert, type Grid, grids, type Kind, kindOf, obstacles, pla
 /** Single cell change */
 type Change = { grid: Grid; index: number; before: number; after: number };
 
-/** History entry: cell changes, or a snapshot of people, spawn, zones, story and doors */
-type Entry = { changes: Change[] } | { snapshot: { before: string; after: string } };
+/** History entry: cell changes, a snapshot of people, spawn, zones, story and doors, or of the whole town (name, size, interiors, uploads) */
+type Entry = { changes: Change[] } | { snapshot: { before: string; after: string } } | { town: { before: string; after: string } };
 
 /** Grids that can be hidden in the editor (people, spawn and doors are always shown) */
 const hideable = ["ground", "decor", "above", "solid", "zone", "story"] as readonly string[];
@@ -74,6 +74,9 @@ export class EditorEngine {
   onedit = null as null | ((changes: [string, number, number][]) => void);
   onmeta = null as null | ((patch: Partial<City>) => void);
   oncursor = null as null | ((x: number, y: number) => void);
+
+  /** Put the whole town back as it was (undo or redo of a town-wide change) */
+  onrestore = null as null | ((town: string) => void);
 
   /** Play from a tile (P key: the hovered tile, or the spawn when the pointer is off the map) */
   onplay = null as null | ((tile: null | { x: number; y: number }) => void);
@@ -1002,10 +1005,12 @@ export class EditorEngine {
   /** Delete an interior and the doors leading to it */
   removeInterior(id: string) {
     const world = this.#world;
-    world.interiors = world.interiors.filter((map) => map.id !== id);
-    for (const map of [world, ...world.interiors]) {
-      map.doors = map.doors.filter((door) => door.to !== id);
-    }
+    this.#town(() => {
+      world.interiors = world.interiors.filter((map) => map.id !== id);
+      for (const map of [world, ...world.interiors]) {
+        map.doors = map.doors.filter((door) => door.to !== id);
+      }
+    });
     this.onmaps?.();
     if (this.mapId === id) {
       this.onmap?.("");
@@ -1018,7 +1023,7 @@ export class EditorEngine {
   /** Rename the open interior */
   renameInterior(name: string) {
     if (this.mapId) {
-      this.#city.name = name.trim().slice(0, 30) || "Interior";
+      this.#town(() => this.#city.name = name.trim().slice(0, 30) || "Interior");
       this.onmaps?.();
       this.#notify();
     }
@@ -1465,6 +1470,20 @@ export class EditorEngine {
   }
 
   /** Push a history entry */
+  /** Remember a town-wide change made outside the editor (rename, resize, uploads), so it can be undone */
+  remember(before: string, after: string) {
+    if (before !== after) {
+      this.#push({ town: { before, after } });
+    }
+  }
+
+  /** Run a change to the whole town and remember it */
+  #town(fn: () => void) {
+    const before = JSON.stringify(this.#world);
+    fn();
+    this.remember(before, JSON.stringify(this.#world));
+  }
+
   #push(entry: Entry) {
     if ("snapshot" in entry) {
       this.#emitMeta();
@@ -1480,6 +1499,10 @@ export class EditorEngine {
 
   /** Revert or replay an entry */
   #replay(entry: Entry, direction: "before" | "after") {
+    if ("town" in entry) {
+      this.onrestore?.(entry.town[direction]);
+      return this.#notify();
+    }
     if ("changes" in entry) {
       for (const change of entry.changes) {
         this.#apply(change.grid, change.index, change[direction]);

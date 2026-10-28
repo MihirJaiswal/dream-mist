@@ -301,13 +301,108 @@ export class CityMap {
   /** Space key held (pan with left button) */
   #space = false;
 
+  /**
+   * Touch: one finger paints, two fingers pan and pinch to zoom.
+   * A finger waits a moment before painting, so putting down a second one turns it into a gesture without stray tiles.
+   */
+  #touch(view: HTMLCanvasElement) {
+    const fingers = new Map<number, { x: number; y: number }>();
+    let pending = null as null | { event: PointerEvent; timer: number };
+    let painting = false, gesture = null as null | { distance: number; x: number; y: number };
+    let dragging = null as null | { x: number; y: number; wx: number; wy: number };
+    const spread = () => {
+      const [a, b] = [...fingers.values()];
+      return { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    };
+    const start = () => {
+      if (pending) {
+        clearTimeout(pending.timer);
+        const { event } = pending;
+        pending = null;
+        painting = true;
+        this.onpointer?.("down", this.tile(event.clientX, event.clientY), event);
+      }
+    };
+    return {
+      down: (event: PointerEvent) => {
+        fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (fingers.size === 2) {
+          //Second finger: a gesture, not painting
+          if (pending) {
+            clearTimeout(pending.timer);
+            pending = null;
+          } else if (painting) {
+            painting = false;
+            this.onpointer?.("up", this.tile(event.clientX, event.clientY), event);
+          }
+          dragging = null;
+          gesture = spread();
+        } else if ((fingers.size === 1) && (this.onpointer)) {
+          pending = { event, timer: setTimeout(start, 120) as unknown as number };
+        } else if ((fingers.size === 1) && (this.pannable)) {
+          //Nothing to paint (viewing): one finger drags the map
+          dragging = { x: event.clientX, y: event.clientY, wx: this.world.x, wy: this.world.y };
+        }
+      },
+      move: (event: PointerEvent) => {
+        const finger = fingers.get(event.pointerId);
+        if (!finger) {
+          return;
+        }
+        Object.assign(finger, { x: event.clientX, y: event.clientY });
+        if ((gesture) && (fingers.size >= 2)) {
+          const now = spread();
+          const rect = view.getBoundingClientRect();
+          if (this.pannable) {
+            this.world.x += now.x - gesture.x;
+            this.world.y += now.y - gesture.y;
+          }
+          this.zoom(now.distance / gesture.distance, now.x - rect.left, now.y - rect.top, false);
+          gesture = now;
+          return;
+        }
+        if (dragging) {
+          this.world.position.set(dragging.wx + event.clientX - dragging.x, dragging.wy + event.clientY - dragging.y);
+          return;
+        }
+        if ((pending) && (Math.hypot(event.clientX - pending.event.clientX, event.clientY - pending.event.clientY) > 6)) {
+          start();
+        }
+        if (painting) {
+          this.onpointer?.("move", this.tile(event.clientX, event.clientY), event);
+        }
+      },
+      up: (event: PointerEvent) => {
+        fingers.delete(event.pointerId);
+        if (pending) {
+          //A quick tap paints one tile
+          start();
+        }
+        if (painting) {
+          painting = false;
+          this.onpointer?.("up", this.tile(event.clientX, event.clientY), event);
+        }
+        if (!fingers.size) {
+          gesture = null;
+          dragging = null;
+        }
+      },
+    };
+  }
+
   /** Mouse, touch and wheel inputs */
   #inputs(view: HTMLCanvasElement) {
     let panning = null as null | { x: number; y: number; wx: number; wy: number; button: number };
+    const touch = this.#touch(view);
+    //The browser must not scroll or zoom the page under the map
+    view.style.touchAction = "none";
     view.addEventListener("contextmenu", (event) => event.preventDefault());
     view.addEventListener("pointerleave", () => this.onleave?.());
     view.addEventListener("pointerdown", (event) => {
       view.setPointerCapture(event.pointerId);
+      if (event.pointerType === "touch") {
+        return touch.down(event);
+      }
       if ((this.pannable) && ((event.button === 1) || (event.button === 2) || (this.#space) || (!this.onpointer))) {
         panning = { x: event.clientX, y: event.clientY, wx: this.world.x, wy: this.world.y, button: event.button };
         view.style.cursor = "grabbing";
@@ -318,13 +413,20 @@ export class CityMap {
       }
     });
     view.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch") {
+        return touch.move(event);
+      }
       if (panning) {
         this.world.position.set(panning.wx + event.clientX - panning.x, panning.wy + event.clientY - panning.y);
         return;
       }
       this.onpointer?.("move", this.tile(event.clientX, event.clientY), event);
     });
+    view.addEventListener("pointercancel", (event) => event.pointerType === "touch" && touch.up(event));
     view.addEventListener("pointerup", (event) => {
+      if (event.pointerType === "touch") {
+        return touch.up(event);
+      }
       if (panning) {
         //A right click that barely moved opens the menu instead of panning
         const click = (panning.button === 2) && (Math.hypot(event.clientX - panning.x, event.clientY - panning.y) < 4);
@@ -355,7 +457,7 @@ export class CityMap {
         this.world.y -= dy;
       }
     }, { passive: false });
-    //Safari pinch gestures
+    //Safari pinch gestures (other browsers send touches, handled above)
     let gesture = 1;
     view.addEventListener("gesturestart", (event) => (event.preventDefault(), gesture = 1));
     view.addEventListener("gesturechange", (event) => {

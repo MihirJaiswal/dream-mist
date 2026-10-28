@@ -10,6 +10,7 @@ import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
 import { onboarding } from "@/components/editor/trainer-dialogs";
+import { CommandPalette } from "@/components/editor/command-palette";
 import { Tour } from "@/components/editor/tour";
 import { MapControls, MapMenu, Minimap, StatusBar, usePreference } from "@/components/editor/viewport";
 import { Toaster } from "@/components/ui/sonner";
@@ -36,7 +37,8 @@ export function EditorApp() {
   useSession();
   const viewport = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState("Loading DreamMist…");
-  const [collapsed, setCollapsed] = usePreference("sidebar-collapsed", false);
+  //Small screens (phones, tablets held upright) start with the side panel closed, so the map has room
+  const [collapsed, setCollapsed] = usePreference("sidebar-collapsed", window.innerWidth < 900);
   const [minimap, setMinimap] = usePreference("minimap", true);
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export function EditorApp() {
       <BattleScreen />
       <Gamepad />
       <Fade />
+      <CommandPalette />
       <DialogHost />
       <Toaster position="bottom-right" closeButton />
     </TooltipProvider>

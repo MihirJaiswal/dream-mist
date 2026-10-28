@@ -7,13 +7,29 @@ description: The screen, the tools, moving around, selections and undo.
 
 | Area | What's there |
 | --- | --- |
-| Top bar | The city name and menu, **Build** and **Play**, **Publish**, **Share**, your party and trainer card, and your account. |
+| Top bar | The city name and menu, **Build** and **Play**, the command search, **Publish**, **Share**, your party and trainer card, and your account. |
 | Tool rail | On the far left: Brush, Eraser, Rectangle, Fill, Picker and Select, with Undo and Redo at the bottom. |
 | Side panel | **Maps** (outside and interiors), **Layers**, and the options of the selected layer. |
 | Map controls | At the bottom right: zoom, center, grid, minimap and side panel toggles. |
 | Minimap | Top right. Click or drag in it to jump around. |
+| Status bar | At the bottom: the map you're on, the tile under the cursor, where the town is saved, and **Problems**. |
 
 Hover any icon to see what it does and its shortcut. Drag the edge of the side panel to resize it, and double-click the edge to hide it.
+
+## Command search
+
+Press <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd> on Windows), or the magnifying glass in the top bar, and start typing. It finds any action (Play, Share, Version history, Export…), tool, layer, stamp, terrain or favorite, map, person on the current map, and current problem. Use the arrow keys and <kbd>Enter</kbd> to run one.
+
+## Problems
+
+The status bar counts what looks broken in your town. Click it for the list, then click a problem to go straight to it: the editor opens the right map and layer, selects the person, door or story step, and centers on it. It checks:
+
+- **Doors** that lead nowhere yet, or to a deleted map.
+- **Interiors** nobody can get into, or that have no door back out.
+- **People** with nothing to say, blank signs, and trainers with no Pokémon.
+- **Visitors** arriving on a blocked tile.
+- **Encounter zones** painted on the map but with no Pokémon.
+- **Story steps** that can never happen, because nobody completes them or whoever does waits for a step that never happens, plus gates and people left from deleted steps.
 
 ## Tools
 
@@ -41,11 +57,13 @@ See [How a game works](/docs/how-it-works#layers) for what each layer holds.
 
 | Do this | With |
 | --- | --- |
-| Pan | Two-finger swipe, right-drag, or <kbd>Space</kbd>+drag |
+| Pan | Two-finger swipe, right-drag, or <kbd>Space</kbd>+drag. On a touch screen, drag with two fingers |
 | Zoom | Pinch, <kbd>Ctrl</kbd>+scroll, <kbd>+</kbd> and <kbd>−</kbd> |
 | Fit the map | <kbd>0</kbd> or the center button |
 | Jump | Click or drag in the minimap |
 | Toggle the grid | <kbd>G</kbd> |
+
+On a tablet, one finger paints and two fingers pan and zoom. Buttons get bigger, the delete and show/hide buttons that normally appear on hover stay visible, and on small screens the side panel starts closed so the map has room.
 
 Zoom goes from 50% to 800% and stays anchored under your cursor. The zoom label in the map controls resets it to 300%.
 
@@ -61,7 +79,9 @@ People and doors are not copied. Place them again after pasting.
 
 ## Undo and redo
 
-<kbd>⌘</kbd> <kbd>Z</kbd> undoes, <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Z</kbd> redoes. Every change is undoable, including people, story steps and doors. Resizing a map clears the history.
+<kbd>⌘</kbd> <kbd>Z</kbd> undoes, <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Z</kbd> redoes. Every change is undoable: painting, people, story steps and doors, and also renaming the town or an interior, resizing a map, removing an interior, and adding or removing tilesets, sprites and music. Opening another map starts a fresh history.
+
+For towns saved online, **Version history** goes back further. See [Accounts and saving](/docs/saving).
 
 ## The city menu
 
@@ -69,6 +89,7 @@ The arrow next to the city name opens:
 
 - **City settings**: map size, music and tilesets.
 - **Your cities**: every city on this device and in your account. Open, delete, or import a `.json` file.
+- **Version history**: earlier copies of a town saved online, to roll back to.
 - **New city**: start from the starter town, an empty field, or one of 60 real Hoenn maps.
 - **Export image**: a PNG of the current map at full size.
 - **Export .json**: the whole city as a file you can back up or import later.

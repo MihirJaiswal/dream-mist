@@ -185,6 +185,16 @@ export const cloud = {
       const { data, error } = await supabase().rpc("join_city", { city_id: id, invite_code: invite });
       return error ? fail(error) : Boolean(data);
     },
+    /** Earlier versions of a city you own or build, newest first */
+    async versions(id: string) {
+      const { data, error } = await supabase().rpc("city_versions", { town: id });
+      return error ? fail(error) : (data as { id: number; name: string; saved_at: string; size: number }[]).map(({ id, name, saved_at, size }) => ({ id, name, saved: Date.parse(saved_at), size }));
+    },
+    /** Bring a city back to an earlier version (the current one is kept as a version too) */
+    async restore(version: number) {
+      const { error } = await supabase().rpc("restore_version", { version });
+      return error ? fail(error) : true;
+    },
     /** Invite code of a city you own (a new one stops old links from working) */
     async invite(id: string, regenerate = false) {
       if (regenerate) {

@@ -9,6 +9,7 @@ import { EditorEngine } from "./editor/engine";
 import { load as hoenn, type Section } from "./hoenn";
 import { CityMap } from "./map";
 import { Play, portraitOf } from "./play";
+import type { Problem } from "./problems";
 import { type Edit, type Peer, Room } from "./room";
 import { frameOf, layouts, load as loadSprites, type Sprite } from "./sprites";
 import { dataURL, load as loadTilesets, prepare, range } from "./tilesets";
@@ -211,6 +212,39 @@ export class Session {
     setTimeout(() => this.map.app.resize(), 0);
   }
 
+  /** The whole town as text (interiors included), to undo town-wide changes */
+  #town() {
+    return JSON.stringify(this.city);
+  }
+
+  /** Run a town-wide change (rename, resize, uploads) as one undo step */
+  #undoable<T>(fn: () => T): T {
+    const before = this.#town();
+    const result = fn();
+    const remember = () => this.editor.remember(before, this.#town());
+    if (result instanceof Promise) {
+      return result.then((value) => (remember(), value)) as T;
+    }
+    remember();
+    return result;
+  }
+
+  /** Put the whole town back as it was in an undo snapshot */
+  async #restore(town: string) {
+    const id = this.#areaId();
+    const parsed = JSON.parse(town);
+    const { interiors: _, ...fields } = sanitize(parsed);
+    Object.assign(this.city, fields);
+    this.city.interiors = (Array.isArray(parsed.interiors) ? parsed.interiors : []).map((map: City) => sanitize(map, this.city));
+    this.area = area(this.city, id) ?? this.city;
+    this.editor.stop();
+    this.editor.start(this.area, this.city);
+    sound.custom = this.city.music ?? {};
+    await this.rerender();
+    this.broadcastCity();
+    this.notify();
+  }
+
   /** Id of the open map ("" = outside) */
   #areaId() {
     return this.area === this.city ? "" : this.area.id;
@@ -230,6 +264,30 @@ export class Session {
       this.menu = null;
       this.notify();
     }
+  }
+
+  /** Open what a problem is about: its map and layer, the person, door or story step, and center on it */
+  async fix(problem: Problem) {
+    if (this.mode !== "edit") {
+      await this.setMode("edit");
+    }
+    if (problem.map !== this.#areaId()) {
+      this.openArea(problem.map);
+    }
+    this.editor.select(problem.layer);
+    if (problem.npc !== undefined) {
+      this.editor.selectNpc(problem.npc);
+    }
+    if (problem.door !== undefined) {
+      this.editor.selectDoor(problem.door);
+    }
+    if (problem.step !== undefined) {
+      this.editor.setStep(problem.step);
+    }
+    if (problem.at) {
+      this.map.center(problem.at.x + 0.5, problem.at.y + 0.5);
+    }
+    this.notify();
   }
 
   /** Show what someone says in the real dialogue box, without leaving Build */
@@ -389,8 +447,35 @@ export class Session {
   /** Open a town from the account */
   async openOnline(id: string) {
     await this.persist();
+    await this.#loadOnline(id);
+  }
+
+  /** Open a town as it is saved online (without saving the open one first) */
+  async #loadOnline(id: string) {
     const { city, meta, invite } = await cloud.cities.get(id);
     await this.open(sanitize(city), { online: { id, mine: meta.mine, invite, published: meta.published, forkOf: meta.forkOf } });
+  }
+
+  /** Earlier versions of the open online town */
+  versions() {
+    if (!this.online) {
+      return Promise.resolve([]);
+    }
+    return cloud.cities.versions(this.online.id);
+  }
+
+  /** Bring the open online town back to an earlier version, after saving what's there now */
+  async restoreVersion(version: number) {
+    if (!this.online) {
+      return;
+    }
+    if (this.room) {
+      throw new Error("Leave the live room before restoring a version");
+    }
+    await this.persist();
+    await cloud.cities.restore(version);
+    //Load what was restored (saving the open copy now would undo the restore)
+    await this.#loadOnline(this.online.id);
   }
 
   /** Delete a town from this browser */
@@ -529,17 +614,21 @@ export class Session {
 
   /** Rename the city */
   rename(name: string) {
-    this.city.name = name.trim().slice(0, 40) || "Unnamed town";
-    this.room?.meta({ name: this.city.name });
-    this.changed();
-    this.notify();
+    return this.#undoable(() => {
+      this.city.name = name.trim().slice(0, 40) || "Unnamed town";
+      this.room?.meta({ name: this.city.name });
+      this.changed();
+      this.notify();
+    });
   }
 
   /** Set the author name shown on share links */
   setAuthor(author: string) {
-    this.city.author = author.slice(0, 40);
-    this.room?.meta({ author: this.city.author });
-    this.changed();
+    return this.#undoable(() => {
+      this.city.author = author.slice(0, 40);
+      this.room?.meta({ author: this.city.author });
+      this.changed();
+    });
   }
 
   //=================================================================================================
@@ -715,29 +804,35 @@ export class Session {
     if ((w === this.area.width) && (h === this.area.height)) {
       return;
     }
-    resize(this.area, w, h);
-    this.map.load(this.area);
-    this.editor.reset(this.area, this.city);
-    this.broadcastCity();
+    this.#undoable(() => {
+      resize(this.area, w, h);
+      this.map.load(this.area);
+      this.editor.refresh();
+      this.broadcastCity();
+    });
     ui.toast(`Resized to ${w}×${h}`, "success");
   }
 
   /** Upload town or battle music (needs an account) */
   async uploadMusic(track: "town" | "battle", file: File) {
-    if (!cloud.user) {
-      throw new Error(cloud.available ? "Log in to upload music" : "Music uploads need online features to be set up");
-    }
-    const { url } = await cloud.upload(file, "music", file.name);
-    this.city.music = { ...this.city.music, [track]: url };
-    this.#musicChanged();
+    return this.#undoable(async () => {
+      if (!cloud.user) {
+        throw new Error(cloud.available ? "Log in to upload music" : "Music uploads need online features to be set up");
+      }
+      const { url } = await cloud.upload(file, "music", file.name);
+      this.city.music = { ...this.city.music, [track]: url };
+      this.#musicChanged();
+    });
   }
 
   /** Go back to the default music */
   resetMusic(track: "town" | "battle") {
-    const music = { ...this.city.music };
-    delete music[track];
-    this.city.music = music;
-    this.#musicChanged();
+    return this.#undoable(() => {
+      const music = { ...this.city.music };
+      delete music[track];
+      this.city.music = music;
+      this.#musicChanged();
+    });
   }
 
   #musicChanged() {
@@ -764,16 +859,18 @@ export class Session {
 
   /** Add a custom tileset */
   async addTileset(file: File, name: string, tile: number) {
-    const url = await this.#store(file, "tileset", name, 512 * 1024);
-    const sheet = { id: uid(), name: name.trim() || "Tileset", url, tile, columns: 0, rows: 0 };
-    const loaded = await prepare(sheet);
-    Object.assign(sheet, { columns: loaded.columns, rows: loaded.rows });
-    this.city.tilesets = [...(this.city.tilesets ?? []), sheet];
-    await this.rerender();
-    this.room?.meta({ tilesets: this.city.tilesets });
-    this.changed();
-    this.notify();
-    return sheet;
+    return this.#undoable(async () => {
+      const url = await this.#store(file, "tileset", name, 512 * 1024);
+      const sheet = { id: uid(), name: name.trim() || "Tileset", url, tile, columns: 0, rows: 0 };
+      const loaded = await prepare(sheet);
+      Object.assign(sheet, { columns: loaded.columns, rows: loaded.rows });
+      this.city.tilesets = [...(this.city.tilesets ?? []), sheet];
+      await this.rerender();
+      this.room?.meta({ tilesets: this.city.tilesets });
+      this.changed();
+      this.notify();
+      return sheet;
+    });
   }
 
   /** How many tiles are painted with a custom tileset, across every map of the city */
@@ -795,31 +892,35 @@ export class Session {
 
   /** Remove a custom tileset (tiles painted with it are erased, other tilesets keep their position) */
   async removeTileset(index: number) {
-    const sheets = this.city.tilesets ?? [];
-    sheets[index] = { ...sheets[index], url: "", name: "(removed)" };
-    const min = (index + 1) * range, max = min + range;
-    for (const map of [this.city, ...this.city.interiors]) {
-      for (const layer of ["ground", "decor", "above"] as const) {
-        map.layers[layer] = map.layers[layer].map((value) => (value >= min) && (value < max) ? 0 : value);
+    return this.#undoable(async () => {
+      const sheets = this.city.tilesets ?? [];
+      sheets[index] = { ...sheets[index], url: "", name: "(removed)" };
+      const min = (index + 1) * range, max = min + range;
+      for (const map of [this.city, ...this.city.interiors]) {
+        for (const layer of ["ground", "decor", "above"] as const) {
+          map.layers[layer] = map.layers[layer].map((value) => (value >= min) && (value < max) ? 0 : value);
+        }
       }
-    }
-    await this.rerender();
-    this.broadcastCity();
-    this.notify();
+      await this.rerender();
+      this.broadcastCity();
+      this.notify();
+    });
   }
 
   /** Add a custom sprite for people or Pokémon */
   async addSprite(file: File, image: HTMLImageElement, kind: Sprite["kind"], name: string, layout: keyof typeof layouts) {
-    const url = await this.#store(file, "sprite", name, 256 * 1024);
-    const frame = kind === "person" ? frameOf(image, layout)! : { w: image.width, h: image.height };
-    const sprite: Sprite = { id: uid(), name: name.trim() || (kind === "person" ? "Custom person" : "Custom Pokémon"), url, kind, ...(kind === "person" ? { layout } : {}), w: frame.w, h: frame.h };
-    this.city.sprites = [...(this.city.sprites ?? []), sprite];
-    await loadSprites(this.city.sprites);
-    this.room?.meta({ sprites: this.city.sprites });
-    this.editor.refresh();
-    this.changed();
-    this.notify();
-    return sprite;
+    return this.#undoable(async () => {
+      const url = await this.#store(file, "sprite", name, 256 * 1024);
+      const frame = kind === "person" ? frameOf(image, layout)! : { w: image.width, h: image.height };
+      const sprite: Sprite = { id: uid(), name: name.trim() || (kind === "person" ? "Custom person" : "Custom Pokémon"), url, kind, ...(kind === "person" ? { layout } : {}), w: frame.w, h: frame.h };
+      this.city.sprites = [...(this.city.sprites ?? []), sprite];
+      await loadSprites(this.city.sprites);
+      this.room?.meta({ sprites: this.city.sprites });
+      this.editor.refresh();
+      this.changed();
+      this.notify();
+      return sprite;
+    });
   }
 
   /** Upload a portrait shown beside someone's dialogue (resolves with its url) */
@@ -832,23 +933,25 @@ export class Session {
 
   /** Remove a custom sprite (everyone using it gets a default look and portrait) */
   async removeSprite(id: string) {
-    this.city.sprites = (this.city.sprites ?? []).filter((sprite) => sprite.id !== id);
-    for (const map of [this.city, ...this.city.interiors]) {
-      for (const npc of map.npcs) {
-        if (npc.sprite === `custom:${id}`) {
-          npc.sprite = "youngster";
-        }
-        if (npc.creature?.look === id) {
-          delete npc.creature.look;
-        }
-        if (npc.portrait === `sprite:custom:${id}`) {
-          delete npc.portrait;
+    return this.#undoable(async () => {
+      this.city.sprites = (this.city.sprites ?? []).filter((sprite) => sprite.id !== id);
+      for (const map of [this.city, ...this.city.interiors]) {
+        for (const npc of map.npcs) {
+          if (npc.sprite === `custom:${id}`) {
+            npc.sprite = "youngster";
+          }
+          if (npc.creature?.look === id) {
+            delete npc.creature.look;
+          }
+          if (npc.portrait === `sprite:custom:${id}`) {
+            delete npc.portrait;
+          }
         }
       }
-    }
-    await this.rerender();
-    this.broadcastCity();
-    this.notify();
+      await this.rerender();
+      this.broadcastCity();
+      this.notify();
+    });
   }
 
   //=================================================================================================
@@ -979,6 +1082,7 @@ export class Session {
     this.editor.onmaps = () => (this.room?.meta({ interiors: this.city.interiors }), this.changed(), this.editor.refresh(), this.notify());
     this.editor.onrestart = () => this.restartStory();
     this.editor.onplay = (tile) => void this.playFrom(tile);
+    this.editor.onrestore = (town) => void this.#restore(town);
     this.map.oncontext = (tile, screen) => {
       if ((this.mode !== "edit") || (!this.map.inside(tile))) {
         return;

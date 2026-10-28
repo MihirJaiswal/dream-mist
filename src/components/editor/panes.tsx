@@ -18,7 +18,7 @@ export function MapsPane() {
     const active = editor.mapId === id;
     const Icon = id ? DoorOpen : MapTrifold;
     return (
-      <div key={id || "outside"} role="button" tabIndex={0} title={id ? "Edit this interior" : "Edit the outside map"} onClick={() => !active && session.openArea(id)} onKeyDown={(event) => event.key === "Enter" && session.openArea(id)} className={cn("group flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted text-foreground")}>
+      <div key={id || "outside"} role="button" tabIndex={0} title={id ? "Edit this interior" : "Edit the outside map"} onClick={() => !active && session.openArea(id)} onKeyDown={(event) => event.key === "Enter" && session.openArea(id)} className={cn("group flex h-8 items-center gap-2 rounded-md px-2 pointer-coarse:h-10 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted text-foreground")}>
         <Icon size={15} className="shrink-0" />
         {active && id
           ? <TextInput aria-label="Interior name" value={name} maxLength={30} onCommit={(value) => editor.renameInterior(value)} onClick={(event) => event.stopPropagation()} className="h-6 border-transparent bg-transparent px-1 text-sm shadow-none focus-visible:border-input" />
@@ -31,7 +31,7 @@ export function MapsPane() {
                 if (await ui.confirm(`Delete ${name}?`, { text: "Doors leading to this interior will be removed too.", action: "Delete", danger: true })) {
                   editor.removeInterior(id);
                 }
-              }} className="grid size-6 place-items-center rounded text-subtle-fg opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"><Trash size={14} /></button>
+              }} className="grid size-6 place-items-center rounded text-subtle-fg opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"><Trash size={14} /></button>
             </Tip>
           )
           : null}
@@ -72,10 +72,10 @@ export function LayersPane() {
     const locked = editor.isLocked(key);
     const toggle = "grid size-6 place-items-center rounded text-subtle-fg hover:text-foreground";
     return (
-      <div key={key} role="button" tabIndex={0} title={hint} onClick={() => editor.select(key)} onKeyDown={(event) => (["Enter", " "].includes(event.key)) && (event.preventDefault(), editor.select(key))} className={cn("group flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted text-foreground", hidden && "opacity-50")}>
+      <div key={key} role="button" tabIndex={0} title={hint} onClick={() => editor.select(key)} onKeyDown={(event) => (["Enter", " "].includes(event.key)) && (event.preventDefault(), editor.select(key))} className={cn("group flex h-8 items-center gap-2 rounded-md px-2 pointer-coarse:h-10 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted text-foreground", hidden && "opacity-50")}>
         <Icon size={15} className="shrink-0" weight={active ? "fill" : "regular"} />
         <span className="flex-1 truncate">{label}</span>
-        <span className={cn("flex items-center opacity-0 group-hover:opacity-100", (hidden || locked) && "opacity-100")}>
+        <span className={cn("flex items-center opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100", (hidden || locked) && "opacity-100")}>
           {editor.canHide(key) ? <button aria-label={hidden ? "Show layer" : "Hide layer"} title={hidden ? "Show layer" : "Hide layer"} onClick={(event) => (event.stopPropagation(), editor.toggleHidden(key))} className={toggle}>{hidden ? <EyeSlash size={14} /> : <Eye size={14} />}</button> : <span className="size-6" />}
           <button aria-label={locked ? "Unlock layer" : "Lock layer"} title={locked ? "Unlock layer" : "Lock layer"} onClick={(event) => (event.stopPropagation(), editor.toggleLocked(key))} className={toggle}>{locked ? <Lock size={14} /> : <LockOpen size={14} />}</button>
         </span>

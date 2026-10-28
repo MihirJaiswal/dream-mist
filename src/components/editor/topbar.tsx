@@ -1,7 +1,7 @@
 "use client";
 
 import { profile, signIn } from "@/components/editor/account-dialogs";
-import { cities, newCity, settings } from "@/components/editor/city-dialogs";
+import { cities, newCity, settings, versionHistory } from "@/components/editor/city-dialogs";
 import { useSession } from "@/components/editor/hooks";
 import { publish, room, share } from "@/components/editor/share-dialogs";
 import { startTour } from "@/components/editor/tour";
@@ -13,7 +13,7 @@ import { sound } from "@/game/audio";
 import { cloud } from "@/game/cloud";
 import { message } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { Backpack, BookOpen, CaretDown, Check, Cloud, DownloadSimple, Export, Folder, GearSix, GitFork, Globe, IdentificationCard, MapTrifold, PencilSimple, Play, Plus, Sparkle, SpeakerHigh, SpeakerSlash, Upload, Warning } from "@phosphor-icons/react";
+import { Backpack, BookOpen, CaretDown, Check, ClockCounterClockwise, Cloud, DownloadSimple, Export, Folder, GearSix, GitFork, Globe, IdentificationCard, MagnifyingGlass, MapTrifold, PencilSimple, Play, Plus, Sparkle, SpeakerHigh, SpeakerSlash, Upload, Warning } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 /** Where the city is saved, and what to do about it */
@@ -53,6 +53,7 @@ export function Topbar() {
         <DropdownMenuContent align="start" className="w-56">
           {visiting ? null : <><DropdownMenuItem onSelect={() => settings()}><GearSix />City settings</DropdownMenuItem><DropdownMenuSeparator /></>}
           <DropdownMenuItem onSelect={() => cities()}><Folder />Your cities</DropdownMenuItem>
+          {(session.online) && (!visiting) ? <DropdownMenuItem onSelect={() => versionHistory()}><ClockCounterClockwise />Version history</DropdownMenuItem> : null}
           <DropdownMenuItem onSelect={() => newCity()}><Plus />New city</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => session.exportImage()}><Export />Export image</DropdownMenuItem>
@@ -74,6 +75,7 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
+        <Tip label="Search commands" shortcut="⌘K" description="Find any action, tool, stamp, map or person"><Button variant="ghost" size="icon" aria-label="Search commands" onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }))}><MagnifyingGlass size={17} /></Button></Tip>
         {mode === "play" ? <Tip label="Party" description="Your Pokémon, PC box and bag"><Button variant="ghost" size="icon" aria-label="Party" onClick={() => party()}><Backpack size={17} /></Button></Tip> : null}
         {mode === "play" ? <Tip label="Trainer card" description="Badges, Pokédex and progress"><Button variant="ghost" size="icon" aria-label="Trainer card" onClick={() => card()}><IdentificationCard size={17} /></Button></Tip> : null}
         {live

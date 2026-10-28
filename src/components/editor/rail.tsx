@@ -15,9 +15,9 @@ export function ToolRail() {
   if (!editor) {
     return null;
   }
-  const button = "grid size-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35";
+  const button = "grid size-9 pointer-coarse:size-11 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35";
   return (
-    <nav aria-label="Tools" className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-card py-2">
+    <nav aria-label="Tools" className="flex w-12 shrink-0 flex-col items-center gap-1 border-r pointer-coarse:w-14 border-border bg-card py-2">
       {tools.map(({ key, label, shortcut, tip }) => {
         const Icon = toolIcons[key];
         const disabled = placing.includes(editor.target) && (key !== "brush") && (key !== "select");

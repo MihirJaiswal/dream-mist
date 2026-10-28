@@ -39,7 +39,7 @@ export function CityCard({ city: initial, user }: { city: Card; user?: string | 
     <article className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors hover:border-[#3a3a3a]">
       <a href={edit(`visit=${city.id}`)} className="relative block aspect-[16/10] overflow-hidden bg-[#121212]" title={`Play ${city.name}`}>
         {city.thumb
-          ? <img src={city.thumb} alt={`Map of ${city.name}`} loading="lazy" className="pixelated h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+          ? <img src={city.thumb} alt={`Map of ${city.name}`} loading="lazy" className="flyover pixelated h-full w-full object-cover" />
           : <div className="pixelated grid h-full w-full place-items-center bg-[url(/site/loaderbg.png)] bg-cover bg-center"><img src="/site/dreammist.png" alt="" width={48} height={48} className="pixelated" /></div>}
         <span className="absolute bottom-2.5 right-2.5 inline-flex h-7 items-center gap-1.5 rounded-full bg-bg/80 px-3 text-[12px] font-medium opacity-0 transition-opacity group-hover:opacity-100"><Play weight="fill" size={12} /> Play</span>
       </a>

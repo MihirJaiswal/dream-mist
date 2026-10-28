@@ -97,7 +97,7 @@ export function Removable({ label, onRemove, children }: { label: string; onRemo
   return (
     <div className="group relative">
       {children}
-      <button aria-label={label} title={label} onClick={onRemove} className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full border border-border bg-background text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"><X size={9} weight="bold" /></button>
+      <button aria-label={label} title={label} onClick={onRemove} className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full border border-border bg-background text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:size-5 pointer-coarse:opacity-100"><X size={9} weight="bold" /></button>
     </div>
   );
 }

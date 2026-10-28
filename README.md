@@ -52,7 +52,7 @@ Both have free plans that are enough for playing with friends.
 ### 1. Create the database
 
 1. Create a project at [supabase.com](https://supabase.com/dashboard).
-2. Open **SQL Editor**, paste the whole of `supabase/migrations/20261027000000_dreammist.sql`, and press **Run**. It creates the tables, access rules and the `assets` storage bucket.
+2. Open **SQL Editor** and run each file in `supabase/migrations/` in order (oldest first): paste the whole file and press **Run**. They create the tables, access rules, the `assets` storage bucket and version history.
 3. Open **Project Settings → API** (or the **Connect** button) and copy the **Project URL** and the **publishable key** (older projects call it the **anon** key).
 
 ### 2. Connect your computer

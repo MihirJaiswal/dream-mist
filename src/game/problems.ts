@@ -1,0 +1,127 @@
+//Imports
+import type { City } from "./data";
+import type { Target } from "./editor/constants";
+
+/** Something in a town that won't work as intended, and where to fix it */
+export type Problem = {
+  /** Errors break the game, warnings are probably mistakes */
+  kind: "error" | "warning";
+  text: string;
+  /** Map it is on ("" = outside) */
+  map: string;
+  /** Layer to open to fix it */
+  layer: Target;
+  /** Tile to look at */
+  at?: { x: number; y: number };
+  /** Person, door or story step to select */
+  npc?: number;
+  door?: number;
+  step?: number;
+};
+
+/** Nothing written */
+const silent = (text: string) => !text.trim();
+
+/** Find what's broken in a city: doors, people, the spawn, encounter zones and the story */
+export function problems(city: City, valid: (species: number) => boolean = () => true): Problem[] {
+  const found = [] as Problem[];
+  const maps = [city, ...city.interiors];
+  const id = (map: City) => map === city ? "" : map.id;
+  const name = (map: City) => map === city ? "outside" : `in ${map.name}`;
+  const exists = (to: string) => (to === "") || city.interiors.some((map) => map.id === to);
+
+  //Doors
+  for (const map of maps) {
+    map.doors.forEach((door, index) => {
+      if (door.to === "?") {
+        found.push({ kind: "error", text: `Door at ${door.x}, ${door.y} ${name(map)} doesn't lead anywhere yet`, map: id(map), layer: "door", at: door, door: index });
+      } else if (!exists(door.to)) {
+        found.push({ kind: "error", text: `Door at ${door.x}, ${door.y} ${name(map)} leads to a deleted map`, map: id(map), layer: "door", at: door, door: index });
+      }
+    });
+  }
+  for (const room of city.interiors) {
+    if (!maps.some((map) => map.doors.some(({ to }) => to === room.id))) {
+      found.push({ kind: "warning", text: `Nobody can get into ${room.name}: no door leads to it`, map: "", layer: "door" });
+    } else if (!room.doors.some(({ to }) => (to !== "?") && (to !== room.id) && (exists(to)))) {
+      found.push({ kind: "error", text: `${room.name} has no door back out`, map: room.id, layer: "door", at: room.spawn });
+    }
+  }
+
+  //People, Pokémon and signs
+  for (const map of maps) {
+    map.npcs.forEach((npc, index) => {
+      const at = { x: npc.x, y: npc.y };
+      const who = npc.name || (npc.creature ? "A Pokémon" : npc.sprite ? "Someone" : "A sign");
+      if ((npc.role === "trainer") && (!npc.trainer?.team.length)) {
+        found.push({ kind: "error", text: `${who} is a trainer with no Pokémon`, map: id(map), layer: "npc", at, npc: index });
+      } else if ((npc.creature) && (!valid(npc.creature.species))) {
+        found.push({ kind: "error", text: `${who} at ${at.x}, ${at.y} isn't a real Pokémon`, map: id(map), layer: "npc", at, npc: index });
+      } else if ((["talk", "healer"].includes(npc.role)) && (silent(npc.dialogue))) {
+        found.push({ kind: "warning", text: npc.sprite || npc.creature ? `${who} at ${at.x}, ${at.y} has nothing to say` : `Sign at ${at.x}, ${at.y} is blank`, map: id(map), layer: "npc", at, npc: index });
+      }
+    });
+  }
+
+  //Where visitors arrive
+  const { spawn } = city;
+  if ((spawn.x < 0) || (spawn.y < 0) || (spawn.x >= city.width) || (spawn.y >= city.height)) {
+    found.push({ kind: "error", text: "Visitors arrive outside the map", map: "", layer: "spawn" });
+  } else if (city.solid[spawn.y * city.width + spawn.x]) {
+    found.push({ kind: "error", text: `Visitors arrive on a blocked tile (${spawn.x}, ${spawn.y})`, map: "", layer: "spawn", at: spawn });
+  }
+
+  //Encounter zones painted without Pokémon
+  city.zones.forEach((zone, z) => {
+    if (zone.creatures.length) {
+      return;
+    }
+    for (const map of maps) {
+      const index = map.zone.indexOf(z + 1);
+      if (index >= 0) {
+        found.push({ kind: "warning", text: `Encounter zone "${zone.name}" is painted but has no Pokémon`, map: id(map), layer: "zone", at: { x: index % map.width, y: Math.floor(index / map.width) } });
+        break;
+      }
+    }
+  });
+
+  //Story: a step can happen once someone who completes it can be met (they appear and help only after steps that can happen)
+  const steps = new Set(city.story.map(({ id }) => id));
+  const people = maps.flatMap((map) => map.npcs.map((npc, index) => ({ npc, index, map })));
+  const reachable = new Set<string>();
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const { npc } of people) {
+      const story = npc.story;
+      if ((!story?.completes) || (reachable.has(story.completes))) {
+        continue;
+      }
+      if (((!story.after) || (reachable.has(story.after))) && ((!story.requires) || (reachable.has(story.requires)))) {
+        reachable.add(story.completes);
+        changed = true;
+      }
+    }
+  }
+  city.story.forEach((step, index) => {
+    if (reachable.has(step.id)) {
+      return;
+    }
+    const completer = people.some(({ npc }) => npc.story?.completes === step.id);
+    found.push({ kind: "error", text: completer ? `Story step ${index + 1}, "${step.name}", can never happen: whoever completes it waits for a step that never happens` : `Story step ${index + 1}, "${step.name}", can never happen: nobody completes it`, map: "", layer: "story", step: step.n });
+  });
+  for (const { npc, index, map } of people) {
+    const missing = (["after", "until", "requires", "completes"] as const).filter((key) => (npc.story?.[key]) && (!steps.has(npc.story[key]!)));
+    if (missing.length) {
+      found.push({ kind: "warning", text: `${npc.name || "Someone"} at ${npc.x}, ${npc.y} uses a story step that was deleted`, map: id(map), layer: "npc", at: { x: npc.x, y: npc.y }, npc: index });
+    }
+  }
+  const numbers = new Set(city.story.map(({ n }) => n));
+  for (const map of maps) {
+    const index = map.gate.findIndex((n) => (n) && (!numbers.has(n)));
+    if (index >= 0) {
+      found.push({ kind: "warning", text: `Gate tiles ${name(map)} belong to a deleted story step and block the way forever`, map: id(map), layer: "story", at: { x: index % map.width, y: Math.floor(index / map.width) } });
+    }
+  }
+
+  return found.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "error" ? -1 : 1));
+}

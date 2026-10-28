@@ -256,3 +256,34 @@ kbd {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Explore cards: hovering a town flies the camera around its map */
+@keyframes flyover {
+  0%, 100% {
+    transform: scale(1.03);
+  }
+  12% {
+    transform: scale(1.9) translate(20%, 20%);
+  }
+  37% {
+    transform: scale(1.9) translate(-20%, 20%);
+  }
+  62% {
+    transform: scale(1.9) translate(-20%, -20%);
+  }
+  87% {
+    transform: scale(1.9) translate(20%, -20%);
+  }
+}
+.flyover {
+  transition: transform 0.3s ease;
+}
+.group:hover .flyover {
+  animation: flyover 18s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .flyover {
+    animation: none;
+    transform: scale(1.03);
+  }
+}

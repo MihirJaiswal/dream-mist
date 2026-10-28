@@ -19,6 +19,7 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── map.ts            Draws a city with PixiJS: layers, zoom, drag, overlays
 │   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers
 │   │   ├── battle.ts         Battles: damage, catching, turns. Keeps a `view` the React battle screen draws
+│   │   ├── problems.ts       Finds what's broken in a town (doors, people, spawn, zones, story) for the Problems list
 │   │   ├── trainer.ts        Your trainer and party: stats, levels, moves, saving progress
 │   │   ├── data.ts           City format, browser saves, share codes, resizing and repairing cities
 │   │   ├── assets.ts         Loads textures, the Pokédex and tile data; Pokémon sprites and artwork
@@ -59,7 +60,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 ├── scripts/
 │   └── build-data.mts        Builds public/game from maps/, copyrighted/ and PokeAPI data
 │
-├── supabase/migrations/      Database schema: tables, row level security, functions, storage bucket
+├── supabase/migrations/      Database schema: tables, row level security, functions, storage bucket, version history.
+│                             Run new files in order in the Supabase SQL Editor
 ├── tests/                    Vitest tests: city data, battles, editor helpers, game files, database rules
 │
 ├── .husky/                   Git hooks: lint staged files on commit, typecheck and test on push
@@ -91,5 +93,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 | The city file format | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`) |
 | Saving, accounts, Explore | `src/game/cloud.ts` and `supabase/migrations/` |
 | Live rooms | `src/game/room.ts` |
+| Problems list checks | `src/game/problems.ts` |
+| Command search (⌘K) | `src/components/editor/command-palette.tsx` |
+| Getting started tour | `src/components/editor/tour.tsx` |
 | Home page or Explore | `src/app/(site)/` and `src/components/site/` |
 | Docs | `content/docs/` |

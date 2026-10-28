@@ -2,11 +2,13 @@
 
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { Tip } from "@/components/editor/widgets";
-import { size } from "@/game/assets";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { size, species } from "@/game/assets";
 import { storage } from "@/game/data";
+import { problems } from "@/game/problems";
 import { session as engine } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { Crosshair, GridFour, MapPin, MapTrifold, Minus, Play, Plus, Sidebar as SidebarIcon } from "@phosphor-icons/react";
+import { CheckCircle, Crosshair, GridFour, MapPin, MapTrifold, Minus, Play, Plus, Sidebar as SidebarIcon, Warning, XCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 /** Floating map controls: zoom, center, grid, minimap and side panel */
@@ -20,7 +22,7 @@ export function MapControls({ minimap, onMinimap, onPanel }: { minimap: boolean;
       engine.map.onzoom = (scale: number) => setZoom(Math.round(scale * 100));
     }
   }, [session.map]);
-  const button = "grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground";
+  const button = "grid size-8 pointer-coarse:size-10 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground";
   const edit = session.mode === "edit";
   return (
     <div className="absolute bottom-3 right-3 z-20 flex gap-2">
@@ -146,12 +148,45 @@ export function StatusBar() {
       <span className="text-muted-foreground">{session.area && session.area !== session.city ? session.area.name : "Outside"}</span>
       <span className="w-14 font-mono">{tile ? `${tile.x}, ${tile.y}` : ""}</span>
       <span className="truncate">{session.saved}</span>
+      {(session.ready) && (!session.visiting) ? <ProblemsButton /> : null}
       <span className="ml-auto hidden truncate lg:inline">
         {session.mode === "play"
           ? "WASD or arrows to walk · Shift runs · Space talks · Build takes you back where you were"
           : "Right-click a tile or press P to play from there · Right-drag or two-finger swipe to pan · Ctrl+scroll zooms · 0 centers · G grid"}
       </span>
     </footer>
+  );
+}
+
+/** Problems in the town: a count in the status bar, and a list that jumps to each one */
+export function ProblemsButton() {
+  const session = useSession();
+  const [open, setOpen] = useState(false);
+  const found = problems(session.city, (id) => Boolean(species(id)));
+  const errors = found.filter(({ kind }) => kind === "error").length;
+  const mapName = (id: string) => id ? session.city.interiors.find((map) => map.id === id)?.name ?? "" : "Outside";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className={cn("flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted", errors ? "text-destructive" : found.length ? "text-select" : "text-subtle-fg")}>
+          {found.length ? <Warning size={12} weight="fill" /> : <CheckCircle size={12} />}
+          {found.length ? `${found.length} problem${found.length > 1 ? "s" : ""}` : "No problems"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-96 p-1">
+        <p className="px-2 pb-1.5 pt-1 text-xs text-muted-foreground">{found.length ? "Click one to go fix it." : "Doors, people, the spawn, encounter zones and the story all check out."}</p>
+        <ul className="grid max-h-80 gap-0.5 overflow-y-auto">
+          {found.map((problem, i) => (
+            <li key={i}>
+              <button onClick={() => (setOpen(false), void session.fix(problem))} className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent">
+                {problem.kind === "error" ? <XCircle size={15} weight="fill" className="mt-0.5 shrink-0 text-destructive" /> : <Warning size={15} weight="fill" className="mt-0.5 shrink-0 text-select" />}
+                <span className="min-w-0 flex-1">{problem.text}<small className="block text-[11px] text-subtle-fg">{mapName(problem.map)}</small></span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
 

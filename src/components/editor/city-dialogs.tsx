@@ -14,7 +14,7 @@ import { label, type Section, sections } from "@/game/hoenn";
 import { imageTypes, message, session } from "@/game/session";
 import { frameOf, image as loadImage, layouts } from "@/game/sprites";
 import { cn } from "@/lib/utils";
-import { CaretDown, CheckCircle, Copy, Image as ImageIcon, MusicNotes, Plus, Sparkle, Stack, Trash, TreeEvergreen, Upload, User, Warning, X } from "@phosphor-icons/react";
+import { CaretDown, CheckCircle, ClockCounterClockwise, Copy, Image as ImageIcon, MusicNotes, Plus, Sparkle, Stack, Trash, TreeEvergreen, Upload, User, Warning, X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -164,6 +164,61 @@ export function settings() {
   return openDialog<void>((close) => <Settings close={close} />);
 }
 
+//=================================================================================================
+// Version history
+
+/** Earlier versions of the open online town, to roll back to */
+export function versionHistory() {
+  return openDialog<void>((close) => <History close={close} />);
+}
+
+function History({ close }: { close: () => void }) {
+  const [versions, setVersions] = useState<null | { id: number; name: string; saved: number; size: number }[]>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(0);
+  useEffect(() => void session.versions().then(setVersions, (error) => (setError(message(error)), setVersions([]))), []);
+  const when = (time: number) => new Date(time).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const restore = async (version: { id: number; saved: number }) => {
+    if (!(await confirm(`Go back to ${when(version.saved)}?`, { text: "Your town goes back to how it was then. What's there now is kept in this list too, so you can come back to it.", action: "Restore" }))) {
+      return;
+    }
+    setBusy(version.id);
+    try {
+      await session.restoreVersion(version.id);
+      close();
+      toast.success(`Restored to ${when(version.saved)}`);
+    } catch (error) {
+      toast.error(message(error));
+      setBusy(0);
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Version history</DialogTitle>
+          <DialogDescription>A copy of your town is kept as you build, at most every 30 minutes. The last 20 are kept.</DialogDescription>
+        </DialogHeader>
+        {versions === null
+          ? <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+          : versions.length
+          ? (
+            <ul className="grid max-h-96 gap-1 overflow-y-auto">
+              {versions.map((version) => (
+                <li key={version.id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
+                  <ClockCounterClockwise size={16} className="shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1"><b className="block truncate text-sm">{when(version.saved)}</b><small className="text-xs text-subtle-fg">{version.name} · {Math.max(1, Math.round(version.size / 1024))} KB</small></div>
+                  <Button size="sm" variant="outline" disabled={busy > 0} onClick={() => restore(version)}>{busy === version.id ? "Restoring…" : "Restore"}</Button>
+                </li>
+              ))}
+            </ul>
+          )
+          : <Hint className="py-4 text-center">{error || "No earlier versions yet. Keep building: the first copy is kept the next time you save after a while."}</Hint>}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Pick a file */
 function pick(accept: string) {
   return new Promise<File | null>((solve) => {
@@ -229,7 +284,7 @@ function Settings({ close }: { close: () => void }) {
             <Input type="number" min={6} max={128} value={height} onChange={(event) => setHeight(event.target.value)} className="w-24" aria-label="Height" />
             <Button variant="secondary" size="sm" onClick={() => (session.resizeArea(Number(width) || area.width, Number(height) || area.height), update())}>Resize</Button>
           </div>
-          <Hint>Content stays anchored to the top-left corner. Resizing clears undo history.</Hint>
+          <Hint>Content stays anchored to the top-left corner. Undo puts the old size back.</Hint>
         </section>
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Music</p>
