@@ -1,5 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
+import type { Layer } from "./data";
 import { creatureLook } from "./sprites";
 import { range, sprite as custom } from "./tilesets";
 
@@ -46,6 +47,9 @@ export const assets = {
   walkable: new Set<number>(),
   /** Frames that look like water (blocked when used as ground) */
   water: new Set<number>(),
+  /** Frames usually on the ground or above layers in real maps (the rest are objects) */
+  ground: new Set<number>(),
+  above: new Set<number>(),
   /** Palette canvas (whole tileset laid out on its original grid) */
   palette: null as unknown as HTMLCanvasElement,
   /** NPC textures names */
@@ -78,6 +82,8 @@ export async function load(progress: (text: string) => void) {
   progress("loaded pokedex");
   assets.animated = tileset.animated;
   assets.walkable = new Set(tiles.walkable);
+  assets.ground = new Set(tiles.layers?.ground ?? []);
+  assets.above = new Set(tiles.layers?.above ?? []);
   Object.assign(assets, pokedex);
   assets.npcs = [...new Set(Object.keys(resources.npcs.spritesheet.textures).filter((name) => name.endsWith("_down_0")).map((name) => name.replace(/_down_0$/, "")))]
     .filter((name) => !["boat", "oups/scientist"].includes(name)).sort();
@@ -117,6 +123,18 @@ export async function load(progress: (text: string) => void) {
   }
   assets.palette = palette;
   progress("built tile palette");
+}
+
+/** Usual layer of built-in tiles (values are frame + 1): ground when all are ground tiles, above when most are, otherwise objects. Null for custom tilesets */
+export function layerOf(values: number[]): Layer | null {
+  const frames = values.filter(Boolean).map((value) => value - 1);
+  if ((!frames.length) || (frames.some((frame) => frame + 1 >= range))) {
+    return null;
+  }
+  if (frames.every((frame) => assets.ground.has(frame))) {
+    return "ground";
+  }
+  return frames.filter((frame) => assets.above.has(frame)).length * 2 > frames.length ? "above" : "decor";
 }
 
 /** Texture of a tile value (frame + 1) */

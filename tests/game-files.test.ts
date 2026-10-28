@@ -21,6 +21,19 @@ describe("game data files", () => {
     expect(moves).toHaveProperty("tackle");
   });
 
+  test("tiles know their usual layer, and the common ones are right", () => {
+    const { layers } = json("data/city/tiles.json");
+    const ground = new Set(layers.ground), above = new Set(layers.above);
+    //Grass and sand paths are ground; trees and the house roof are objects
+    for (const frame of [113, 4977]) {
+      expect(ground.has(frame), `${frame}`).toBe(true);
+    }
+    for (const frame of [211, 324, 2734]) {
+      expect(ground.has(frame) || above.has(frame), `${frame}`).toBe(false);
+    }
+    expect([...ground].some((frame) => above.has(frame))).toBe(false);
+  });
+
   test("walkable tiles are a sorted list of tile numbers", () => {
     const { walkable } = json("data/city/tiles.json");
     expect(walkable.length).toBeGreaterThan(100);

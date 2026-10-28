@@ -4,6 +4,7 @@ import { profile, signIn } from "@/components/editor/account-dialogs";
 import { cities, newCity, settings } from "@/components/editor/city-dialogs";
 import { useSession } from "@/components/editor/hooks";
 import { publish, room, share } from "@/components/editor/share-dialogs";
+import { startTour } from "@/components/editor/tour";
 import { card, party } from "@/components/editor/trainer-dialogs";
 import { TextInput, Tip } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { sound } from "@/game/audio";
 import { cloud } from "@/game/cloud";
 import { message } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { Backpack, BookOpen, CaretDown, Check, Cloud, DownloadSimple, Export, Folder, GearSix, GitFork, Globe, IdentificationCard, MapTrifold, PencilSimple, Play, Plus, SpeakerHigh, SpeakerSlash, Upload, Warning } from "@phosphor-icons/react";
+import { Backpack, BookOpen, CaretDown, Check, Cloud, DownloadSimple, Export, Folder, GearSix, GitFork, Globe, IdentificationCard, MapTrifold, PencilSimple, Play, Plus, Sparkle, SpeakerHigh, SpeakerSlash, Upload, Warning } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 /** Where the city is saved, and what to do about it */
@@ -59,6 +60,7 @@ export function Topbar() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => (sound.toggle(), session.notify())}>{sound.muted ? <SpeakerHigh /> : <SpeakerSlash />}{sound.muted ? "Turn sound on" : "Turn sound off"}</DropdownMenuItem>
           <DropdownMenuItem asChild><a href="/explore"><MapTrifold />Explore cities</a></DropdownMenuItem>
+          {visiting ? null : <DropdownMenuItem onSelect={() => startTour()}><Sparkle />Getting started tour</DropdownMenuItem>}
           <DropdownMenuItem asChild><a href="/docs"><BookOpen />Docs</a></DropdownMenuItem>
           <DropdownMenuItem asChild><a href="/"><Globe />DreamMist home</a></DropdownMenuItem>
         </DropdownMenuContent>

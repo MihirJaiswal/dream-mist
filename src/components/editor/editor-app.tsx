@@ -10,6 +10,7 @@ import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
 import { onboarding } from "@/components/editor/trainer-dialogs";
+import { Tour } from "@/components/editor/tour";
 import { MapControls, MapMenu, Minimap, StatusBar, usePreference } from "@/components/editor/viewport";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -65,6 +66,7 @@ export function EditorApp() {
             {session.ready && minimap ? <Minimap /> : null}
             {session.ready ? <MapControls minimap={minimap} onMinimap={() => setMinimap(!minimap)} onPanel={() => setCollapsed(!collapsed)} /> : null}
             {session.ready ? <MapMenu /> : null}
+            {session.ready ? <Tour /> : null}
             <MapBanner />
             <SaveNudge onLogin={() => signIn("save")} />
             {session.ready ? null : <Loading progress={progress} />}

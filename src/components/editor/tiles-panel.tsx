@@ -2,17 +2,21 @@
 
 import { removeTileset } from "@/components/editor/city-dialogs";
 import { useEditor } from "@/components/editor/hooks";
-import { CanvasView, Hint, Tip } from "@/components/editor/widgets";
+import { CanvasView, Hint, Removable, Tip } from "@/components/editor/widgets";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { size } from "@/game/assets";
+import { assets, size } from "@/game/assets";
 import { brushes, terrains } from "@/game/brushes";
-import { storage } from "@/game/data";
+import { type Layer, storage } from "@/game/data";
 import type { Stamp } from "@/game/editor/constants";
 import { targets } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
-import { decode } from "@/game/tilesets";
+import { decode, range } from "@/game/tilesets";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Shuffle, Trash } from "@phosphor-icons/react";
+import { MagnifyingGlass, Minus, Plus, Shuffle, Star, Trash } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 /** Palette scroll positions per tileset (kept while switching tabs and panels) */
@@ -40,12 +44,50 @@ function StampButton({ editor, stamp, label }: { editor: EditorEngine; stamp: St
   );
 }
 
-/** Tile layers panel: current brush, stamps, terrains, recent brushes and the tileset palette */
+/** Name a favorite and save it */
+function SaveFavorite({ editor }: { editor: EditorEngine }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const saved = editor.favorite;
+  const custom = editor.stamp.tiles.some((value) => value >= range);
+  if (saved >= 0) {
+    return (
+      <Tip label="Remove from favorites">
+        <button aria-label="Remove from favorites" onClick={() => editor.removeFavorite(saved)} className="grid size-8 place-items-center rounded-md text-select hover:bg-muted"><Star size={16} weight="fill" /></button>
+      </Tip>
+    );
+  }
+  return (
+    <Popover open={open} onOpenChange={(next) => (setOpen(next), next && setName(editor.stamp.name ?? ""))}>
+      <Tip label={custom ? "Favorites hold Hoenn tiles only" : "Save to favorites"} description={custom ? undefined : "Name it to find it with search"}>
+        <PopoverTrigger asChild>
+          <button aria-label="Save to favorites" disabled={custom} className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"><Star size={16} /></button>
+        </PopoverTrigger>
+      </Tip>
+      <PopoverContent align="end" className="w-64 p-3">
+        <form className="grid gap-2" onSubmit={(event) => (event.preventDefault(), editor.addFavorite(name), setOpen(false))}>
+          <Label htmlFor="favorite-name" className="text-xs text-muted-foreground">Name this favorite</Label>
+          <Input id="favorite-name" autoFocus value={name} maxLength={32} placeholder="Blue roof house" onChange={(event) => setName(event.target.value)} className="h-8" />
+          <Button type="submit" size="sm">Save</Button>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Tile layers panel: current brush, search, favorites, stamps, terrains, recent brushes and the tileset palette */
 export function TilesPanel({ onImport }: { onImport: () => void }) {
   const editor = useEditor();
   const { stamp } = editor;
+  const [query, setQuery] = useState("");
   const layerLabel = targets.find(({ key }) => key === (stamp.layer ?? editor.target))?.label;
   const group = "mb-1.5 mt-4 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-subtle-fg";
+  const stamps = brushes.map((brush) => ({ stamp: brush as Stamp, label: brush.name.replace(/ \(.*\)$/, "") }));
+  const terrainStamps = terrains.map((terrain) => ({ stamp: { w: 3, h: 3, tiles: terrain.tiles, name: terrain.name, terrain: terrain.id, layer: "decor", solid: "none" } as Stamp, label: terrain.name }));
+  const favorites = editor.favorites.map((favorite, index) => ({ stamp: favorite as Stamp, label: favorite.name, index }));
+  //Search names of favorites, stamps and terrains
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const found = words.length ? [...favorites, ...stamps, ...terrainStamps].filter(({ stamp }) => words.every((word) => `${stamp.name ?? ""}`.toLowerCase().includes(word))) : [];
   return (
     <div className="grid grid-cols-1 gap-2">
       <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
@@ -56,16 +98,42 @@ export function TilesPanel({ onImport }: { onImport: () => void }) {
             {stamp.terrain ? "Terrain · borders and corners are picked automatically" : editor.random ? `Random: each cell gets one of ${stamp.tiles.filter(Boolean).length} tiles` : `${stamp.w}×${stamp.h} ${stamp.w * stamp.h > 1 ? "tiles" : "tile"} · paints on ${layerLabel}`}
           </small>
         </div>
+        <SaveFavorite editor={editor} />
         <Tip label="Random mode" description={editor.random ? "On: each cell gets a random tile of the brush" : "Paint a random tile of the brush in each cell"}>
           <button aria-label="Random mode" aria-pressed={editor.random} onClick={() => editor.setRandom(!editor.random)} className={cn("grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground", editor.random && "bg-muted text-select")}><Shuffle size={16} /></button>
         </Tip>
       </div>
       {editor.layer === "decor" ? <AutoCollision /> : null}
-      <div className={group}><span>Stamps</span></div>
-      <div className="grid grid-cols-3 gap-1.5">{brushes.map((brush) => <StampButton key={brush.name} editor={editor} stamp={brush} label={brush.name.replace(/ \(.*\)$/, "")} />)}</div>
-      <div className={group}><span>Terrains</span><span className="font-normal normal-case tracking-normal">borders draw themselves</span></div>
-      <div className="grid grid-cols-3 gap-1.5">{terrains.map((terrain) => <StampButton key={terrain.id} editor={editor} stamp={{ w: 3, h: 3, tiles: terrain.tiles, name: terrain.name, terrain: terrain.id, layer: "decor", solid: "none" }} label={terrain.name} />)}</div>
-      {editor.recent.length ? <><div className={group}><span>Recent</span></div><div className="grid grid-cols-4 gap-1.5">{editor.recent.slice(0, 8).map((recent, i) => <StampButton key={i} editor={editor} stamp={recent} />)}</div></> : null}
+      <div className="relative">
+        <MagnifyingGlass size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle-fg" />
+        <Input type="search" aria-label="Search stamps and favorites" value={query} placeholder="Search stamps and favorites" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === "Escape" && setQuery("")} className="h-8 pl-8 text-sm" />
+      </div>
+      {words.length
+        ? (
+          <>
+            <div className={group}><span>Results</span><span className="font-normal normal-case tracking-normal">{found.length || "none"}</span></div>
+            {found.length
+              ? <div className="grid grid-cols-3 gap-1.5">{found.map(({ stamp, label }, i) => <StampButton key={i} editor={editor} stamp={stamp} label={label} />)}</div>
+              : <Hint>Nothing named like that. Tiles from the tileset below have no names: pick some, then press the star to save them as a named favorite.</Hint>}
+          </>
+        )
+        : (
+          <>
+            {favorites.length
+              ? (
+                <>
+                  <div className={group}><span>Favorites</span><span className="font-normal normal-case tracking-normal">saved in this browser</span></div>
+                  <div className="grid grid-cols-3 gap-1.5">{favorites.map(({ stamp, label, index }) => <Removable key={index} label={`Remove ${label} from favorites`} onRemove={() => editor.removeFavorite(index)}><StampButton editor={editor} stamp={stamp} label={label} /></Removable>)}</div>
+                </>
+              )
+              : null}
+            <div className={group}><span>Stamps</span></div>
+            <div className="grid grid-cols-3 gap-1.5">{stamps.map(({ stamp, label }) => <StampButton key={label} editor={editor} stamp={stamp} label={label} />)}</div>
+            <div className={group}><span>Terrains</span><span className="font-normal normal-case tracking-normal">borders draw themselves</span></div>
+            <div className="grid grid-cols-3 gap-1.5">{terrainStamps.map(({ stamp, label }) => <StampButton key={label} editor={editor} stamp={stamp} label={label} />)}</div>
+            {editor.recent.length ? <><div className={group}><span>Recent</span></div><div className="grid grid-cols-4 gap-1.5">{editor.recent.slice(0, 8).map((recent, i) => <StampButton key={i} editor={editor} stamp={recent} />)}</div></> : null}
+          </>
+        )}
       <Palette editor={editor} onImport={onImport} />
     </div>
   );
@@ -81,6 +149,26 @@ function Palette({ editor, onImport }: { editor: EditorEngine; onImport: () => v
   const [drag, setDrag] = useState<null | { start: { x: number; y: number }; end: { x: number; y: number } }>(null);
   const [height, setHeight] = useState(() => storage.get("palette-height", 320));
   const rows = source.canvas.height / size;
+  //Show the Hoenn tiles of one layer (the others are dimmed, so groups keep their place)
+  const [filter, setFilter] = useState<"all" | Layer>(() => storage.get("palette-filter", "all"));
+  const filtering = (sheet < 0) && (filter !== "all");
+  const dim = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const element = dim.current;
+    if ((!element) || (!filtering)) {
+      return;
+    }
+    element.width = source.canvas.width;
+    element.height = source.canvas.height;
+    const context = element.getContext("2d")!;
+    context.fillStyle = "rgba(10, 10, 10, 0.82)";
+    for (let frame = 0; frame < source.columns * rows; frame++) {
+      const usual = assets.ground.has(frame) ? "ground" : assets.above.has(frame) ? "above" : "decor";
+      if ((usual !== filter) && (!source.empty.has(frame))) {
+        context.fillRect((frame % source.columns) * size, Math.floor(frame / source.columns) * size, size, size);
+      }
+    }
+  }, [filtering, filter, source, rows]);
 
   //Draw the tileset at its native resolution (zooming only changes the displayed size)
   useEffect(() => {
@@ -184,6 +272,15 @@ function Palette({ editor, onImport }: { editor: EditorEngine; onImport: () => v
           : null}
         <button title="Import your own tileset image" onClick={onImport} className="flex h-7 items-center gap-1 rounded-md border border-dashed border-border px-2 text-xs text-muted-foreground hover:border-ring hover:text-foreground"><Plus size={12} />Import</button>
       </div>
+      {sheet < 0
+        ? (
+          <div className="mb-2 grid grid-cols-4 gap-1 rounded-md bg-muted p-0.5" role="radiogroup" aria-label="Show tiles of a layer">
+            {([["all", "All"], ["ground", "Ground"], ["decor", "Objects"], ["above", "Above"]] as const).map(([value, label]) => (
+              <button key={value} role="radio" aria-checked={filter === value} onClick={() => (setFilter(value), storage.set("palette-filter", value))} className={cn("h-6 rounded text-[11px]", filter === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{label}</button>
+            ))}
+          </div>
+        )
+        : null}
       <div className="relative">
         <div ref={box} style={{ height }} className="overflow-auto rounded-md border border-border bg-[repeating-conic-gradient(#1c1c1c_0_25%,#171717_0_50%)] bg-[length:16px_16px]">
           <div className="relative w-max">
@@ -204,6 +301,7 @@ function Palette({ editor, onImport }: { editor: EditorEngine; onImport: () => v
                 }
               }}
             />
+            {filtering ? <canvas ref={dim} className="pointer-events-none absolute inset-0 [image-rendering:pixelated]" style={{ width: source.canvas.width * scale, height: source.canvas.height * scale }} /> : null}
             {region ? <div className="pointer-events-none absolute border-2 border-select bg-select/15" style={{ left: region.x * unit, top: region.y * unit, width: region.w * unit, height: region.h * unit }} /> : null}
           </div>
         </div>
@@ -226,7 +324,7 @@ function Palette({ editor, onImport }: { editor: EditorEngine; onImport: () => v
           }}
         />
       </div>
-      <Hint className="mt-2">Drag across the tileset to pick a group of tiles. Pinch or Ctrl+scroll to zoom.</Hint>
+      <Hint className="mt-2">Drag across the tileset to pick a group of tiles: it paints on the layer those tiles usually sit on. Pinch or Ctrl+scroll to zoom.</Hint>
     </div>
   );
 }

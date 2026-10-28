@@ -1,6 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
-import { assets, columns, creatureSprite, npc as texture, size, sprite } from "../assets";
+import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
 import { brushes, piece, type Terrain, terrainOf, terrains } from "../brushes";
 import { type City, interior, type Layer, layers, type Npc, type NpcStory, type Step, storage, uid } from "../data";
 import type { CityMap } from "../map";
@@ -48,6 +48,7 @@ export class EditorEngine {
   #snapshot = "";
   #dragging = -1;
   #recent = storage.get<Stamp[]>("recent", []);
+  #favorites = storage.get<(Stamp & { name: string })[]>("favorites", []);
   #sheet = -1;
   #paletteScale = storage.get("palette-scale", 2);
   #hidden = new Set<string>(storage.get<string[]>("hidden-layers", []));
@@ -167,6 +168,33 @@ export class EditorEngine {
   }
   get recent() {
     return this.#recent;
+  }
+
+  /** Stamps saved by the player under a name (kept in this browser, shared by every city) */
+  get favorites() {
+    return this.#favorites;
+  }
+
+  /** Is the current brush a favorite */
+  get favorite() {
+    const tiles = JSON.stringify(this.#stamp.tiles);
+    return this.#favorites.findIndex((stamp) => (JSON.stringify(stamp.tiles) === tiles) && (stamp.terrain === this.#stamp.terrain));
+  }
+
+  /** Save the current brush as a favorite */
+  addFavorite(name: string) {
+    const stamp = { ...this.#stamp, tiles: [...this.#stamp.tiles], name: name.trim().slice(0, 32) || this.#stamp.name || `${this.#stamp.w}×${this.#stamp.h} tiles` };
+    this.#favorites = [stamp, ...this.#favorites.filter((other) => JSON.stringify(other.tiles) !== JSON.stringify(stamp.tiles))].slice(0, 60);
+    storage.set("favorites", this.#favorites);
+    this.#stamp = { ...this.#stamp, name: stamp.name };
+    this.#notify();
+  }
+
+  /** Remove a favorite */
+  removeFavorite(index: number) {
+    this.#favorites = this.#favorites.filter((_, i) => i !== index);
+    storage.set("favorites", this.#favorites);
+    this.#notify();
   }
   get sheet() {
     return (this.#sheet >= 0) && (!sheets.has(this.#sheet)) ? -1 : this.#sheet;
@@ -307,6 +335,10 @@ export class EditorEngine {
 
   /** Paint with a stamp */
   use(stamp: Stamp) {
+    //Tiles picked from the palette go to the layer they usually sit on in real maps
+    if ((!stamp.layer) && (!stamp.terrain)) {
+      stamp = { ...stamp, layer: layerOf(stamp.tiles) ?? undefined };
+    }
     this.#stamp = { ...stamp, tiles: [...stamp.tiles] };
     if ((stamp.layer) && (stamp.layer !== this.#target)) {
       this.#target = stamp.layer;

@@ -3,7 +3,7 @@
 import { removeSprite } from "@/components/editor/city-dialogs";
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
-import { CanvasView, Field, Hint, NumberInput, TextInput, Tip, useDraft } from "@/components/editor/widgets";
+import { CanvasView, Field, Hint, NumberInput, Removable, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -118,16 +118,6 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
 }
 
 type Update = (fn: () => void) => void;
-
-/** An upload in a picker grid, with a small remove button that shows on hover */
-function Removable({ label, onRemove, children }: { label: string; onRemove: () => void; children: React.ReactNode }) {
-  return (
-    <div className="group relative">
-      {children}
-      <button aria-label={label} title={label} onClick={onRemove} className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full border border-border bg-background text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"><X size={9} weight="bold" /></button>
-    </div>
-  );
-}
 
 /** Dialogue or message box (saves when leaving the field) */
 function Words({ label, value, placeholder, onCommit, rows = 3, speaker }: { label: string; value: string; placeholder: string; onCommit: (value: string) => void; rows?: number; speaker?: Npc }) {

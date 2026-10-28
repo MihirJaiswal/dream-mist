@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { X } from "@phosphor-icons/react";
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
 
 /** Local draft of a value, reset whenever the value changes from outside (undo, another builder, another selection) */
@@ -88,6 +89,16 @@ export function Pane({ title, hint, action, children }: { title: string; hint?: 
       </header>
       {children}
     </section>
+  );
+}
+
+/** A picker item (upload, favorite) with a small remove button that shows on hover */
+export function Removable({ label, onRemove, children }: { label: string; onRemove: () => void; children: ReactNode }) {
+  return (
+    <div className="group relative">
+      {children}
+      <button aria-label={label} title={label} onClick={onRemove} className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full border border-border bg-background text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"><X size={9} weight="bold" /></button>
+    </div>
   );
 }
 

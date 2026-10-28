@@ -36,9 +36,18 @@ export function hush() {
   }
 }
 
+/** Follow the dialogue queue */
+const subscribeLines = (listener: () => void) => (lineListeners.add(listener), () => void lineListeners.delete(listener));
+
+/** Who is speaking in the dialogue box right now ("" when it's closed) */
+export function useSpeaker() {
+  const lines = useSyncExternalStore(subscribeLines, () => queue, () => queue);
+  return lines[0]?.speaker ?? "";
+}
+
 /** Game dialogue box: types each page, Space/Enter/Z/E or a click continues */
 export function DialogueBox() {
-  const lines = useSyncExternalStore((listener) => (lineListeners.add(listener), () => void lineListeners.delete(listener)), () => queue, () => queue);
+  const lines = useSyncExternalStore(subscribeLines, () => queue, () => queue);
   const line = lines[0];
   const pages = line ? line.text.split(/\n\s*\n/).map((page) => page.trim()).filter(Boolean) : [];
   const [page, setPage] = useState(0);

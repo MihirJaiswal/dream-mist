@@ -343,6 +343,7 @@ function tiles({ force = false }) {
     return count / 256 >= ratio;
   };
 
+  const stacked = [new Map<number, number>(), new Map<number, number>(), new Map<number, number>()];
   const lower = new Map<number, number>(), upper = new Map<number, number>(), repeated = new Map<number, number>(), grass = new Map<number, number>();
   const increment = (map: Map<number, number>, frame: number) => map.set(frame, (map.get(frame) ?? 0) + 1);
   const number = (layer: unknown) => Number(`${layer ?? 1}`.match(/\d+/)?.[0] ?? 1);
@@ -354,6 +355,17 @@ function tiles({ force = false }) {
     for (const { layer, x: X, y: Y, tiles } of data.chunks) {
       const grid = grids.get(number(layer)) ?? grids.set(number(layer), new Map()).get(number(layer))!;
       tiles.forEach((frame, i) => (frame) && (frame < 6215) && grid.set(`${X + i % 16};${Y + Math.floor(i / 16)}`, frame));
+    }
+    //Where each tile usually sits: its place in the stack of tiles on a spot (ground, then objects, then above)
+    const order = [...grids.keys()].sort((a, b) => a - b);
+    for (const key of new Set(order.flatMap((n) => [...grids.get(n)!.keys()]))) {
+      let depth = 0;
+      for (const n of order) {
+        const frame = grids.get(n)!.get(key);
+        if (frame) {
+          increment(stacked[Math.min(depth++, 2)], frame);
+        }
+      }
     }
     for (const [layer, grid] of grids) {
       for (const [key, frame] of grid) {
@@ -379,7 +391,9 @@ function tiles({ force = false }) {
   const edges = [...ground, ...floors].flatMap((frame) => [-114, -113, -112, -1, 1, 112, 113, 114].map((delta) => frame + delta)).filter((frame) => (upper.has(frame) || lower.has(frame)) && (opaque(frame, 0.84)));
   const tall = [...grass].filter(([, n]) => n >= 8).map(([frame]) => frame);
   const walkable = [...new Set([...ground, ...floors, ...edges, ...tall, 206, 93, 658, 659, 660])].sort((a, b) => a - b);
-  save("data/city/tiles.json", { walkable });
+  //Usual layer of each tile, so picking tiles in the palette can switch to it (objects when not listed)
+  const usual = (rank: number) => [...stacked[rank].keys()].filter((frame) => stacked.every((counts, other) => (other === rank) || ((counts.get(frame) ?? 0) < stacked[rank].get(frame)!))).sort((a, b) => a - b);
+  save("data/city/tiles.json", { walkable, layers: { ground: usual(0), above: usual(2) } });
 }
 
 //=================================================================================================
