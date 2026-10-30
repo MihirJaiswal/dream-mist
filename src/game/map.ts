@@ -1,5 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
+import { Atmosphere, type Daytime, type Weather } from "./atmosphere";
 import { size, sprite } from "./assets";
 import { type City, type Layer, layers } from "./data";
 
@@ -72,6 +73,22 @@ export class CityMap {
       this.app.render();
     });
     this.#observer.observe(host);
+  }
+
+  /** Weather and time of day, drawn over the map */
+  #atmosphere = null as null | Atmosphere;
+
+  /** Show weather and time of day over the map (nothing when clear and day) */
+  sky(weather: Weather = "clear", time: Daytime = "day") {
+    if ((weather === "clear") && (time === "day")) {
+      this.#atmosphere?.destroy();
+      this.#atmosphere = null;
+      return;
+    }
+    if (this.#atmosphere) {
+      return this.#atmosphere.set(weather, time);
+    }
+    this.#atmosphere = new Atmosphere(this.app, weather, time);
   }
 
   /** Watches the size of the element holding the map */

@@ -41,7 +41,7 @@ export function Topbar() {
   const session = useSession();
   const { city, mode, visiting, room: live } = session;
   if (!city) {
-    return <header className="h-12 shrink-0 border-b border-border bg-card" />;
+    return null;
   }
   return (
     <header className="relative flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-2">

@@ -15,6 +15,7 @@ import { artwork, assets, npc as texture, portrait, preview, species } from "@/g
 import type { Npc, NpcStory } from "@/game/data";
 import { type Kind, kindOf, kinds } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
+import { type ItemId, itemIds, items } from "@/game/items";
 import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ function tag(npc: Npc) {
   if (kind === "pokemon") {
     return npc.role === "wild" ? `wild · Lv ${npc.creature!.level}` : "Pokémon";
   }
-  return npc.role === "trainer" ? (npc.trainer?.gym ? "gym leader" : "trainer") : npc.role === "healer" ? "nurse" : "talks";
+  return npc.role === "trainer" ? (npc.trainer?.gym ? "gym leader" : "trainer") : npc.role === "healer" ? "nurse" : npc.role === "shop" ? "Poké Mart" : "talks";
 }
 
 /** Person / Pokémon / Sign tabs */
@@ -178,20 +179,74 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
             if (role === "healer") {
               npc.dialogue = "Welcome to the Pokémon Center! Let me heal your Pokémon.";
             }
+            if (role === "shop") {
+              npc.dialogue = "Welcome! How may I help you?";
+              npc.wander = false;
+            }
           })}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="talk">Talks</SelectItem>
               <SelectItem value="trainer">Trainer (battles)</SelectItem>
               <SelectItem value="healer">Nurse (heals party)</SelectItem>
+              <SelectItem value="shop">Poké Mart clerk (sells items)</SelectItem>
             </SelectContent>
           </Select>
         </Field>
       </div>
+      {npc.role === "shop" ? <ShopStock npc={npc} update={update} /> : null}
+      {npc.role !== "trainer"
+        ? (
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Switch className="mt-0.5" checked={Boolean(npc.approach)} onCheckedChange={(on) => update(() => on ? npc.approach = true : delete npc.approach)} />
+            <span><b className="block font-medium text-foreground">Walks up to talk</b>The first time they see the player (looking their way, up to 4 tiles), they come over and talk, like a rival. Once per player.</span>
+          </label>
+        )
+        : null}
       <Movement editor={editor} npc={npc} update={update} />
       <Words label="Dialogue" rows={4} speaker={npc} value={npc.dialogue} placeholder="Leave an empty line to start a new page" onCommit={(text) => update(() => npc.dialogue = text)} />
-      {(npc.role === "trainer") && (npc.trainer) ? <TrainerForm npc={npc} update={update} city={editor.city.name} /> : null}
+      {(npc.role === "trainer") && (npc.trainer) ? <TrainerForm npc={npc} update={update} city={editor.city.name} /> : <Gift npc={npc} update={update} />}
     </>
+  );
+}
+
+/** What a Poké Mart clerk sells */
+function ShopStock({ npc, update }: { npc: Npc; update: Update }) {
+  const stock = npc.shop?.length ? npc.shop : itemIds;
+  const toggle = (id: ItemId, on: boolean) => update(() => {
+    const next = on ? itemIds.filter((other) => (other === id) || (stock.includes(other))) : stock.filter((other) => other !== id);
+    npc.shop = next.length ? next : [id];
+  });
+  return (
+    <Field label="Sells" hint="Players buy these with money earned by beating trainers.">
+      <div className="grid gap-1">
+        {itemIds.map((id) => (
+          <label key={id} className="flex items-center gap-2 text-sm">
+            <Checkbox checked={stock.includes(id)} onCheckedChange={(on) => toggle(id, on === true)} />
+            <span className="flex-1">{items[id].name}</span><span className="font-mono text-xs text-subtle-fg">₽{items[id].price}</span>
+          </label>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
+/** Item handed to the player the first time they talk */
+function Gift({ npc, update }: { npc: Npc; update: Update }) {
+  const gift = npc.gift;
+  return (
+    <Field label="Gives the player" hint="Handed over the first time they talk, once per player.">
+      <div className="flex items-center gap-1.5">
+        <Select value={gift?.item ?? "none"} onValueChange={(value) => update(() => value === "none" ? delete npc.gift : npc.gift = { item: value as ItemId, count: gift?.count || 1 })}>
+          <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nothing</SelectItem>
+            {itemIds.map((id) => <SelectItem key={id} value={id}>{items[id].name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {gift ? <><span className="text-xs text-subtle-fg">×</span><NumberInput min={1} max={99} value={gift.count} onCommit={(count) => update(() => npc.gift = { ...gift, count })} className="w-14" /></> : null}
+      </div>
+    </Field>
   );
 }
 
@@ -477,6 +532,9 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Poké Balls</span><NumberInput min={0} max={99} value={reward.balls ?? 0} onCommit={(value) => set("reward", { ...reward, balls: value })} className="w-14" />
               <span>Potions</span><NumberInput min={0} max={99} value={reward.potions ?? 0} onCommit={(value) => set("reward", { ...reward, potions: value })} className="w-14" />
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Money ₽</span><NumberInput min={0} max={99999} value={reward.money ?? 0} onCommit={(value) => set("reward", { ...reward, money: value })} className="w-20" />
             </div>
             <Words label="Says afterwards" rows={2} speaker={npc} value={settings.done ?? ""} placeholder="Good luck on your journey!" onCommit={(text) => set("done", text)} />
           </div>

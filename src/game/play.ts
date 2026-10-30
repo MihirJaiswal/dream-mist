@@ -7,6 +7,7 @@ import type { CityMap } from "./map";
 import { Battle } from "./battle";
 import { creatureImage, scaleOf } from "./sprites";
 import { create, trainer } from "./trainer";
+import { itemCount, itemIds, items } from "./items";
 import { sound } from "./audio";
 import { type Portrait, ui } from "./ui-bridge";
 
@@ -444,10 +445,15 @@ export class Play {
     npc.next = now + 500;
   }
 
-  /** A trainer who just moved checks whether they see the player */
+  /** Wants to come to the player: a trainer not beaten yet, or someone who walks up to talk and hasn't yet */
+  #eager({ data, index }: Person) {
+    return data.role === "trainer" ? !this.#defeated(index) : (Boolean(data.approach)) && (!trainer.profile?.met?.includes(this.#key(index)));
+  }
+
+  /** A trainer (or someone who walks up to talk) who just moved checks whether they see the player */
   #watch(npc: Person) {
     const ready = (!npc.hidden) && ((!npc.data.story?.requires) || (this.#done(npc.data.story.requires)));
-    if ((npc.data.role === "trainer") && (ready) && (!this.#player.moving) && (!this.#defeated(npc.index)) && (this.#spots(npc))) {
+    if ((ready) && (!this.#player.moving) && (this.#eager(npc)) && (this.#spots(npc))) {
       this.#challenge(npc);
     }
   }
@@ -464,10 +470,10 @@ export class Play {
       return;
     }
 
-    //Trainers line of sight (only those present and ready for the player)
+    //Trainers (and people who walk up to talk) line of sight, only those present and ready for the player
     for (const npc of this.#npcs) {
       const ready = (!npc.hidden) && ((!npc.data.story?.requires) || (this.#done(npc.data.story.requires)));
-      if ((npc.data.role === "trainer") && (ready) && (!this.#defeated(npc.index)) && (this.#spots(npc))) {
+      if ((ready) && (this.#eager(npc)) && (this.#spots(npc))) {
         await this.#challenge(npc);
         return;
       }
@@ -512,9 +518,15 @@ export class Play {
     return false;
   }
 
-  /** Trainer walks up to the player and battles */
+  /** Trainer (or someone with something to say) walks up to the player, then battles or talks */
   async #challenge(npc: Person) {
     this.#busy = true;
+    //Someone who walks up to talk only does it once
+    if (npc.data.role !== "trainer") {
+      const profile = trainer.profile!;
+      profile.met = [...(profile.met ?? []), this.#key(npc.index)];
+      trainer.save();
+    }
     this.#held.length = 0;
     this.#tap = null;
     const { actor } = npc;
@@ -578,7 +590,7 @@ export class Play {
       return;
     }
     const step = this.#world.story.find(({ id }) => id === story.completes);
-    const { species: id, level = 5, balls = 0, potions = 0 } = story.reward ?? {};
+    const { species: id, level = 5, balls = 0, potions = 0, money = 0 } = story.reward ?? {};
     const profile = trainer.profile!;
     if ((id) && (species(id))) {
       const creature = create(id, level, { shiny: false });
@@ -587,9 +599,13 @@ export class Play {
       await ui.say(`${profile.name} received ${species(id).name}!${where === "box" ? "\n\nIt was sent to the PC box." : ""}`);
     }
     if ((balls) || (potions)) {
-      profile.bag.balls += balls;
-      profile.bag.potions += potions;
-      await ui.say(`${profile.name} got ${[balls ? `${balls} Poké Ball${balls > 1 ? "s" : ""}` : "", potions ? `${potions} Potion${potions > 1 ? "s" : ""}` : ""].filter(Boolean).join(" and ")}.`);
+      trainer.give("poke-ball", balls);
+      trainer.give("potion", potions);
+      await ui.say(`${profile.name} got ${[balls ? itemCount("poke-ball", balls) : "", potions ? itemCount("potion", potions) : ""].filter(Boolean).join(" and ")}.`);
+    }
+    if (money) {
+      profile.money += money;
+      await ui.say(`${profile.name} got ₽${money}.`);
     }
     trainer.save();
     if (step) {
@@ -657,14 +673,13 @@ export class Play {
         if (data.trainer.gym) {
           const badge = data.trainer.badge || `${this.#city.name} Badge`;
           trainer.profile!.badges.push({ city: this.#city.name, name: data.name, badge, date: Date.now() });
-          trainer.profile!.bag.balls += 5;
+          trainer.give("poke-ball", 5);
           trainer.save();
           await ui.say(`${data.trainer.defeat || "You beat me fair and square!"}\n\n${trainer.profile!.name} received the ${badge}!`, voice);
           ui.toast(`🏅 ${badge} earned!`, "success");
         } else {
-          trainer.profile!.bag.balls += 2;
           trainer.save();
-          await ui.say(`${data.trainer.defeat || "You're strong!"}\n\nYou got 2 Poké Balls.`, voice);
+          await ui.say(data.trainer.defeat || "You're strong!", voice);
         }
         await this.#progress(data);
       }
@@ -674,11 +689,26 @@ export class Play {
     await ui.say(data.dialogue || "Hello!", voice);
     if (data.role === "healer") {
       trainer.heal();
-      trainer.profile!.bag.potions = Math.max(trainer.profile!.bag.potions, 5);
-      trainer.profile!.bag.balls = Math.max(trainer.profile!.bag.balls, 5);
+      //Towns without a Poké Mart: the nurse keeps you stocked so you can still catch Pokémon
+      if (![this.#world, ...this.#world.interiors].some((map) => map.npcs.some(({ role }) => role === "shop"))) {
+        trainer.give("poke-ball", Math.max(0, 5 - trainer.count("poke-ball")));
+        trainer.give("potion", Math.max(0, 5 - trainer.count("potion")));
+      }
       trainer.save();
       sound.play("victory");
       await ui.say("Your Pokémon are fully healed! We hope to see you again!", voice);
+    }
+    if (data.role === "shop") {
+      await ui.shop((data.shop?.length ? data.shop : itemIds).filter((id) => id in items), voice);
+    }
+    //A gift, the first time
+    if ((data.gift?.count) && (data.gift.item in items) && (!trainer.profile!.received?.includes(this.#key(index)))) {
+      const profile = trainer.profile!;
+      trainer.give(data.gift.item, data.gift.count);
+      profile.received = [...(profile.received ?? []), this.#key(index)];
+      trainer.save();
+      sound.play("victory");
+      await ui.say(`${profile.name} received ${itemCount(data.gift.item, data.gift.count)}!`);
     }
     await this.#progress(data);
   }
@@ -686,7 +716,14 @@ export class Play {
   /** Handle battle outcome */
   async #after(outcome: string) {
     if (outcome === "lose") {
+      //Blacking out costs half the money
+      const profile = trainer.profile!;
+      const lost = Math.floor(profile.money / 2);
+      profile.money -= lost;
       trainer.heal();
+      if (lost) {
+        await ui.say(`${profile.name} dropped ₽${lost} in panic…`);
+      }
       const { spawn } = this.#city;
       Object.assign(this.#player, { x: spawn.x, y: spawn.y, tx: spawn.x, ty: spawn.y });
       this.#player.place();

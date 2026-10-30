@@ -9,7 +9,7 @@ import { BattleScreen, DialogueBox, Fade, Gamepad, hush, MapBanner, SaveNudge, s
 import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
-import { onboarding } from "@/components/editor/trainer-dialogs";
+import { onboarding, shop } from "@/components/editor/trainer-dialogs";
 import { CommandPalette } from "@/components/editor/command-palette";
 import { useAppShortcuts } from "@/components/editor/shortcuts";
 import { Tour } from "@/components/editor/tour";
@@ -47,6 +47,7 @@ export function EditorApp() {
       toast: (text, type = "info") => toast[type](text),
       say,
       hush,
+      shop,
       confirm,
       signIn,
       onboarding,
@@ -72,7 +73,7 @@ export function EditorApp() {
   return (
     <TooltipProvider delayDuration={350}>
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-        <Topbar />
+        {session.ready ? <Topbar /> : null}
         <main className="flex min-h-0 flex-1">
           {(edit) && (panels) ? <ToolRail /> : null}
           {(edit) && (panels) && (!collapsed) ? <Sidebar onImportTileset={() => importTileset()} onSprite={importSprite} /> : null}
@@ -87,7 +88,7 @@ export function EditorApp() {
             {session.ready ? null : <Loading progress={progress} />}
           </div>
         </main>
-        <StatusBar />
+        {session.ready ? <StatusBar /> : null}
       </div>
       <DialogueBox />
       <BattleScreen />

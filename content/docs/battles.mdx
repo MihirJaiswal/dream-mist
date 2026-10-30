@@ -1,9 +1,9 @@
 ---
 title: Battles
-description: How turns, damage, catching and experience work, so you can balance your game.
+description: How turns, damage, conditions, catching, experience and evolution work, so you can balance your game.
 ---
 
-DreamMist battles follow the Generation 3 rules, simplified to one-on-one battles with Poké Balls and Potions. Knowing the numbers helps when you set levels for your trainers and wild Pokémon.
+DreamMist battles follow the Generation 3 rules, simplified to one-on-one battles. Knowing the numbers helps when you set levels for your trainers and wild Pokémon.
 
 ## A turn
 
@@ -12,7 +12,7 @@ Each turn you choose one of:
 | Option | What it does |
 | --- | --- |
 | Fight | Use one of your Pokémon's moves. Each move has limited PP. |
-| Bag | Throw a **Poké Ball** (wild battles only) or use a **Potion** (+20 HP). |
+| Bag | Throw a ball (wild battles only), or use a Potion or a Full Heal. See [Items](/docs/playing#items). |
 | Pokémon | Switch to another Pokémon. The opponent still attacks this turn. |
 | Run | Try to escape. Not possible against trainers. |
 
@@ -31,7 +31,29 @@ Damage uses the Generation 3 formula with the attacker's level, the move's power
 | Critical hit (1 in 16) | × 2 |
 | Random spread | × 0.85 to × 1 |
 
-Moves can miss based on their accuracy. Opponents pick moves at random, but favour strong, effective moves that match their own type.
+Moves can miss based on their accuracy. Opponents pick moves at random, but favour strong, effective moves that match their own type, and sometimes use a move that puts you to sleep or lowers your stats.
+
+## Stat changes
+
+Moves like **Growl**, **Tail Whip** and **Swords Dance** raise or lower a stat by one or two stages, from −6 to +6. Some attacks do it too, with a chance, like Bubble lowering Speed.
+
+| Stage | −6 | −2 | −1 | 0 | +1 | +2 | +6 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Attack, Defense, Speed… | × 0.25 | × 0.5 | × 0.67 | × 1 | × 1.5 | × 2 | × 4 |
+| Accuracy, evasion | × 0.33 | × 0.6 | × 0.75 | × 1 | × 1.33 | × 1.67 | × 3 |
+
+Stages go back to normal when a Pokémon switches out or the battle ends.
+
+## Conditions
+
+| Condition | What it does | Who can't get it |
+| --- | --- | --- |
+| Sleep (SLP) | Can't move for 2 to 4 turns | |
+| Poison (PSN) | Loses 1/8 of its HP after each turn | Poison and Steel types |
+| Paralysis (PAR) | Half Speed, and 1 in 4 turns it can't move | Electric types |
+| Burn (BRN) | Loses 1/16 of its HP after each turn, physical moves do half damage | Fire types |
+
+A Pokémon has one condition at a time. It stays after the battle until a Nurse heals the party or you use a **Full Heal**. Sleeping Pokémon are twice as easy to catch, and the other conditions make it 1.5 times easier.
 
 ## Stats
 
@@ -39,7 +61,11 @@ Stats come from the real base stats of each Pokémon at its level, with the same
 
 ## Moves
 
-Pokémon know the last four moves of their real level-up list for their level. When they level up and learn a new move with four already known, they forget the oldest one.
+Pokémon know the last four moves of their real level-up list for their level, always with at least one that deals damage. When they level up and learn a new move with four already known, they forget the oldest one, but never their last damaging move.
+
+## Evolution
+
+Pokémon evolve when they reach the level they evolve at in the games, like Treecko into Grovyle at level 16. It happens after the battle that levelled them up. They keep the damage they took and learn their new form's move for that level. Pokémon that evolve with a stone, by trading or by friendship don't evolve.
 
 ## Experience
 
@@ -52,12 +78,12 @@ Experience is split between the Pokémon that fought the fainted opponent and ar
 
 ## Catching
 
-Throw a Poké Ball at a wild Pokémon. The chance uses the Generation 3 catch formula: it goes up as the Pokémon's HP goes down, and depends on its species' catch rate. Easy Pokémon like Zigzagoon are caught often at full HP, while rare ones need to be weakened first.
+Throw a Poké Ball or a Great Ball (1.5 times better) at a wild Pokémon. The chance uses the Generation 3 catch formula: it goes up as the Pokémon's HP goes down, and depends on its species' catch rate. Easy Pokémon like Zigzagoon are caught often at full HP, while rare ones need to be weakened first.
 
 The ball shakes up to three times before the Pokémon is caught or breaks free. Wild Pokémon have a 1 in 128 chance to be shiny.
 
 ## Winning and losing
 
-- Winning a trainer battle gives **2 Poké Balls**, or a badge and **5 Poké Balls** for a Gym Leader.
-- When your last Pokémon faints, you black out and return to the spawn point of the map, healed.
+- Winning a trainer battle gives prize money: **₽40 × the level** of their strongest Pokémon. A Gym Leader also gives a badge and **5 Poké Balls**.
+- When your last Pokémon faints, you black out, drop half your money and return to the spawn point of the map, healed.
 - Running away from a wild battle succeeds more often when your Pokémon is faster.

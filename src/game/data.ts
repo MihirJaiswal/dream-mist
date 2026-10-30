@@ -5,7 +5,9 @@
  */
 
 //Imports
+import { type Daytime, daytimes, type Weather, weathers } from "./atmosphere";
 import { frames } from "./brushes";
+import type { ItemId } from "./items";
 import type { Tileset } from "./tilesets";
 import type { Sprite } from "./sprites";
 
@@ -57,7 +59,7 @@ export type NpcStory = {
   /** What they say once their step is done */
   done?: string;
   /** Reward given when completing their step */
-  reward?: { species?: number; level?: number; balls?: number; potions?: number };
+  reward?: { species?: number; level?: number; balls?: number; potions?: number; money?: number };
 };
 
 /** Route of someone walking around the map */
@@ -82,8 +84,14 @@ export type Npc = {
   dir: Direction;
   name: string;
   dialogue: string;
-  /** "wild" battles the player as a wild Pokémon (it can be caught, and is gone once beaten) */
-  role: "talk" | "trainer" | "healer" | "wild";
+  /** "wild" battles the player as a wild Pokémon (it can be caught, and is gone once beaten), "shop" runs a Poké Mart */
+  role: "talk" | "trainer" | "healer" | "wild" | "shop";
+  /** Items a Poké Mart clerk sells (all of them when not set) */
+  shop?: ItemId[];
+  /** Item handed to the player the first time they talk */
+  gift?: { item: ItemId; count: number };
+  /** Walks up to the player and talks the first time they see them (a small cutscene) */
+  approach?: boolean;
   /** Wander around spawn point */
   wander: boolean;
   /** Route walked over and over, starting from where they stand (replaces wandering) */
@@ -130,6 +138,10 @@ export type City = {
   sprites?: Sprite[];
   /** Custom music (uploaded files urls) */
   music?: { town?: string; battle?: string };
+  /** Weather of this map, shown in play mode */
+  weather?: Weather;
+  /** Time of day of this map, shown in play mode */
+  time?: Daytime;
   updated: number;
 };
 
@@ -213,6 +225,12 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.spawn = raw.spawn ?? city.spawn;
   city.doors = Array.isArray(raw.doors) ? raw.doors.filter((door) => door && Number.isFinite(door.x) && Number.isFinite(door.y)) : [];
   city.story = Array.isArray(raw.story) ? raw.story.filter((step) => step && step.id) : [];
+  if (weathers.some(({ key }) => key === raw.weather) && (raw.weather !== "clear")) {
+    city.weather = raw.weather;
+  }
+  if (daytimes.some(({ key }) => key === raw.time) && (raw.time !== "day")) {
+    city.time = raw.time;
+  }
   city.interiors = [];
   if (root) {
     city.id = `${raw.id ?? uid()}`;

@@ -334,6 +334,14 @@
   justify-content: space-between;
   gap: 8px;
 }
+.battle .infobox .status {
+  margin-right: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
 .battle .infobox .hp {
   display: flex;
   align-items: center;

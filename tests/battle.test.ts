@@ -1,7 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 import { assets } from "@/game/assets";
-import { catchOdds, damage, effectiveness } from "@/game/battle";
-import { create, experience, grow, heal, hp, stat } from "@/game/trainer";
+import { canGet, catchOdds, damage, effectiveness, stageMultiplier } from "@/game/battle";
+import { itemCount } from "@/game/items";
+import { create, evolution, evolve, experience, grow, heal, hp, stat, type Trainer, upgrade } from "@/game/trainer";
 
 const [treecko, torchic, mudkip, pikachu, gastly, geodude] = [252, 255, 258, 25, 92, 74];
 
@@ -46,6 +47,72 @@ describe("catching", () => {
     foe.hp = 1;
     expect(catchOdds(foe).a).toBeGreaterThan(full);
   });
+
+  test("is easier with a better ball or a status condition", () => {
+    const foe = create(pikachu, 10);
+    const plain = catchOdds(foe).a;
+    expect(catchOdds(foe, 1.5).a).toBeGreaterThan(plain);
+    foe.status = "sleep";
+    expect(catchOdds(foe).a).toBeGreaterThan(plain);
+  });
+});
+
+describe("stat stages and conditions", () => {
+  test("stages scale like the games", () => {
+    expect(stageMultiplier(0)).toBe(1);
+    expect(stageMultiplier(2)).toBe(2);
+    expect(stageMultiplier(-2)).toBe(0.5);
+    expect(stageMultiplier(6)).toBe(4);
+    expect(stageMultiplier(1, true)).toBeCloseTo(4 / 3);
+  });
+
+  test("types are immune to their own conditions and nobody gets two", () => {
+    expect(canGet(create(gastly, 10), "poison")).toBe(false);
+    expect(canGet(create(torchic, 10), "burn")).toBe(false);
+    expect(canGet(create(pikachu, 10), "paralysis")).toBe(false);
+    const target = create(treecko, 10);
+    expect(canGet(target, "sleep")).toBe(true);
+    target.status = "poison";
+    expect(canGet(target, "sleep")).toBe(false);
+  });
+
+  test("status moves carry their effect", () => {
+    expect(assets.moves.growl.effect).toMatchObject({ stats: [["attack", -1]] });
+    expect(assets.moves["swords-dance"].effect).toMatchObject({ stats: [["attack", 2]], self: true });
+    expect(assets.moves.hypnosis.effect).toMatchObject({ ailment: "sleep" });
+    expect(assets.moves["poison-powder"].effect).toMatchObject({ ailment: "poison" });
+  });
+});
+
+describe("evolution", () => {
+  test("happens at the right level and keeps the damage taken", () => {
+    expect(evolution(create(treecko, 15))).toBe(0);
+    const creature = create(treecko, 16, { shiny: false });
+    expect(evolution(creature)).toBe(253);
+    creature.hp -= 5;
+    const messages = evolve(creature, 253);
+    expect(creature.species).toBe(253);
+    expect(creature.hp).toBe(hp(creature) - 5);
+    expect(messages[0]).toContain("evolved into Grovyle");
+  });
+
+  test("stops at the last form", () => {
+    expect(evolution(create(254, 100))).toBe(0);
+  });
+});
+
+describe("bag", () => {
+  test("old saves keep their balls and potions", () => {
+    const profile = upgrade({ bag: { balls: 4, potions: 2 } } as unknown as Trainer)!;
+    expect(profile.items).toEqual({ "poke-ball": 4, potion: 2 });
+    expect(profile.money).toBe(3000);
+    expect("bag" in profile).toBe(false);
+  });
+
+  test("names amounts of items", () => {
+    expect(itemCount("potion", 1)).toBe("a Potion");
+    expect(itemCount("poke-ball", 3)).toBe("3 Poké Balls");
+  });
 });
 
 describe("creatures", () => {
@@ -57,13 +124,17 @@ describe("creatures", () => {
     expect(stat(creature, 5)).toBeGreaterThan(stat(creature, 2));
   });
 
-  test("know one to four damaging moves", () => {
-    for (const id of [1, 129, 132, 252, 1025]) {
-      const creature = create(id, 30);
-      expect(creature.moves.length).toBeGreaterThanOrEqual(1);
-      expect(creature.moves.length).toBeLessThanOrEqual(4);
-      for (const { key } of creature.moves) {
-        expect(assets.moves[key]?.power).toBeGreaterThan(0);
+  test("know one to four moves, at least one of them dealing damage", () => {
+    for (const id of [1, 129, 132, 252, 280, 1025]) {
+      for (const level of [5, 30, 70]) {
+        const creature = create(id, level);
+        expect(creature.moves.length).toBeGreaterThanOrEqual(1);
+        expect(creature.moves.length).toBeLessThanOrEqual(4);
+        expect(creature.moves.some(({ key }) => assets.moves[key]?.power > 0)).toBe(true);
+        for (const { key } of creature.moves) {
+          //Every move either deals damage or has an effect battles know how to play
+          expect((assets.moves[key]?.power > 0) || (Boolean(assets.moves[key]?.effect))).toBe(true);
+        }
       }
     }
   });

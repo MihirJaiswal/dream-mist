@@ -7,14 +7,16 @@ import { TypeBadge } from "@/components/editor/pokemon-picker";
 import { CanvasView, Field, Hint } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { assets, npc as texture, portrait, preview, species } from "@/game/assets";
-import { colors } from "@/game/battle";
+import { colors, statusLabels } from "@/game/battle";
+import { type ItemId, itemCount, items } from "@/game/items";
 import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
-import { type Creature, hp, named, starters, trainer } from "@/game/trainer";
+import { type Creature, hp, named, starters, type Status, trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
-import { Medal, Trash } from "@phosphor-icons/react";
+import { Medal, Minus, Plus, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -71,13 +73,38 @@ export function party() {
   return openDialog<void>((close) => <Party close={close} />);
 }
 
+/** Condition badge (SLP, PSN, PAR, BRN) */
+export function StatusBadge({ status }: { status: Status }) {
+  const { label, color } = statusLabels[status];
+  return <span className="rounded px-1.5 font-mono text-[10px] font-bold text-white" style={{ background: color }}>{label}</span>;
+}
+
+/** Use a Potion or a cure from the bag on a Pokémon */
+function UseItem({ creature }: { creature: Creature }) {
+  const usable = trainer.bag.filter(({ id }) => {
+    const item = items[id];
+    return item.kind === "heal" ? (creature.hp > 0) && (creature.hp < hp(creature)) : item.kind === "cure" ? Boolean(creature.status) : false;
+  });
+  if (!usable.length) {
+    return null;
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild><Button size="sm" variant="outline">Use item</Button></DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {usable.map(({ id, count }) => <DropdownMenuItem key={id} onSelect={() => session.useItem(id, creature) && toast.success(`${items[id].name} used on ${named(creature)}`)}>{items[id].name}<span className="ml-auto pl-4 text-xs text-muted-foreground">x{count}</span></DropdownMenuItem>)}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function CreatureRow({ creature, children }: { creature: Creature; children: React.ReactNode }) {
   const ratio = creature.hp / hp(creature);
   return (
     <div className={cn("flex items-center gap-3 rounded-md border border-border p-2", creature.hp <= 0 && "opacity-60")}>
       <CanvasView className="h-[60px] w-[68px] overflow-hidden" make={() => portrait(creature.species, 1, creature.art)} deps={[creature.species, creature.art]} />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5"><b className="text-sm">{named(creature)}{creature.shiny ? " ✨" : ""}</b><span className="rounded bg-muted px-1.5 text-[11px]">Lv {creature.level}</span>{species(creature.species).types.map((type) => <TypeBadge key={type} type={type} />)}</div>
+        <div className="flex flex-wrap items-center gap-1.5"><b className="text-sm">{named(creature)}{creature.shiny ? " ✨" : ""}</b><span className="rounded bg-muted px-1.5 text-[11px]">Lv {creature.level}</span>{species(creature.species).types.map((type) => <TypeBadge key={type} type={type} />)}{creature.status ? <StatusBadge status={creature.status} /> : null}</div>
         <div className="my-1 h-1.5 rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div>
         <small className="block truncate text-[11px] text-subtle-fg">HP {creature.hp}/{hp(creature)} · {creature.moves.map(({ key }) => assets.moves[key]?.name ?? key).join(", ")}</small>
       </div>
@@ -95,10 +122,11 @@ function Party({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>Your Pokémon</DialogTitle><DialogDescription>Bag: {profile.bag.balls} Poké Balls · {profile.bag.potions} Potions</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Your Pokémon</DialogTitle><DialogDescription>₽{profile.money.toLocaleString()} · {trainer.bag.length ? trainer.bag.map(({ id, count }) => `${count} ${items[id].name}`).join(" · ") : "Your bag is empty"}</DialogDescription></DialogHeader>
         <div className="grid gap-1.5">
           {profile.party.map((creature, i) => (
             <CreatureRow key={i} creature={creature}>
+              <UseItem creature={creature} />
               {i ? <Button size="sm" variant="outline" title="Send first in battle" onClick={() => session.moveCreature("lead", i)}>Lead</Button> : <span className="rounded bg-muted px-2 py-1 text-xs">Lead</span>}
               {profile.party.length > 1 ? <Button size="sm" variant="ghost" onClick={() => session.moveCreature("box", i)}>To box</Button> : null}
             </CreatureRow>
@@ -135,7 +163,7 @@ function TrainerCard({ close }: { close: () => void }) {
         <DialogHeader><DialogTitle>Trainer card</DialogTitle><DialogDescription className="sr-only">Badges, Pokédex and progress</DialogDescription></DialogHeader>
         <div className="flex items-center gap-4 rounded-lg border border-border bg-card p-3">
           <CanvasView make={() => preview(texture(profile.sprite, "down"), 4)} deps={[profile.sprite]} />
-          <div><h3 className="text-lg font-semibold">{profile.name}</h3><p className="text-sm text-muted-foreground">Pokédex: {profile.seen.length} seen · {profile.caught.length} caught</p><p className="text-sm text-muted-foreground">Trainers defeated: {profile.defeated.length}</p></div>
+          <div><h3 className="text-lg font-semibold">{profile.name}</h3><p className="text-sm text-muted-foreground">Pokédex: {profile.seen.length} seen · {profile.caught.length} caught</p><p className="text-sm text-muted-foreground">Trainers defeated: {profile.defeated.length} · Money: ₽{profile.money.toLocaleString()}</p></div>
         </div>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Badges ({profile.badges.length})</p>
         {profile.badges.length
@@ -151,6 +179,56 @@ function TrainerCard({ close }: { close: () => void }) {
             }
           }}><Trash />Start over</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+//=================================================================================================
+// Poké Mart
+
+/** Buy items with the trainer's money (opened by talking to a Poké Mart clerk) */
+export function shop(stock: ItemId[], { speaker = "" }: { speaker?: string } = {}) {
+  return openDialog<void>((close) => <Shop stock={stock} speaker={speaker} close={close} />).then(() => undefined);
+}
+
+function Shop({ stock, speaker, close }: { stock: ItemId[]; speaker: string; close: () => void }) {
+  useSession();
+  const profile = trainer.profile;
+  const [counts, setCounts] = useState<Partial<Record<ItemId, number>>>({});
+  if (!profile) {
+    return null;
+  }
+  const count = (id: ItemId) => counts[id] ?? 1;
+  const set = (id: ItemId, value: number) => setCounts({ ...counts, [id]: Math.max(1, Math.min(99, value)) });
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between gap-3">Poké Mart<span className="rounded-md bg-muted px-2.5 py-1 font-mono text-sm">₽{profile.money.toLocaleString()}</span></DialogTitle>
+          <DialogDescription>{speaker ? `${speaker}: ` : ""}What would you like?</DialogDescription>
+        </DialogHeader>
+        <ul className="grid gap-1.5">
+          {stock.map((id) => {
+            const item = items[id];
+            const cost = item.price * count(id);
+            return (
+              <li key={id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
+                <div className="min-w-0 flex-1">
+                  <b className="block text-sm">{item.name} <span className="font-mono text-xs font-normal text-muted-foreground">₽{item.price}</span></b>
+                  <small className="block text-xs text-subtle-fg">{item.about} · In bag: {trainer.count(id)}</small>
+                </div>
+                <div className="flex items-center rounded-md border border-border">
+                  <button aria-label={`Fewer ${item.name}s`} onClick={() => set(id, count(id) - 1)} className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"><Minus size={12} /></button>
+                  <span className="w-7 text-center font-mono text-sm tabular-nums">{count(id)}</span>
+                  <button aria-label={`More ${item.name}s`} onClick={() => set(id, count(id) + 1)} className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"><Plus size={12} /></button>
+                </div>
+                <Button size="sm" disabled={profile.money < cost} title={profile.money < cost ? "Not enough money" : undefined} onClick={() => session.buy(id, count(id)) && toast.success(`Bought ${itemCount(id, count(id))}`)}>₽{cost.toLocaleString()}</Button>
+              </li>
+            );
+          })}
+        </ul>
+        <DialogFooter><Button variant="outline" onClick={close}>Come again!</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

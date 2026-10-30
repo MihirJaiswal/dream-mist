@@ -32,6 +32,8 @@ type City = {
   tilesets?: Tileset[];
   sprites?: Sprite[];     // custom looks for people and Pokémon
   music?: { town?: string; battle?: string };
+  weather?: "rain" | "snow" | "fog" | "sandstorm";  // per map, clear when not set
+  time?: "evening" | "night";  // per map, day when not set
   updated: number;        // timestamp in milliseconds
 };
 ```
@@ -70,7 +72,10 @@ type Npc = {
   dir: "up" | "down" | "left" | "right";
   name: string;
   dialogue: string;       // an empty line starts a new page
-  role: "talk" | "trainer" | "healer" | "wild";  // "wild": a Pokémon to battle and catch
+  role: "talk" | "trainer" | "healer" | "wild" | "shop";  // "wild": a Pokémon to battle and catch, "shop": a Poké Mart clerk
+  shop?: ItemId[];        // what a clerk sells, everything when not set
+  gift?: { item: ItemId; count: number };  // given the first time the player talks to them
+  approach?: boolean;     // walks up to the player and talks the first time they see them
   wander: boolean;
   path?: {
     points: { x: number; y: number }[];  // stops after where they stand
@@ -91,9 +96,12 @@ type Npc = {
     locked?: string;      // Says until then
     completes?: string;   // Talking (or beating them) completes
     done?: string;        // Says afterwards
-    reward?: { species?: number; level?: number; balls?: number; potions?: number };
+    reward?: { species?: number; level?: number; balls?: number; potions?: number; money?: number };
   };
 };
+
+// "poke-ball" | "great-ball" | "potion" | "super-potion" | "full-heal"
+type ItemId = string;
 ```
 
 ## Zones, doors and tilesets

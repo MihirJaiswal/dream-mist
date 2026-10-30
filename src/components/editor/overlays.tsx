@@ -3,7 +3,7 @@
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { Button } from "@/components/ui/button";
 import { artwork } from "@/game/assets";
-import { Battle, type BattleSide } from "@/game/battle";
+import { Battle, type BattleSide, statusLabels } from "@/game/battle";
 import { cloud } from "@/game/cloud";
 import { hp, named } from "@/game/trainer";
 import type { Portrait } from "@/game/ui-bridge";
@@ -124,7 +124,7 @@ function Side({ side, view, foe }: { side: "ally" | "foe"; view: BattleSide; foe
   const start = creature.level ** 3, end = (creature.level + 1) ** 3;
   const info = (
     <div className="infobox" style={{ visibility: view.info ? "visible" : "hidden" }}>
-      <div className="row"><b>{named(creature)}{creature.shiny ? " ✨" : ""}</b><span>Lv{creature.level}</span></div>
+      <div className="row"><b>{named(creature)}{creature.shiny ? " ✨" : ""}</b><span>{creature.status ? <span className="status" style={{ background: statusLabels[creature.status].color }}>{statusLabels[creature.status].label}</span> : null}Lv{creature.level}</span></div>
       <div className="hp"><small>HP</small><div className="bar"><div className="fill" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div></div>
       {foe ? null : <div className="row small"><span className="hptext">{Math.max(0, creature.hp)} / {hp(creature)}</span><div className="exp"><div className="fill" style={{ width: `${Math.min(1, (creature.exp - start) / (end - start)) * 100}%` }} /></div></div>}
     </div>

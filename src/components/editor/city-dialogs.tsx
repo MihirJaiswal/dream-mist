@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { type Daytime, daytimes, type Weather, weathers } from "@/game/atmosphere";
 import { type Card, cloud } from "@/game/cloud";
 import { label, type Section, sections } from "@/game/hoenn";
 import { imageTypes, message, session } from "@/game/session";
@@ -275,7 +276,7 @@ function Settings({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>City settings</DialogTitle><DialogDescription className="sr-only">Map size, music, tilesets and sprites</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>City settings</DialogTitle><DialogDescription className="sr-only">Map size, weather, music, tilesets and sprites</DialogDescription></DialogHeader>
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "Map size" : `${area.name} size`}</p>
           <div className="flex items-center gap-2">
@@ -285,6 +286,24 @@ function Settings({ close }: { close: () => void }) {
             <Button variant="secondary" size="sm" onClick={() => (session.resizeArea(Number(width) || area.width, Number(height) || area.height), update())}>Resize</Button>
           </div>
           <Hint>Content stays anchored to the top-left corner. Undo puts the old size back.</Hint>
+        </section>
+        <section className="grid grid-cols-1 gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "Weather and time of day" : `${area.name} weather and time`}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Weather">
+              <Select value={area.weather ?? "clear"} onValueChange={(weather) => (session.setSky({ weather: weather as Weather }), update())}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{weathers.map(({ key, label }) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+            <Field label="Time of day">
+              <Select value={area.time ?? "day"} onValueChange={(time) => (session.setSky({ time: time as Daytime }), update())}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{daytimes.map(({ key, label }) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <Hint>Shows over this map in Play, so building stays easy to see. Each interior has its own.</Hint>
         </section>
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Music</p>

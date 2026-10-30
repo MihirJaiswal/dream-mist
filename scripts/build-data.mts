@@ -100,7 +100,7 @@ function pokeapi() {
   }
   step("downloading PokeAPI data (first run only)");
   execFileSync("git", ["clone", "--depth", "1", "--filter=blob:none", "--sparse", "https://github.com/PokeAPI/api-data.git", cache], { stdio: "inherit" });
-  execFileSync("git", ["sparse-checkout", "set", "data/api/v2/pokemon", "data/api/v2/pokemon-species", "data/api/v2/move", "data/api/v2/type", "data/api/v2/location", "data/api/v2/location-area"], { cwd: cache, stdio: "inherit" });
+  execFileSync("git", ["sparse-checkout", "set", "data/api/v2/pokemon", "data/api/v2/pokemon-species", "data/api/v2/move", "data/api/v2/type", "data/api/v2/location", "data/api/v2/location-area", "data/api/v2/evolution-chain"], { cwd: cache, stdio: "inherit" });
 }
 
 //=================================================================================================
@@ -279,8 +279,38 @@ function pokedex({ force = false }) {
     }
   }
 
-  //Creatures and their level-up moves (damaging moves only, to keep battles simple)
-  const moves = {} as { [name: string]: { name: string; type: string; power: number; accuracy: number; pp: number; class: string; priority: number } };
+  //What moves can do besides damage: raise or lower stats, or cause one of the conditions battles know
+  const stages = { attack: "attack", defense: "defense", "special-attack": "spatk", "special-defense": "spdef", speed: "speed", accuracy: "accuracy", evasion: "evasion" } as { [stat: string]: string };
+  const ailments = ["sleep", "poison", "paralysis", "burn"];
+  const effectOf = (data: Json) => {
+    const meta = data.meta ?? {};
+    const ailment = ailments.includes(meta.ailment?.name) ? meta.ailment.name : undefined;
+    const stats = data.stat_changes.filter(({ stat }: Json) => stat.name in stages).map(({ change, stat }: Json) => [stages[stat.name], change]);
+    if ((!ailment) && (!stats.length)) {
+      return undefined;
+    }
+    //Stat changes hit the user for self-targeting moves, and for damaging moves of the "damage-raise" kind (Metal Claw, Overheat)
+    const self = (["user", "user-or-ally", "users-field", "user-and-allies"].includes(data.target?.name)) || (meta.category?.name === "damage-raise");
+    //Status moves always work when they hit; damaging moves have a chance (0 means always, like Overheat lowering the user's Sp. Atk)
+    const chance = data.damage_class.name === "status" ? 100 : ((ailment ? meta.ailment_chance : meta.stat_chance) || data.effect_chance || 100);
+    return { ...(ailment ? { ailment } : {}), ...(stats.length ? { stats } : {}), ...(self ? { self: true } : {}), chance };
+  };
+
+  //Level-up evolutions (the first one with a plain level, like Treecko into Grovyle at 16)
+  const evolutionOf = (name: string, chain: Json) => {
+    const find = (node: Json): Json => node.species.name === name ? node : node.evolves_to.map(find).find(Boolean);
+    for (const next of find(chain.chain)?.evolves_to ?? []) {
+      const detail = next.evolution_details.find((detail: Json) => (detail.trigger.name === "level-up") && (detail.min_level) && (!detail.held_item) && (!detail.time_of_day) && (detail.gender === null) && (!detail.known_move) && (!detail.location));
+      const id = Number(next.species.url.match(/\/(\d+)\/?$/)?.[1]);
+      if ((detail) && (id <= creatures)) {
+        return [detail.min_level, id];
+      }
+    }
+    return undefined;
+  };
+
+  //Creatures and their level-up moves (damaging moves, and status moves battles know how to play)
+  const moves = {} as { [name: string]: { name: string; type: string; power: number; accuracy: number; pp: number; class: string; priority: number; effect?: Json } };
   const dex = [];
   for (let id = 1; id <= creatures; id++) {
     const pokemon = read(`${api}/pokemon/${id}/index.json`);
@@ -295,14 +325,16 @@ function pokedex({ force = false }) {
       }
       if (!(name in moves)) {
         const data = read(`${cache}/data${url.replace(/\/$/, "")}/index.json`);
-        moves[name] = { name: english(data.names, name), type: data.type.name, power: data.power ?? 0, accuracy: data.accuracy ?? 100, pp: data.pp ?? 10, class: data.damage_class.name, priority: data.priority ?? 0 };
+        const effect = effectOf(data);
+        moves[name] = { name: english(data.names, name), type: data.type.name, power: data.power ?? 0, accuracy: data.accuracy ?? 100, pp: data.pp ?? 10, class: data.damage_class.name, priority: data.priority ?? 0, ...(effect ? { effect } : {}) };
       }
-      if (moves[name].power > 0) {
+      if ((moves[name].power > 0) || (moves[name].effect)) {
         learnset.push([detail.level_learned_at, name]);
       }
     }
     learnset.sort(([a], [b]) => a - b);
-    dex.push({ id, key: pokemon.name, name: english(species.names, pokemon.name), types: pokemon.types.map(({ type }: Json) => type.name), stats: pokemon.stats.map(({ base_stat }: Json) => base_stat), xp: pokemon.base_experience ?? 64, capture: species.capture_rate, learnset });
+    const evolves = evolutionOf(species.name, read(`${cache}/data${species.evolution_chain.url.replace(/\/$/, "")}/index.json`));
+    dex.push({ id, key: pokemon.name, name: english(species.names, pokemon.name), types: pokemon.types.map(({ type }: Json) => type.name), stats: pokemon.stats.map(({ base_stat }: Json) => base_stat), xp: pokemon.base_experience ?? 64, capture: species.capture_rate, learnset, ...(evolves ? { evolves } : {}) });
     if (!(id % 100)) {
       step(`  ${id}/${creatures} Pokémon`);
     }

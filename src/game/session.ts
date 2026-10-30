@@ -13,7 +13,9 @@ import type { Problem } from "./problems";
 import { type Edit, type Peer, Room } from "./room";
 import { frameOf, layouts, load as loadSprites, type Sprite } from "./sprites";
 import { dataURL, load as loadTilesets, prepare, range } from "./tilesets";
-import { type Creature, type Trainer, trainer } from "./trainer";
+import { type Creature, cure, hp, type Trainer, trainer, upgrade } from "./trainer";
+import { type ItemId, items } from "./items";
+import type { Daytime, Weather } from "./atmosphere";
 import { type SignInReason, ui } from "./ui-bridge";
 
 /** City saved online */
@@ -208,8 +210,14 @@ export class Session {
       this.map.scale(3);
       this.#play(from ? { ...from, dir: "down" } : null);
     }
+    this.#sky();
     this.notify();
     setTimeout(() => this.map.app.resize(), 0);
+  }
+
+  /** Weather and time of day of the open map, over the map while playing */
+  #sky() {
+    this.map.sky(this.mode === "play" ? this.area.weather : "clear", this.mode === "play" ? this.area.time : "day");
   }
 
   /** The whole town as text (interiors included), to undo town-wide changes */
@@ -234,6 +242,9 @@ export class Session {
     const id = this.#areaId();
     const parsed = JSON.parse(town);
     const { interiors: _, ...fields } = sanitize(parsed);
+    //Clear weather and time is stored as no field at all, which assigning wouldn't remove
+    delete this.city.weather;
+    delete this.city.time;
     Object.assign(this.city, fields);
     this.city.interiors = (Array.isArray(parsed.interiors) ? parsed.interiors : []).map((map: City) => sanitize(map, this.city));
     this.area = area(this.city, id) ?? this.city;
@@ -241,6 +252,7 @@ export class Session {
     this.editor.start(this.area, this.city);
     sound.custom = this.city.music ?? {};
     await this.rerender();
+    this.#sky();
     this.broadcastCity();
     this.notify();
   }
@@ -320,6 +332,7 @@ export class Session {
       this.editor.reset(map, this.city);
       this.map.center(map.width / 2, map.height / 2);
     }
+    this.#sky();
     this.notify();
   };
 
@@ -382,7 +395,7 @@ export class Session {
   async synchronize() {
     const remote = await cloud.trainer.get().catch(() => null) as Trainer | null;
     if (remote?.party?.length) {
-      trainer.profile = remote;
+      trainer.profile = upgrade(remote);
       trainer.save();
     } else if (trainer.exists) {
       await cloud.trainer.put(trainer.profile).catch(() => null);
@@ -813,6 +826,18 @@ export class Session {
     ui.toast(`Resized to ${w}×${h}`, "success");
   }
 
+  /** Set the weather and time of day of the open map */
+  setSky({ weather = this.area.weather, time = this.area.time }: { weather?: Weather; time?: Daytime }) {
+    this.#undoable(() => {
+      this.area.weather = weather === "clear" ? undefined : weather;
+      this.area.time = time === "day" ? undefined : time;
+      this.#sky();
+      this.broadcastCity();
+      this.changed();
+    });
+    this.notify();
+  }
+
   /** Upload town or battle music (needs an account) */
   async uploadMusic(track: "town" | "battle", file: File) {
     return this.#undoable(async () => {
@@ -956,6 +981,37 @@ export class Session {
 
   //=================================================================================================
   // Trainer
+
+  /** Use a Potion or a cure on a Pokémon outside battle (false when it would do nothing) */
+  useItem(id: ItemId, creature: Creature) {
+    const item = items[id];
+    const helps = item.kind === "heal" ? (creature.hp > 0) && (creature.hp < hp(creature)) : item.kind === "cure" ? Boolean(creature.status) : false;
+    if ((!helps) || (!trainer.take(id))) {
+      return false;
+    }
+    if (item.kind === "heal") {
+      creature.hp = Math.min(hp(creature), creature.hp + item.amount);
+    } else {
+      cure(creature);
+    }
+    trainer.save();
+    this.notify();
+    return true;
+  }
+
+  /** Buy items at a Poké Mart (false when there isn't enough money) */
+  buy(id: ItemId, count: number) {
+    const profile = trainer.profile;
+    const cost = items[id].price * count;
+    if ((!profile) || (count <= 0) || (profile.money < cost)) {
+      return false;
+    }
+    profile.money -= cost;
+    trainer.give(id, count);
+    trainer.save();
+    this.notify();
+    return true;
+  }
 
   /** Create a trainer */
   startTrainer(name: string, sprite: string, starter: number) {

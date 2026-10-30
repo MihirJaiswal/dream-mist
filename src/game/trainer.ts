@@ -1,6 +1,10 @@
 //Imports
 import { assets, species } from "./assets";
 import { storage } from "./data";
+import { type ItemId, itemIds } from "./items";
+
+/** Conditions that last after a battle until cured (sleep wears off on its own) */
+export type Status = "sleep" | "poison" | "paralysis" | "burn";
 
 /** Creature instance */
 export type Creature = {
@@ -13,6 +17,9 @@ export type Creature = {
   nickname?: string;
   /** Custom image (Pokémon with a custom look placed on a map) */
   art?: string;
+  /** Condition, and the turns of sleep left */
+  status?: Status;
+  sleep?: number;
 };
 
 /** Trainer profile (shared across all visited cities) */
@@ -21,7 +28,9 @@ export type Trainer = {
   sprite: string;
   party: Creature[];
   box: Creature[];
-  bag: { balls: number; potions: number };
+  /** Items in the bag, and money to buy more */
+  items: Partial<Record<ItemId, number>>;
+  money: number;
   badges: { city: string; name: string; badge: string; date: number }[];
   /** Defeated trainers ("city id:npc index") */
   defeated: string[];
@@ -29,7 +38,25 @@ export type Trainer = {
   caught: number[];
   /** Completed story steps per city ("city id" -> step ids) */
   story?: Record<string, string[]>;
+  /** People who already gave their gift, or already walked up to talk ("city id:npc index") */
+  received?: string[];
+  met?: string[];
 };
+
+/** Bring an older saved trainer up to date (the bag used to count only Poké Balls and Potions) */
+export function upgrade(profile: Trainer | null) {
+  if (!profile) {
+    return profile;
+  }
+  const old = (profile as unknown as { bag?: { balls?: number; potions?: number } }).bag;
+  if (old) {
+    profile.items = { ...profile.items, "poke-ball": (profile.items?.["poke-ball"] ?? 0) + (old.balls ?? 0), potion: (profile.items?.potion ?? 0) + (old.potions ?? 0) };
+    delete (profile as unknown as { bag?: unknown }).bag;
+  }
+  profile.items ??= {};
+  profile.money = Number.isFinite(profile.money) ? profile.money : 3000;
+  return profile;
+}
 
 /** Compute a stat (gen 3 formula, fixed IVs and no EVs) */
 export function stat(creature: Creature, index: number) {
@@ -51,11 +78,31 @@ export function experience(level: number) {
   return level ** 3;
 }
 
-/** Moves known at a given level (last four damaging moves learned) */
+/** Does a move deal damage */
+const damaging = (key: string) => (assets.moves[key]?.power ?? 0) > 0;
+
+/** Moves known at a given level: the last four learned, with at least one that deals damage */
 function learned(id: number, level: number) {
-  const moves = species(id).learnset.filter(([at]) => at <= level).map(([_, key]) => key);
-  const unique = [...new Set(moves)].slice(-4);
-  return unique.length ? unique : ["tackle"];
+  const moves = [...new Set(species(id).learnset.filter(([at]) => at <= level).map(([_, key]) => key))];
+  const known = moves.slice(-4);
+  if (!known.some(damaging)) {
+    known.splice(0, known.length === 4 ? 1 : 0, moves.filter(damaging).at(-1) ?? "tackle");
+  }
+  return known.length ? known : ["tackle"];
+}
+
+/** Learn a move, forgetting the oldest one if four are known (but never the last move that deals damage) */
+function learn(creature: Creature, key: string, messages: string[]) {
+  if (creature.moves.some((move) => move.key === key)) {
+    return;
+  }
+  if (creature.moves.length >= 4) {
+    const index = creature.moves.findIndex((move) => (!damaging(move.key)) || (damaging(key)) || (creature.moves.filter(({ key }) => damaging(key)).length > 1));
+    const [forgotten] = creature.moves.splice(Math.max(0, index), 1);
+    messages.push(`${named(creature)} forgot ${assets.moves[forgotten.key]?.name}…`);
+  }
+  creature.moves.push({ key, pp: assets.moves[key]?.pp ?? 10 });
+  messages.push(`${named(creature)} learned ${assets.moves[key]?.name}!`);
 }
 
 /** Create a new creature */
@@ -74,6 +121,33 @@ export function named(creature: Creature) {
 export function heal(creature: Creature) {
   creature.hp = hp(creature);
   creature.moves.forEach((move) => move.pp = assets.moves[move.key]?.pp ?? 10);
+  cure(creature);
+}
+
+/** Cure a condition */
+export function cure(creature: Creature) {
+  delete creature.status;
+  delete creature.sleep;
+}
+
+/** Species a creature is ready to evolve into, if any */
+export function evolution(creature: Creature) {
+  const [level, into] = species(creature.species).evolves ?? [];
+  return (level) && (creature.level >= level) && (species(into!)) ? into! : 0;
+}
+
+/** Evolve a creature, returns messages to display (it keeps its damage taken and learns the new form's moves for this level) */
+export function evolve(creature: Creature, into: number) {
+  const before = { name: named(creature), hp: hp(creature) };
+  creature.species = into;
+  creature.hp = Math.max(1, creature.hp + hp(creature) - before.hp);
+  const messages = [`Congratulations! ${before.name} evolved into ${species(into).name}!`];
+  for (const [at, key] of species(into).learnset) {
+    if (at === creature.level) {
+      learn(creature, key, messages);
+    }
+  }
+  return messages;
 }
 
 /** Grant experience, returns messages to display (level ups, new moves) */
@@ -86,13 +160,8 @@ export function grow(creature: Creature, amount: number) {
     creature.hp += hp(creature) - before;
     messages.push(`${named(creature)} grew to Lv. ${creature.level}!`);
     for (const [at, key] of species(creature.species).learnset) {
-      if ((at === creature.level) && (!creature.moves.some((move) => move.key === key))) {
-        if (creature.moves.length >= 4) {
-          const forgotten = creature.moves.shift()!;
-          messages.push(`${named(creature)} forgot ${assets.moves[forgotten.key]?.name}…`);
-        }
-        creature.moves.push({ key, pp: assets.moves[key]?.pp ?? 10 });
-        messages.push(`${named(creature)} learned ${assets.moves[key]?.name}!`);
+      if (at === creature.level) {
+        learn(creature, key, messages);
       }
     }
   }
@@ -105,7 +174,7 @@ export const starters = [252, 255, 258];
 /** Trainer profile store */
 export const trainer = {
   /** Current profile */
-  profile: storage.get<Trainer | null>("trainer", null),
+  profile: upgrade(storage.get<Trainer | null>("trainer", null)),
 
   /** Has a profile */
   get exists() {
@@ -114,7 +183,7 @@ export const trainer = {
 
   /** Create a new profile */
   start(name: string, sprite: string, starter: number) {
-    this.profile = { name, sprite, party: [create(starter, 5, { shiny: false })], box: [], bag: { balls: 10, potions: 5 }, badges: [], defeated: [], seen: [starter], caught: [starter] };
+    this.profile = { name, sprite, party: [create(starter, 5, { shiny: false })], box: [], items: { "poke-ball": 10, potion: 5 }, money: 3000, badges: [], defeated: [], seen: [starter], caught: [starter] };
     this.save();
   },
 
@@ -186,5 +255,31 @@ export const trainer = {
   heal() {
     this.profile?.party.forEach(heal);
     this.save();
+  },
+
+  /** How many of an item are in the bag */
+  count(id: ItemId) {
+    return this.profile?.items[id] ?? 0;
+  },
+
+  /** Put items in the bag */
+  give(id: ItemId, count = 1) {
+    if (this.profile) {
+      this.profile.items[id] = this.count(id) + count;
+    }
+  },
+
+  /** Take an item out of the bag (false when there is none) */
+  take(id: ItemId) {
+    if ((!this.profile) || (this.count(id) <= 0)) {
+      return false;
+    }
+    this.profile.items[id] = this.count(id) - 1;
+    return true;
+  },
+
+  /** Items in the bag, in shop order */
+  get bag() {
+    return itemIds.filter((id) => this.count(id) > 0).map((id) => ({ id, count: this.count(id) }));
   },
 };

@@ -24,6 +24,8 @@ export type Species = {
   xp: number;
   capture: number;
   learnset: [number, string][];
+  /** Evolves at a level into another species */
+  evolves?: [number, number];
 };
 
 /** Move */
@@ -33,9 +35,14 @@ export type Move = {
   power: number;
   accuracy: number;
   pp: number;
-  class: "physical" | "special";
+  class: "physical" | "special" | "status";
   priority: number;
+  /** What it does besides damage: a condition, or stat changes (on the user when self), with a chance in percent */
+  effect?: { ailment?: "sleep" | "poison" | "paralysis" | "burn"; stats?: [Stage, number][]; self?: boolean; chance: number };
 };
+
+/** Battle stats moves can raise or lower */
+export type Stage = "attack" | "defense" | "spatk" | "spdef" | "speed" | "accuracy" | "evasion";
 
 /** Loaded assets */
 export const assets = {

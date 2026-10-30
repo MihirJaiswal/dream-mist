@@ -4,6 +4,8 @@
  * The editor page installs real implementations on mount; the defaults keep the engine usable in tests.
  */
 
+import type { ItemId } from "./items";
+
 /** Picture beside the dialogue box: large artwork, or a map sprite drawn bigger */
 export type Portrait = { src: string; kind: "art" | "sprite" };
 
@@ -18,6 +20,8 @@ export type UiBridge = {
   say(text: string, options?: { speaker?: string; portrait?: Portrait }): Promise<void>;
   /** Close the dialogue box right away, dropping pending lines (their conversation never continues) */
   hush(): void;
+  /** Poké Mart: buy items with the trainer's money (resolves when they leave) */
+  shop(stock: ItemId[], options?: { speaker?: string; portrait?: Portrait }): Promise<void>;
   /** Yes/no question, resolves with the answer */
   confirm(title: string, options?: { text?: string; action?: string; danger?: boolean }): Promise<boolean>;
   /** Ask to sign in (resolves when the window closes, signed in or not) */
@@ -38,6 +42,7 @@ export const ui: UiBridge = {
   toast: () => {},
   say: async () => {},
   hush: () => {},
+  shop: async () => {},
   confirm: async () => false,
   signIn: async () => {},
   onboarding: async () => {},
