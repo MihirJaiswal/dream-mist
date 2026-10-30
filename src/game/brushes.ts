@@ -15,6 +15,8 @@ export type Brush = {
   zone?: boolean;
   /** Terrain id: paints with automatic borders */
   terrain?: string;
+  /** Top rows painted on the Above layer (tree tops), so overlapping trees stack instead of cutting each other */
+  top?: number;
 };
 
 /** Convert tileset frames rows into a brush */
@@ -34,8 +36,8 @@ export const brushes: Brush[] = [
   brush("Pavement", [[4974]], { layer: "ground" }),
   brush("Water", [[frames.water]], { layer: "ground", solid: "all" }),
   brush("Flowers", [[658]], { layer: "decor", solid: "none" }),
-  brush("Tree", [[211, 212], [324, 325]], { layer: "decor" }),
-  brush("Pine tree", [[215, 216], [328, 329]], { layer: "decor" }),
+  brush("Tree", [[211, 212], [324, 325]], { layer: "decor", top: 1 }),
+  brush("Pine tree", [[215, 216], [328, 329]], { layer: "decor", top: 1 }),
   brush("Sign", [[205]], { layer: "decor" }),
   brush("House", [[2734, 2735, 2735, 2735, 2740], [2847, 2848, 2848, 2848, 2853], [2960, 2961, 2961, 2961, 2966], [3073, 3076, 3077, 3074, 3079], [3186, 3189, 3190, 3187, 3192]], { layer: "decor" }),
   brush("Small house", [[3649, 3650, 3650, 3652], [3762, 3763, 3763, 3765], [3875, 3876, 3877, 3878], [3988, 3989, 3990, 3991]], { layer: "decor" }),
@@ -44,6 +46,9 @@ export const brushes: Brush[] = [
   brush("Poké Mart", [[26, 27, 27, 29], [139, 140, 141, 142], [252, 253, 254, 255], [361, 362, 367, 368]], { layer: "decor" }),
 ];
 
+/** Tiles of the top rows of brushes painted above (tree tops), so erasing a tree removes its top too */
+export const tops = new Set(brushes.flatMap(({ w, tiles, top = 0 }) => tiles.slice(0, top * w).filter(Boolean)));
+
 /** Find a brush by name */
 function find(name: string) {
   return brushes.find((brush) => brush.name === name)!;
@@ -51,7 +56,7 @@ function find(name: string) {
 
 /** Stamp a brush into a city (with collision) */
 export function stamp(city: City, name: string, x: number, y: number) {
-  const { w, h, tiles, layer = "decor", solid, zone } = find(name);
+  const { w, h, tiles, layer = "decor", solid, zone, top = 0 } = find(name);
   for (let j = 0; j < h; j++) {
     for (let i = 0; i < w; i++) {
       const value = tiles[j * w + i];
@@ -59,6 +64,11 @@ export function stamp(city: City, name: string, x: number, y: number) {
         continue;
       }
       const index = (y + j) * city.width + x + i;
+      if (j < top) {
+        //Tree tops go above, over whatever stands behind, and don't block
+        city.layers.above[index] = value;
+        continue;
+      }
       city.layers[layer][index] = value;
       city.solid[index] = solid === "all" ? 1 : solid === "none" ? 0 : layer === "decor" ? 1 : 0;
       if (zone) {

@@ -393,7 +393,8 @@ function tiles({ force = false }) {
   const walkable = [...new Set([...ground, ...floors, ...edges, ...tall, 206, 93, 658, 659, 660])].sort((a, b) => a - b);
   //Usual layer of each tile, so picking tiles in the palette can switch to it (objects when not listed)
   const usual = (rank: number) => [...stacked[rank].keys()].filter((frame) => stacked.every((counts, other) => (other === rank) || ((counts.get(frame) ?? 0) < stacked[rank].get(frame)!))).sort((a, b) => a - b);
-  save("data/city/tiles.json", { walkable, layers: { ground: usual(0), above: usual(2) } });
+  //Ground tiles must be fully solid: nothing is drawn under the ground, so see-through corners would show black (rocks, boulders)
+  save("data/city/tiles.json", { walkable, layers: { ground: usual(0).filter((frame) => opaque(frame, 1)), above: usual(2) } });
 }
 
 //=================================================================================================

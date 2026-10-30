@@ -34,3 +34,20 @@ describe("custom sprite sheets", () => {
     expect(frameOf({ width: 100, height: 128 }, "rpgvx")).toBeNull();
   });
 });
+
+describe("tree stamps", () => {
+  test("tree tops go on the Above layer so overlapping trees don't cut each other", async () => {
+    const { stamp } = await import("@/game/brushes");
+    const { blank } = await import("@/game/data");
+    const city = blank({ width: 10, height: 10 });
+    stamp(city, "Tree", 2, 2);
+    stamp(city, "Tree", 3, 3);
+    const at = (x: number, y: number) => y * city.width + x;
+    //The back tree keeps its trunk where the front tree's top overlaps it
+    expect(city.layers.decor[at(3, 3)]).toBe(326);
+    expect(city.layers.above[at(3, 3)]).toBe(212);
+    //Tops don't block, trunks do
+    expect(city.solid[at(2, 2)]).toBe(0);
+    expect(city.solid[at(3, 4)]).toBe(1);
+  });
+});

@@ -1,7 +1,7 @@
 //Imports
 import * as PIXI from "pixi.js";
 import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
-import { brushes, piece, type Terrain, terrainOf, terrains } from "../brushes";
+import { brushes, piece, type Terrain, terrainOf, terrains, tops } from "../brushes";
 import { type City, interior, type Layer, layers, type Npc, type NpcStory, type Step, storage, uid } from "../data";
 import type { CityMap } from "../map";
 import { scaleOf } from "../sprites";
@@ -525,6 +525,10 @@ export class EditorEngine {
       this.#set(layer, x, y, 0);
       this.#collide(layer, x, y);
       this.#retile(layer, x, y);
+      //Erasing objects also removes a tree top drawn above
+      if ((layer === "decor") && (tops.has(this.#city.layers.above[y * this.#city.width + x]))) {
+        this.#set("above", x, y, 0);
+      }
       return;
     }
     //Terrain brush: paint the terrain, then pick borders for the cell and its neighbours
@@ -541,6 +545,11 @@ export class EditorEngine {
     const i = ((x - origin.x) % w + w) % w, j = ((y - origin.y) % h + h) % h;
     const pool = this.#random ? tiles.filter(Boolean) : [];
     const value = pool.length ? pool[Math.floor(Math.random() * pool.length)] : tiles[j * w + i];
+    //Tree tops go on the Above layer, over whatever stands behind them
+    if ((value) && (layer === "decor") && (j < (this.#stamp.top ?? 0)) && (!pool.length)) {
+      this.#set("above", x, y, value);
+      return;
+    }
     if (value) {
       const index = y * this.#city.width + x;
       const previous = this.#city.layers[layer][index];
