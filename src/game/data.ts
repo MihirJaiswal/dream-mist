@@ -5,6 +5,7 @@
  */
 
 //Imports
+import { frames } from "./brushes";
 import type { Tileset } from "./tilesets";
 import type { Sprite } from "./sprites";
 
@@ -200,6 +201,13 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.solid = grid(raw.solid);
   city.zone = grid(raw.zone);
   city.gate = grid(raw.gate);
+  //Tall grass used to be painted on the ground, where its see-through edges showed black: it now stands on grass as an object
+  city.layers.ground.forEach((value, i) => {
+    if ((value === frames.tall + 1) && (!city.layers.decor[i])) {
+      city.layers.decor[i] = value;
+      city.layers.ground[i] = frames.grass + 1;
+    }
+  });
   city.zones = Array.isArray(raw.zones) ? raw.zones : city.zones;
   city.npcs = Array.isArray(raw.npcs) ? raw.npcs : [];
   city.spawn = raw.spawn ?? city.spawn;

@@ -30,7 +30,8 @@ export const frames = { grass: 113, tall: 206, sand: 4977, water: 2374 };
 /** Quick brushes (frames picked from the RSE tileset and real Hoenn maps) */
 export const brushes: Brush[] = [
   brush("Grass", [[frames.grass]], { layer: "ground" }),
-  brush("Tall grass (wild Pokémon)", [[frames.tall]], { layer: "ground", zone: true }),
+  //Tall grass has see-through edges, so it stands on the grass as an object (walkable) like in the real maps
+  brush("Tall grass (wild Pokémon)", [[frames.tall]], { layer: "decor", solid: "none", zone: true }),
   brush("Sand path", [[frames.sand]], { layer: "ground" }),
   brush("Gravel path", [[2607]], { layer: "ground" }),
   brush("Pavement", [[4974]], { layer: "ground" }),

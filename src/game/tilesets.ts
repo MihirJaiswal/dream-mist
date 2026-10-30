@@ -6,7 +6,7 @@ import { size } from "./assets";
 export type Tileset = { id: string; name: string; url: string; tile: number; columns: number; rows: number };
 
 /** Loaded custom tileset */
-type Loaded = Tileset & { textures: unknown[]; palette: HTMLCanvasElement; empty: Set<number> };
+type Loaded = Tileset & { textures: unknown[]; palette: HTMLCanvasElement; empty: Set<number>; clear: Set<number> };
 
 /** Tile values range reserved per custom tileset (built-in RSE tileset uses values below 10000) */
 export const range = 10000;
@@ -61,7 +61,7 @@ export async function prepare(tileset: Tileset): Promise<Loaded> {
   context.imageSmoothingEnabled = false;
   context.drawImage(img, 0, 0, columns * tile, rows * tile, 0, 0, palette.width, palette.height);
   const { data } = context.getImageData(0, 0, palette.width, palette.height);
-  const empty = new Set<number>();
+  const empty = new Set<number>(), clear = new Set<number>();
   for (let frame = 0; frame < Math.min(columns * rows, range - 2); frame++) {
     const x = frame % columns, y = Math.floor(frame / columns);
     textures.push(new PIXI.Texture(base, new PIXI.Rectangle(x * tile, y * tile, tile, tile)));
@@ -75,9 +75,11 @@ export async function prepare(tileset: Tileset): Promise<Loaded> {
     }
     if (!visible) {
       empty.add(frame);
+    } else if (visible < size * size) {
+      clear.add(frame);
     }
   }
-  return { ...tileset, columns, rows, textures, palette, empty };
+  return { ...tileset, columns, rows, textures, palette, empty, clear };
 }
 
 /** Create a sprite for a custom tile value */

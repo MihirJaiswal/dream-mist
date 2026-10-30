@@ -51,3 +51,46 @@ describe("tree stamps", () => {
     expect(city.solid[at(3, 4)]).toBe(1);
   });
 });
+
+describe("tiles with see-through parts", () => {
+  test("tall grass stands on grass as a walkable object, with wild Pokémon", async () => {
+    const { stamp, frames } = await import("@/game/brushes");
+    const { blank } = await import("@/game/data");
+    const city = blank({ width: 6, height: 6, ground: frames.grass + 1 });
+    stamp(city, "Tall grass (wild Pokémon)", 2, 2);
+    const i = 2 * 6 + 2;
+    expect(city.layers.ground[i]).toBe(frames.grass + 1);
+    expect(city.layers.decor[i]).toBe(frames.tall + 1);
+    expect(city.solid[i]).toBe(0);
+    expect(city.zone[i]).toBe(1);
+  });
+
+  test("towns with tall grass on the ground are repaired when opened", async () => {
+    const { frames } = await import("@/game/brushes");
+    const { blank, sanitize } = await import("@/game/data");
+    const city = blank({ width: 4, height: 4 });
+    city.layers.ground[5] = frames.tall + 1;
+    city.layers.ground[6] = frames.tall + 1;
+    city.layers.decor[6] = 999;
+    const fixed = sanitize(JSON.parse(JSON.stringify(city)));
+    expect([fixed.layers.ground[5], fixed.layers.decor[5]]).toEqual([frames.grass + 1, frames.tall + 1]);
+    //Something already stands there: left as it was
+    expect([fixed.layers.ground[6], fixed.layers.decor[6]]).toEqual([frames.tall + 1, 999]);
+  });
+
+  test("Hoenn maps get sea where they have nothing, and ground under see-through tiles", async () => {
+    const { fill } = await import("@/game/hoenn");
+    const { frames } = await import("@/game/brushes");
+    const { blank } = await import("@/game/data");
+    const city = blank({ width: 5, height: 1, ground: 0 });
+    city.layers.ground = [0, 0, 50, 0, 50];
+    city.layers.decor = [0, 77, 0, 88, 0];
+    fill(city);
+    //Nothing at all: the sea, which blocks
+    expect(city.layers.ground[0]).toBe(frames.water + 1);
+    expect(city.solid[0]).toBe(1);
+    //Under a see-through object: the most common ground around it
+    expect(city.layers.ground[3]).toBe(50);
+    expect(city.layers.ground[1]).not.toBe(0);
+  });
+});

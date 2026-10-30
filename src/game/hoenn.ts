@@ -1,6 +1,43 @@
 //Imports
 import { assets } from "./assets";
+import { frames } from "./brushes";
 import { blank, type City, type Zone } from "./data";
+
+/**
+ * Fill the ground where a Hoenn map has none: empty cells are the sea (the original map drew the ocean behind everything),
+ * and cells under see-through tiles get the most common ground around them.
+ */
+export function fill(city: City) {
+  const { width, height, layers } = city;
+  const empty = (i: number) => !layers.ground[i] && !layers.decor[i] && !layers.above[i];
+  for (let i = 0; i < width * height; i++) {
+    if (empty(i)) {
+      layers.ground[i] = frames.water + 1;
+      city.solid[i] = 1;
+    }
+  }
+  const missing = [] as number[];
+  layers.ground.forEach((value, i) => !value && missing.push(i));
+  for (const i of missing) {
+    const [x, y] = [i % width, Math.floor(i / width)];
+    let found = 0;
+    //Look a little further out each time, and take the most common ground there
+    for (let radius = 1; (radius <= 4) && (!found); radius++) {
+      const counts = new Map<number, number>();
+      for (let j = -radius; j <= radius; j++) {
+        for (let k = -radius; k <= radius; k++) {
+          const [cx, cy] = [x + k, y + j];
+          const value = (cx >= 0) && (cy >= 0) && (cx < width) && (cy < height) ? layers.ground[cy * width + cx] : 0;
+          if (value) {
+            counts.set(value, (counts.get(value) ?? 0) + 1);
+          }
+        }
+      }
+      found = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+    }
+    layers.ground[i] = found || frames.grass + 1;
+  }
+}
 
 /** Section summary */
 export type Section = { id: string; x: number; y: number; width: number; height: number };
@@ -54,6 +91,14 @@ export async function load(section: Section): Promise<City> {
       }
       const index = y * width + x;
       if (number(chunk.layer) === lowest) {
+        //See-through tiles (shore rocks, flowers) can't be ground: nothing would show under them. They become objects, with ground filled in below
+        if (assets.clear.has(frame)) {
+          city.layers.decor[index] = frame + 1;
+          if (!assets.walkable.has(frame)) {
+            city.solid[index] = 1;
+          }
+          return;
+        }
         city.layers.ground[index] = frame + 1;
         if (assets.water.has(frame)) {
           city.solid[index] = 1;
@@ -68,6 +113,7 @@ export async function load(section: Section): Promise<City> {
       }
     });
   }
+  fill(city);
 
   //Encounter zones
   const zones = {} as { [method: string]: number };

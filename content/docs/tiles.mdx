@@ -12,7 +12,7 @@ Ready-made pieces that go on the right layer and set their own collisions.
 | Stamp | Layer | Notes |
 | --- | --- | --- |
 | Grass | Ground | Plain short grass. |
-| Tall grass (wild Pokémon) | Ground | Also paints the **Tall grass** encounter zone. Erasing it removes the zone. |
+| Tall grass (wild Pokémon) | Objects | Stands on the grass and stays walkable. Also paints the **Tall grass** encounter zone; erasing it or painting over it removes the zone. |
 | Sand path, Gravel path, Pavement | Ground | Walkable paths. |
 | Water | Ground | Blocks movement. |
 | Flowers | Objects | Walkable decoration. |
@@ -32,7 +32,7 @@ Terrains draw their own borders. Paint a patch and the corners and edges are pic
 
 Under the stamps is the full Hoenn tileset, 6,328 tiles from the Generation 3 games.
 
-- **Drag across it** to pick a group of tiles and paint them as one stamp. The editor switches to the layer those tiles usually sit on in the real Hoenn maps: grass and paths go on **Ground**, trees and houses on **Objects**. You can still pick another layer afterwards.
+- **Drag across it** to pick a group of tiles and paint them as one stamp. The editor switches to the layer those tiles usually sit on in the real Hoenn maps: grass and paths go on **Ground**, trees and houses on **Objects**. You can still pick another layer afterwards. Tiles with see-through parts never go on **Ground**, where nothing is drawn under them and the clear parts would show black. Picking the exact tiles of a stamp, like a whole tree, works like the stamp.
 - **All / Ground / Objects / Above** above the palette dims the tiles that don't belong to that layer, so the ones you need stand out. Groups keep their place, so a house is still in one piece.
 - **Pinch** or <kbd>Ctrl</kbd>+scroll on the palette to zoom it. The zoom buttons and reset button are in its header.
 - **Drag the handle** under the palette to make it taller.

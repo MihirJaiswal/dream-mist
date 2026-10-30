@@ -47,6 +47,8 @@ export const assets = {
   walkable: new Set<number>(),
   /** Frames that look like water (blocked when used as ground) */
   water: new Set<number>(),
+  /** Frames with see-through pixels (never put on the ground, where nothing is drawn under them) */
+  clear: new Set<number>(),
   /** Frames usually on the ground or above layers in real maps (the rest are objects) */
   ground: new Set<number>(),
   above: new Set<number>(),
@@ -102,12 +104,14 @@ export async function load(progress: (text: string) => void) {
   const { data } = context.getImageData(0, 0, palette.width, palette.height);
   for (let i = 0; i < count; i++) {
     const px = (i % columns) * size, py = Math.floor(i / columns) * size;
-    let magenta = 0, blue = 0;
+    let magenta = 0, blue = 0, clear = 0;
     for (let v = 0; v < size; v++) {
       for (let u = 0; u < size; u++) {
         const j = ((py + v) * palette.width + px + u) * 4;
         const [r, g, b, a] = [data[j], data[j + 1], data[j + 2], data[j + 3]];
-        if ((r > 180) && (g < 90) && (b > 180)) {
+        if (!a) {
+          clear++;
+        } else if ((r > 180) && (g < 90) && (b > 180)) {
           magenta++;
         } else if ((a > 200) && (b > r + 60) && (b > g + 15)) {
           blue++;
@@ -120,6 +124,9 @@ export async function load(progress: (text: string) => void) {
     } else if (blue > size * size * 0.6) {
       assets.water.add(i);
     }
+    if ((clear) && (!assets.empty.has(i))) {
+      assets.clear.add(i);
+    }
   }
   assets.palette = palette;
   progress("built tile palette");
@@ -131,7 +138,7 @@ export function layerOf(values: number[]): Layer | null {
   if ((!frames.length) || (frames.some((frame) => frame + 1 >= range))) {
     return null;
   }
-  if (frames.every((frame) => assets.ground.has(frame))) {
+  if (frames.every((frame) => (assets.ground.has(frame)) && (!assets.clear.has(frame)))) {
     return "ground";
   }
   return frames.filter((frame) => assets.above.has(frame)).length * 2 > frames.length ? "above" : "decor";

@@ -5,7 +5,7 @@ import { brushes, piece, type Terrain, terrainOf, terrains, tops } from "../brus
 import { type City, interior, type Layer, layers, type Npc, type NpcStory, type Step, storage, uid } from "../data";
 import type { CityMap } from "../map";
 import { scaleOf } from "../sprites";
-import { custom as sheets, decode, encode } from "../tilesets";
+import { custom as sheets, decode, encode, range } from "../tilesets";
 import { ui } from "../ui-bridge";
 import { type Clip, convert, type Grid, grids, type Kind, kindOf, obstacles, placing, type Stamp, type Target, type Template, type Tool, targets, tools, zoneColors } from "./constants";
 
@@ -14,6 +14,9 @@ type Change = { grid: Grid; index: number; before: number; after: number };
 
 /** History entry: cell changes, a snapshot of people, spawn, zones, story and doors, or of the whole town (name, size, interiors, uploads) */
 type Entry = { changes: Change[] } | { snapshot: { before: string; after: string } } | { town: { before: string; after: string } };
+
+/** Is a tile value tall grass (a brush that brings wild Pokémon) */
+const tall = (value: number) => (value > 0) && (brushes.some(({ zone, tiles }) => zone && tiles[0] === value));
 
 /** Grids that can be hidden in the editor (people, spawn and doors are always shown) */
 const hideable = ["ground", "decor", "above", "solid", "zone", "story"] as readonly string[];
@@ -338,9 +341,15 @@ export class EditorEngine {
 
   /** Paint with a stamp */
   use(stamp: Stamp) {
-    //Tiles picked from the palette go to the layer they usually sit on in real maps
+    //Tiles picked from the palette: a built-in stamp's tiles become that stamp (a whole tree gets its top above),
+    //others go to the layer they usually sit on in real maps
     if ((!stamp.layer) && (!stamp.terrain)) {
-      stamp = { ...stamp, layer: layerOf(stamp.tiles) ?? undefined };
+      const same = brushes.find(({ w, h, tiles }) => (w === stamp.w) && (h === stamp.h) && (tiles.join() === stamp.tiles.join()));
+      stamp = same ? { ...same } : { ...stamp, layer: layerOf(stamp.tiles) ?? undefined };
+    }
+    //See-through tiles never go on the ground (nothing is drawn under it, so the clear parts would show black)
+    if (((stamp.layer ?? this.#target) === "ground") && (stamp.tiles.some((value) => this.#seeThrough(value)))) {
+      stamp = { ...stamp, layer: "decor" };
     }
     this.#stamp = { ...stamp, tiles: [...stamp.tiles] };
     if ((stamp.layer) && (stamp.layer !== this.#target)) {
@@ -355,6 +364,18 @@ export class EditorEngine {
     storage.set("recent", this.#recent);
     this.#ghostRefresh();
     this.#notify();
+  }
+
+  /** Does a tile value have see-through pixels (built-in or from an uploaded tileset) */
+  #seeThrough(value: number) {
+    if (!value) {
+      return false;
+    }
+    if (value < range) {
+      return assets.clear.has(value - 1);
+    }
+    const { index, frame } = decode(value);
+    return Boolean(sheets.get(index)?.clear.has(frame));
   }
 
   /** Random mode: each painted cell gets a random tile of the brush */
@@ -522,6 +543,10 @@ export class EditorEngine {
       return;
     }
     if (this.#tool === "erase") {
+      //Erasing tall grass removes its wild Pokémon too
+      if ((this.#auto) && (tall(this.#city.layers[layer][y * this.#city.width + x]))) {
+        this.#set("zone", x, y, 0);
+      }
       this.#set(layer, x, y, 0);
       this.#collide(layer, x, y);
       this.#retile(layer, x, y);
@@ -555,11 +580,11 @@ export class EditorEngine {
       const previous = this.#city.layers[layer][index];
       this.#set(layer, x, y, value);
       this.#collide(layer, x, y);
-      //Tall grass brings wild encounters along (and removing it removes them)
-      if ((this.#auto) && (layer === "ground")) {
+      //Tall grass brings wild encounters along (and painting over it removes them)
+      if ((this.#auto) && (layer !== "above")) {
         if (this.#stamp.zone) {
           this.#set("zone", x, y, this.#grassZone());
-        } else if (brushes.some(({ zone, tiles }) => zone && tiles[0] === previous)) {
+        } else if (tall(previous)) {
           this.#set("zone", x, y, 0);
         }
       }
