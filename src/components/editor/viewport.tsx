@@ -1,14 +1,14 @@
 "use client";
 
 import { useEditor, useSession } from "@/components/editor/hooks";
-import { Tip } from "@/components/editor/widgets";
+import { CanvasView, Tip } from "@/components/editor/widgets";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { size, species } from "@/game/assets";
 import { storage } from "@/game/data";
 import { problems } from "@/game/problems";
 import { session as engine } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Crosshair, GridFour, MapPin, MapTrifold, Minus, Play, Plus, Sidebar as SidebarIcon, Warning, XCircle } from "@phosphor-icons/react";
+import { ArrowLineDown, ArrowLineUp, CheckCircle, Crosshair, GridFour, MapPin, MapTrifold, Minus, Play, Plus, Sidebar as SidebarIcon, Warning, XCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 /** Floating map controls: zoom, center, grid, minimap and side panel */
@@ -67,8 +67,12 @@ export function MapMenu() {
   }
   const { tile } = menu;
   const item = "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent";
+  //Two pieces overlap here: either can be brought in front of the other
+  const stack = engine.editor.stackAt(tile);
+  const piece = (value: number) => <CanvasView className="ml-auto size-5 shrink-0 overflow-hidden rounded-sm bg-muted [&_canvas]:size-5" make={() => engine.editor.stampCanvas({ w: 1, h: 1, tiles: [value] }, 1)} deps={[value]} />;
+  const reorder = () => (engine.editor.reorder(tile), engine.closeMenu());
   return (
-    <div ref={ref} role="menu" style={{ left: Math.min(menu.left, window.innerWidth - 216), top: Math.min(menu.top, window.innerHeight - 140) }} className="fixed z-50 w-52 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg">
+    <div ref={ref} role="menu" style={{ left: Math.min(menu.left, window.innerWidth - 216), top: Math.min(menu.top, window.innerHeight - (stack ? 220 : 140)) }} className="fixed z-50 w-52 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg">
       <p className="px-2 pb-1 pt-0.5 font-mono text-[11px] text-subtle-fg">Tile {tile.x}, {tile.y}</p>
       <button role="menuitem" className={item} onClick={() => void engine.playFrom(tile)}>
         <Play size={15} weight="fill" />Play from here<kbd className="ml-auto font-mono text-[11px] text-subtle-fg">P</kbd>
@@ -76,6 +80,19 @@ export function MapMenu() {
       <button role="menuitem" className={item} onClick={() => (engine.editor.mutate(() => engine.area.spawn = { ...tile }), engine.closeMenu())}>
         <MapPin size={15} />Visitors arrive here
       </button>
+      {stack
+        ? (
+          <>
+            <div role="separator" className="-mx-1 my-1 h-px bg-border" />
+            <button role="menuitem" title="The piece behind comes in front, wherever the two overlap" className={item} onClick={reorder}>
+              <ArrowLineUp size={15} />Bring to front{piece(stack.back)}
+            </button>
+            <button role="menuitem" title="The piece in front goes behind, wherever the two overlap" className={item} onClick={reorder}>
+              <ArrowLineDown size={15} />Send to back{piece(stack.front)}
+            </button>
+          </>
+        )
+        : null}
     </div>
   );
 }

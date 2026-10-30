@@ -366,6 +366,43 @@ export class EditorEngine {
     this.#notify();
   }
 
+  /** The two pieces stacked on a square, when there are two: the front one on Above, the back one on Objects */
+  stackAt({ x, y }: { x: number; y: number }) {
+    if (!this.#map.inside({ x, y })) {
+      return null;
+    }
+    const index = y * this.#city.width + x;
+    const [front, back] = [this.#city.layers.above[index], this.#city.layers.decor[index]];
+    return (front) && (back) ? { front, back } : null;
+  }
+
+  /**
+   * Swap which piece is in front, on the whole overlap: every connected square holding two pieces (Bring to front / Send to back).
+   * Collision stays as it is, since both pieces still stand there.
+   */
+  reorder(tile: { x: number; y: number }) {
+    if (!this.stackAt(tile)) {
+      return 0;
+    }
+    const { width } = this.#city;
+    const seen = new Set<number>(), queue = [tile];
+    this.#batch(() => {
+      while (queue.length) {
+        const { x, y } = queue.pop()!;
+        const index = y * width + x;
+        if ((seen.has(index)) || (!this.stackAt({ x, y }))) {
+          continue;
+        }
+        seen.add(index);
+        const [front, back] = [this.#city.layers.above[index], this.#city.layers.decor[index]];
+        this.#set("above", x, y, back);
+        this.#set("decor", x, y, front);
+        queue.push({ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 });
+      }
+    });
+    return seen.size;
+  }
+
   /** Does a tile value have see-through pixels (built-in or from an uploaded tileset) */
   #seeThrough(value: number) {
     if (!value) {
@@ -550,8 +587,9 @@ export class EditorEngine {
       this.#set(layer, x, y, 0);
       this.#collide(layer, x, y);
       this.#retile(layer, x, y);
-      //Erasing objects also removes a tree top drawn above
-      if ((layer === "decor") && (tops.has(this.#city.layers.above[y * this.#city.width + x]))) {
+      //Erasing objects also removes what was stacked above them (tree tops, overlapping pieces), but not roofs drawn there on purpose
+      const up = this.#city.layers.above[y * this.#city.width + x];
+      if ((layer === "decor") && (up) && ((tops.has(up)) || ((up < range) && (!assets.above.has(up - 1))))) {
         this.#set("above", x, y, 0);
       }
       return;
@@ -573,6 +611,18 @@ export class EditorEngine {
     //Tree tops go on the Above layer, over whatever stands behind them
     if ((value) && (layer === "decor") && (j < (this.#stamp.top ?? 0)) && (!pool.length)) {
       this.#set("above", x, y, value);
+      return;
+    }
+    //A see-through piece painted where a solid object (tree, rock, building) already stands goes over it instead of replacing it,
+    //so what you paint last is on top. Walkable decoration (flowers, tall grass) is simply replaced
+    const under = layer === "decor" ? this.#city.layers.decor[y * this.#city.width + x] : 0;
+    const blocking = (under >= range) || ((under > 0) && (!assets.walkable.has(under - 1)));
+    if ((value) && (blocking) && (under !== value) && (!this.#stamp.zone) && (this.#seeThrough(value)) && (!this.#city.layers.above[y * this.#city.width + x])) {
+      this.#set("above", x, y, value);
+      //It still blocks when it should (the Above layer never sets collision on its own)
+      if ((this.#auto) && (this.#stamp.solid !== "none") && ((value >= range) || (!assets.walkable.has(value - 1)))) {
+        this.#set("solid", x, y, 1);
+      }
       return;
     }
     if (value) {

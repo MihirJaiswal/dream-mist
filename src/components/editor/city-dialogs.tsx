@@ -84,8 +84,8 @@ function Cities({ close }: { close: () => void }) {
     }
   }, []);
   const local = session.localCities();
-  const row = (title: string, detail: string, current: boolean, actions: React.ReactNode) => (
-    <div className={cn("flex items-center gap-2 rounded-md border p-2.5", current ? "border-ring bg-muted/40" : "border-border")}>
+  const row = (key: string, title: string, detail: string, current: boolean, actions: React.ReactNode) => (
+    <div key={key} className={cn("flex items-center gap-2 rounded-md border p-2.5", current ? "border-ring bg-muted/40" : "border-border")}>
       <div className="min-w-0 flex-1"><b className="block truncate text-sm">{title}</b><small className="text-xs text-subtle-fg">{detail}</small></div>
       {actions}
     </div>
@@ -123,7 +123,7 @@ function Cities({ close }: { close: () => void }) {
               ? <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground"><span className="flex-1">{cloud.available ? "Log in to keep your cities online and open them from any device." : "Online saves aren't set up on this site."}</span>{cloud.available ? <Button size="sm" variant="secondary" onClick={async () => (close(), await signIn(), cities())}>Log in</Button> : null}</div>
               : online instanceof Error ? <Hint>Your online cities couldn&apos;t be loaded. Reopen this window to try again.</Hint>
               : online === null ? <Hint>Loading…</Hint>
-              : online.length ? online.map((card) => row(card.name, `${card.width}×${card.height} · ${card.mine ? "yours" : `by ${card.owner}, you're a builder`}${card.published ? " · on Explore" : ""} · ${new Date(card.updated).toLocaleDateString()}`, card.id === session.online?.id, (
+              : online.length ? online.map((card) => row(card.id, card.name, `${card.width}×${card.height} · ${card.mine ? "yours" : `by ${card.owner}, you're a builder`}${card.published ? " · on Explore" : ""} · ${new Date(card.updated).toLocaleDateString()}`, card.id === session.online?.id, (
                 <>
                   <Button size="sm" variant="outline" onClick={run(() => session.openOnline(card.id))}>Open</Button>
                   {card.mine ? <Button size="icon" variant="ghost" aria-label="Delete" title="Delete" onClick={async () => {
@@ -138,7 +138,7 @@ function Cities({ close }: { close: () => void }) {
           </section>
           <section className="grid gap-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">On this device</p>
-            {local.length ? local.map((city) => row(city.name, `${city.width}×${city.height} · ${city.npcs.length} on the map · ${new Date(city.updated).toLocaleDateString()}`, (city.id === session.city?.id) && (!session.visiting), (
+            {local.length ? local.map((city) => row(city.id, city.name, `${city.width}×${city.height} · ${city.npcs.length} on the map · ${new Date(city.updated).toLocaleDateString()}`, (city.id === session.city?.id) && (!session.visiting), (
               <>
                 <Button size="sm" variant="outline" onClick={run(() => session.openLocal(city.id))}>Open</Button>
                 {cloud.user ? <Button size="icon" variant="ghost" aria-label="Save to your account" title="Save to your account" onClick={run(async () => (await session.openLocal(city.id), await session.upload()))}><Upload /></Button> : null}

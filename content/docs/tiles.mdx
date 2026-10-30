@@ -40,6 +40,14 @@ Under the stamps is the full Hoenn tileset, 6,328 tiles from the Generation 3 ga
 
 If you imported your own tilesets, they show up as tabs next to **Hoenn**. See [Custom tilesets and music](/docs/custom-assets).
 
+## Overlapping objects
+
+Each layer holds one tile per square. When you paint a piece with see-through parts, like the edge of a rock, a roof corner or another tree, over a square where a tree, rock or building already stands, the new piece goes on the **Above** layer over it instead of wiping it out. What you paint last ends up on top, and anything that blocks still blocks. Erasing on **Objects** removes the stacked piece too.
+
+Small walkable decoration like flowers and tall grass is simply replaced.
+
+To change which one is in front, right-click where they overlap and choose **Bring to front** or **Send to back**. Each shows a small picture of the piece it moves. It changes the whole overlap at once, every connected square where the two pieces meet, and <kbd>⌘</kbd> <kbd>Z</kbd> undoes it.
+
 ## Search and favorites
 
 - **Search** above the stamps finds stamps, terrains and favorites by name. Tiles in the palette have no names, so they don't show up in search: save them as favorites first.
