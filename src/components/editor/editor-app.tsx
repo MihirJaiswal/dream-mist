@@ -11,13 +11,14 @@ import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
 import { onboarding } from "@/components/editor/trainer-dialogs";
 import { CommandPalette } from "@/components/editor/command-palette";
+import { useAppShortcuts } from "@/components/editor/shortcuts";
 import { Tour } from "@/components/editor/tour";
 import { MapControls, MapMenu, Minimap, StatusBar, usePreference } from "@/components/editor/viewport";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { message, session } from "@/game/session";
 import { installUi } from "@/game/ui-bridge";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /** Loading screen with the DreamMist loader */
@@ -55,17 +56,29 @@ export function EditorApp() {
     session.boot(viewport.current!, setProgress).catch((error) => setProgress(`Failed to load: ${message(error)}`));
   }, []);
 
+  //⌘\ hides the panels to show just the map
+  const [panels, setPanels] = useState(true);
+  const togglePanels = useCallback(() => setPanels((shown) => {
+    if (shown) {
+      toast("Panels hidden", { id: "panels", description: "Press ⌘\\ to bring them back" });
+    } else {
+      toast.dismiss("panels");
+    }
+    return !shown;
+  }), []);
+  useAppShortcuts({ onPanels: togglePanels });
+
   const edit = (session.ready) && (session.mode === "edit");
   return (
     <TooltipProvider delayDuration={350}>
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
         <Topbar />
         <main className="flex min-h-0 flex-1">
-          {edit ? <ToolRail /> : null}
-          {(edit) && (!collapsed) ? <Sidebar onImportTileset={() => importTileset()} onSprite={importSprite} /> : null}
+          {(edit) && (panels) ? <ToolRail /> : null}
+          {(edit) && (panels) && (!collapsed) ? <Sidebar onImportTileset={() => importTileset()} onSprite={importSprite} /> : null}
           <div className="relative min-w-0 flex-1 overflow-hidden">
             <div ref={viewport} className="absolute inset-0 [&_canvas]:block" />
-            {session.ready && minimap ? <Minimap /> : null}
+            {(session.ready) && (minimap) && (panels) ? <Minimap /> : null}
             {session.ready ? <MapControls minimap={minimap} onMinimap={() => setMinimap(!minimap)} onPanel={() => setCollapsed(!collapsed)} /> : null}
             {session.ready ? <MapMenu /> : null}
             {session.ready ? <Tour /> : null}

@@ -4,6 +4,7 @@ import { profile, signIn } from "@/components/editor/account-dialogs";
 import { cities, newCity, settings, versionHistory } from "@/components/editor/city-dialogs";
 import { useSession } from "@/components/editor/hooks";
 import { publish, room, share } from "@/components/editor/share-dialogs";
+import { openSearch } from "@/components/editor/shortcuts";
 import { startTour } from "@/components/editor/tour";
 import { card, party } from "@/components/editor/trainer-dialogs";
 import { TextInput, Tip } from "@/components/editor/widgets";
@@ -75,7 +76,7 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <Tip label="Search commands" shortcut="⌘K" description="Find any action, tool, stamp, map or person"><Button variant="ghost" size="icon" aria-label="Search commands" onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }))}><MagnifyingGlass size={17} /></Button></Tip>
+        <Tip label="Search commands" shortcut="⌘K" description="Find any action, tool, stamp, map or person"><Button variant="ghost" size="icon" aria-label="Search commands" onClick={openSearch}><MagnifyingGlass size={17} /></Button></Tip>
         {mode === "play" ? <Tip label="Party" description="Your Pokémon, PC box and bag"><Button variant="ghost" size="icon" aria-label="Party" onClick={() => party()}><Backpack size={17} /></Button></Tip> : null}
         {mode === "play" ? <Tip label="Trainer card" description="Badges, Pokédex and progress"><Button variant="ghost" size="icon" aria-label="Trainer card" onClick={() => card()}><IdentificationCard size={17} /></Button></Tip> : null}
         {live

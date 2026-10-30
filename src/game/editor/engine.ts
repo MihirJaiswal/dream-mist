@@ -87,6 +87,12 @@ export class EditorEngine {
   /** Tile under the pointer */
   #hovered = null as null | { x: number; y: number };
 
+  /** Modifier keys of the current pointer stroke (Shift: straight lines, erase every layer) */
+  #shift = false;
+
+  /** Alt+click grabbed a tile: ignore the rest of that press */
+  #grabbing = false;
+
   constructor({ map, city, onchange }: { map: CityMap; city: City; onchange: () => void }) {
     this.#map = map;
     this.#city = this.#world = city;
@@ -238,7 +244,7 @@ export class EditorEngine {
     this.#map.containers.overlay.addChild(this.#ghost);
     this.#map.containers.overlay.addChild(this.#marquee);
     this.#map.containers.actors.addChild(this.#markers);
-    this.#map.onpointer = (type, tile) => this.#pointer(type, tile);
+    this.#map.onpointer = (type, tile, event) => this.#pointer(type, tile, event);
     this.#map.onleave = () => (this.#hovered = null, this.#coordsListeners.forEach((listener) => listener(null)));
     this.#map.overlays.grid.visible = storage.get("grid", true);
     document.addEventListener("keydown", this.#keys);
@@ -579,6 +585,19 @@ export class EditorEngine {
     if (!this.#map.inside({ x, y })) {
       return;
     }
+    if ((this.#tool === "erase") && (this.#shift)) {
+      //Shift+erase clears every tile layer of the square (not locked ones)
+      for (const grid of layers) {
+        if (!this.#locked.has(grid)) {
+          if ((this.#auto) && (tall(this.#city.layers[grid][y * this.#city.width + x]))) {
+            this.#set("zone", x, y, 0);
+          }
+          this.#set(grid, x, y, 0);
+          this.#collide(grid, x, y);
+        }
+      }
+      return;
+    }
     if (this.#tool === "erase") {
       //Erasing tall grass removes its wild Pokémon too
       if ((this.#auto) && (tall(this.#city.layers[layer][y * this.#city.width + x]))) {
@@ -744,7 +763,22 @@ export class EditorEngine {
   // Pointer and keyboard
 
   /** Pointer events on the map */
-  #pointer(type: "down" | "move" | "up", tile: { x: number; y: number }) {
+  #pointer(type: "down" | "move" | "up", tile: { x: number; y: number }, event?: PointerEvent) {
+    //Alt+click picks the tile under the cursor as the brush, whatever the tool (like an eyedropper)
+    if ((type === "down") && (event?.altKey) && (this.layer) && (["brush", "rect", "fill", "erase"].includes(this.#tool))) {
+      this.#grabbing = true;
+      return this.#pick(tile);
+    }
+    if (this.#grabbing) {
+      this.#grabbing = type !== "up";
+      return;
+    }
+    this.#shift = Boolean(event?.shiftKey);
+    //Shift while dragging a brush or eraser keeps the stroke on a straight line
+    if ((type === "move") && (this.#shift) && (this.#stroke) && ((this.#tool === "brush") || (this.#tool === "erase"))) {
+      const { start } = this.#stroke;
+      tile = Math.abs(tile.x - start.x) >= Math.abs(tile.y - start.y) ? { x: tile.x, y: start.y } : { x: start.x, y: tile.y };
+    }
     const { x, y } = tile;
     const inside = this.#map.inside(tile);
     this.#hovered = inside ? { x, y } : null;
@@ -853,6 +887,26 @@ export class EditorEngine {
       event.preventDefault();
       return key === "c" ? this.copy() : key === "x" ? this.cut() : this.paste();
     }
+    if ((event.ctrlKey || event.metaKey) && (key === "a")) {
+      event.preventDefault();
+      return this.selectAll();
+    }
+    if ((event.ctrlKey || event.metaKey) && (key === "d")) {
+      event.preventDefault();
+      return this.duplicate();
+    }
+    //Arrow keys move the selection (Shift: 5 tiles)
+    const arrow = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[key];
+    if ((arrow) && (this.#area) && (!this.#pasting)) {
+      event.preventDefault();
+      const step = event.shiftKey ? 5 : 1;
+      return this.nudge(arrow[0] * step, arrow[1] * step);
+    }
+    //⇧1 fits the map, ⇧2 zooms to the selection (by key position, whatever the keyboard layout)
+    if ((event.shiftKey) && (!event.ctrlKey) && (!event.metaKey) && ((event.code === "Digit1") || (event.code === "Digit2"))) {
+      event.preventDefault();
+      return event.code === "Digit1" ? this.#map.fit() : this.zoomToSelection();
+    }
     if (key === "escape") {
       if (this.#blocking) {
         return this.stopBlocking();
@@ -885,6 +939,18 @@ export class EditorEngine {
     if (key === "p") {
       event.preventDefault();
       return this.onplay?.(this.#hovered);
+    }
+    //X swaps brush and eraser
+    if (key === "x") {
+      return this.setTool(this.#tool === "erase" ? "brush" : "erase");
+    }
+    //] brings the piece behind to the front, [ sends the front piece back (where two overlap under the cursor)
+    if (((key === "]") || (key === "[")) && (this.#hovered)) {
+      if (!this.stackAt(this.#hovered)) {
+        return ui.toast("Point at a square where two pieces overlap", "info");
+      }
+      this.reorder(this.#hovered);
+      return;
     }
     if (((key === "delete") || (key === "backspace")) && (this.#selected >= 0)) {
       this.deleteNpc();
@@ -952,12 +1018,8 @@ export class EditorEngine {
     }
   }
 
-  /** Copy every layer of the selected area */
-  copy() {
-    if (!this.#area) {
-      return ui.toast("Select an area first (S)", "error");
-    }
-    const { x, y, w, h } = this.#area;
+  /** Every layer of an area */
+  #grab({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
     const clip = { w, h, grids: {} } as Clip;
     for (const grid of grids) {
       const values = this.#grid(grid);
@@ -968,7 +1030,16 @@ export class EditorEngine {
         }
       }
     }
-    this.#clip = clip;
+    return clip;
+  }
+
+  /** Copy every layer of the selected area */
+  copy() {
+    if (!this.#area) {
+      return ui.toast("Select an area first (S)", "error");
+    }
+    const { w, h } = this.#area;
+    this.#clip = this.#grab(this.#area);
     ui.toast(`Copied ${w}×${h} tiles`, "success");
     this.#notify();
   }
@@ -1016,20 +1087,87 @@ export class EditorEngine {
 
   /** Place the clipboard at a position */
   #place(x: number, y: number) {
-    const clip = this.#clip!;
+    this.#batch(() => this.#write(this.#clip!, x, y));
+  }
+
+  /** Write copied layers at a position (inside a batch) */
+  #write(clip: Clip, x: number, y: number) {
+    for (const grid of grids) {
+      if (this.#locked.has(grid)) {
+        continue;
+      }
+      clip.grids[grid].forEach((value, i) => {
+        //Empty tiles are transparent, collision and encounters are copied as is
+        if ((value) || (grid === "solid") || (grid === "zone")) {
+          this.#set(grid, x + i % clip.w, y + Math.floor(i / clip.w), value);
+        }
+      });
+    }
+  }
+
+  /** Select the whole map (⌘A) */
+  selectAll() {
+    this.#tool = "select";
+    this.#pasting = false;
+    this.#area = { x: 0, y: 0, w: this.#city.width, h: this.#city.height };
+    this.#drawMarquee();
+    this.#ghostRefresh();
+    this.#notify();
+  }
+
+  /** Duplicate the selection next to it, where it fits (⌘D). The copy becomes the selection */
+  duplicate() {
+    if (!this.#area) {
+      return ui.toast("Select an area first (S)", "error");
+    }
+    const { x, y, w, h } = this.#area;
+    const { width, height } = this.#city;
+    const spots = [{ x: x + w, y }, { x, y: y + h }, { x: x - w, y }, { x, y: y - h }];
+    const spot = spots.find(({ x, y }) => (x >= 0) && (y >= 0) && (x + w <= width) && (y + h <= height));
+    if (!spot) {
+      return ui.toast("No room next to the selection for a copy", "error");
+    }
+    const clip = this.#grab(this.#area);
+    this.#batch(() => this.#write(clip, spot.x, spot.y));
+    this.#area = { ...spot, w, h };
+    this.#drawMarquee();
+    this.#notify();
+  }
+
+  /** Move the selection and what's in it (arrow keys, Shift moves 5 tiles) */
+  nudge(dx: number, dy: number) {
+    if (!this.#area) {
+      return;
+    }
+    const { x, y, w, h } = this.#area;
+    const [nx, ny] = [Math.max(0, Math.min(this.#city.width - w, x + dx)), Math.max(0, Math.min(this.#city.height - h, y + dy))];
+    if ((nx === x) && (ny === y)) {
+      return;
+    }
+    const clip = this.#grab(this.#area);
     this.#batch(() => {
       for (const grid of grids) {
-        if (this.#locked.has(grid)) {
-          continue;
-        }
-        clip.grids[grid].forEach((value, i) => {
-          //Empty tiles are transparent, collision and encounters are copied as is
-          if ((value) || (grid === "solid") || (grid === "zone")) {
-            this.#set(grid, x + i % clip.w, y + Math.floor(i / clip.w), value);
+        if (!this.#locked.has(grid)) {
+          for (let j = 0; j < h; j++) {
+            for (let i = 0; i < w; i++) {
+              this.#set(grid, x + i, y + j, 0);
+            }
           }
-        });
+        }
       }
+      this.#write(clip, nx, ny);
     });
+    this.#area = { x: nx, y: ny, w, h };
+    this.#drawMarquee();
+    this.#notify();
+  }
+
+  /** Zoom the map to the selection (⇧2) */
+  zoomToSelection() {
+    if (!this.#area) {
+      return ui.toast("Select an area first (S)", "error");
+    }
+    this.#map.fitArea(this.#area);
   }
 
   /** Turn the selected area of the current layer into a brush */

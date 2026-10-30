@@ -247,10 +247,15 @@ export class CityMap {
 
   /** Fit the whole city in view and center it */
   fit() {
+    this.fitArea({ x: 0, y: 0, w: this.city.width, h: this.city.height }, 4);
+  }
+
+  /** Fit an area of tiles in view and center it (zoom to selection) */
+  fitArea({ x, y, w, h }: { x: number; y: number; w: number; h: number }, max = 8) {
     const { width, height } = this.app.screen;
-    const fit = Math.min((width - 48) / (this.city.width * size), (height - 48) / (this.city.height * size));
-    this.world.scale.set(Math.min(4, Math.max(0.5, Math.floor(fit * 4) / 4)));
-    this.center(this.city.width / 2, this.city.height / 2);
+    const fit = Math.min((width - 48) / (w * size), (height - 48) / (h * size));
+    this.world.scale.set(Math.min(max, Math.max(0.5, Math.floor(fit * 4) / 4)));
+    this.center(x + w / 2, y + h / 2);
     this.onzoom?.(this.world.scale.x);
   }
 

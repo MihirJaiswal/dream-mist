@@ -3,13 +3,14 @@
 import { cities, importTileset, newCity, settings, versionHistory } from "@/components/editor/city-dialogs";
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { publish, share } from "@/components/editor/share-dialogs";
+import { shortcutsSheet } from "@/components/editor/shortcuts";
 import { startTour } from "@/components/editor/tour";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut } from "@/components/ui/command";
 import { species } from "@/game/assets";
 import { brushes, terrains } from "@/game/brushes";
 import { kindOf, type Stamp, targets, tools } from "@/game/editor/constants";
 import { problems } from "@/game/problems";
-import { ArrowArcLeft, ArrowArcRight, BookOpen, ClockCounterClockwise, Crosshair, DoorOpen, DownloadSimple, Export, Folder, GearSix, GridFour, Image as ImageIcon, MapTrifold, PaintBrush, PencilSimple, Play, Plus, ShareNetwork, Sparkle, Stack, User, Warning } from "@phosphor-icons/react";
+import { ArrowArcLeft, ArrowArcRight, BookOpen, ClockCounterClockwise, Crosshair, DoorOpen, DownloadSimple, Export, Folder, GearSix, GridFour, Image as ImageIcon, Keyboard, MapTrifold, PaintBrush, PencilSimple, Play, Plus, ShareNetwork, Sparkle, Stack, User, Warning } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useState } from "react";
 
 /** Command palette: Cmd+K (Ctrl+K) finds any action, tool, layer, stamp, map, person or problem by typing */
@@ -73,6 +74,7 @@ export function CommandPalette() {
           {item("image", "Export as image", <DownloadSimple />, () => session.exportImage(), undefined, ["png", "screenshot"])}
           {building ? item("json", "Export as .json", <DownloadSimple />, () => session.exportJson(), undefined, ["backup", "file"]) : null}
           {building ? item("tour", "Getting started tour", <Sparkle />, () => startTour(), undefined, ["help", "tutorial"]) : null}
+          {item("shortcuts", "Keyboard shortcuts", <Keyboard />, () => shortcutsSheet(), "?", ["keys", "help", "cheat sheet"])}
           {item("docs", "Open the docs", <BookOpen />, () => window.open("/docs", "_blank"), undefined, ["help"])}
         </CommandGroup>
         {building

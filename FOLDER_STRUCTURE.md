@@ -95,6 +95,7 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 | Live rooms | `src/game/room.ts` |
 | Problems list checks | `src/game/problems.ts` |
 | Command search (⌘K) | `src/components/editor/command-palette.tsx` |
+| Keyboard shortcuts and the ? cheat sheet | `src/components/editor/shortcuts.tsx` (app-wide) and the `#keys` handler in `src/game/editor/engine.ts` (editing) |
 | Getting started tour | `src/components/editor/tour.tsx` |
 | Home page or Explore | `src/app/(site)/` and `src/components/site/` |
 | Docs | `content/docs/` |
