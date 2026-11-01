@@ -8,7 +8,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <SiteHeader />
-      <main>{children}</main>
+      <main className="night">{children}</main>
       <SiteFooter />
       <Toaster position="bottom-right" closeButton />
     </>

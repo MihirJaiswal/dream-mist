@@ -50,26 +50,46 @@
   --radius-xl: 12px;
 }
 
-/* Fumadocs tokens follow the same palette */
+/* Fumadocs tokens: the docs share the website's night sky (pink links, lilac text, violet panels) */
 :root,
 .dark {
-  --color-fd-background: #0a0a0a;
-  --color-fd-foreground: #fafafa;
-  --color-fd-card: #171717;
-  --color-fd-card-foreground: #fafafa;
-  --color-fd-popover: #171717;
-  --color-fd-popover-foreground: #fafafa;
-  --color-fd-muted: #262626;
-  --color-fd-muted-foreground: #a3a3a3;
-  --color-fd-border: #2e2e2e;
-  --color-fd-accent: #262626;
-  --color-fd-accent-foreground: #fafafa;
-  --color-fd-primary: #fafafa;
-  --color-fd-primary-foreground: #171717;
-  --color-fd-secondary: #262626;
-  --color-fd-secondary-foreground: #fafafa;
-  --color-fd-ring: #a3a3a3;
+  --color-fd-background: #140b26;
+  --color-fd-foreground: #f3eeff;
+  --color-fd-card: #1d1038;
+  --color-fd-card-foreground: #f3eeff;
+  --color-fd-popover: #1d1038;
+  --color-fd-popover-foreground: #f3eeff;
+  --color-fd-muted: #24153f;
+  --color-fd-muted-foreground: #b6a6e0;
+  --color-fd-border: #2d1a52;
+  --color-fd-accent: #2a1a52;
+  --color-fd-accent-foreground: #ffffff;
+  --color-fd-primary: #f06aa6;
+  --color-fd-primary-foreground: #2a0a1e;
+  --color-fd-secondary: #2a1a52;
+  --color-fd-secondary-foreground: #f3eeff;
+  --color-fd-ring: #f06aa6;
   color-scheme: dark;
+}
+
+/* Docs: pixel headings like the rest of the site, body text stays easy to read */
+.docs-night h1,
+.docs-night .prose :is(h2, h3) {
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.docs-night h1 {
+  color: #fff;
+  text-shadow: 3px 3px 0 #0b0616;
+}
+.docs-night .prose h2 {
+  color: #f06aa6;
+}
+.docs-night .prose kbd {
+  background: #1d1038;
+  border-color: #3f2c74;
+  color: #e9defc;
 }
 
 html,
@@ -157,49 +177,94 @@ kbd {
   font-family: var(--font-game);
 }
 
-/* Battle command menu */
-.battle-menu {
-  background: #f8f8f8;
-  border: 4px solid #2a2540;
-  border-radius: 10px;
-  box-shadow: inset 0 0 0 3px #e8a0c8, 6px 6px 0 rgb(0 0 0 / 0.45);
-  font-family: var(--font-game);
+/* Landing page: pixel-art night sky, sticker labels, chunky buttons */
+.night {
+  background: #140b26;
 }
-.battle-menu a {
-  position: relative;
-  padding-left: 1.4em;
-  color: #303040;
+/* Corners cut in steps, like a sprite */
+.stepped,
+.sticker > span,
+.pixel-button > span {
+  clip-path: polygon(0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px));
 }
-.battle-menu a::before {
-  content: "▶";
-  position: absolute;
-  left: 0.1em;
-  opacity: 0;
-  color: #303040;
-  font-size: 0.8em;
-  top: 50%;
-  transform: translateY(-50%);
+.sticker {
+  display: inline-block;
+  /* Outline and drop shadow sit outside the clipped label */
+  filter: drop-shadow(3px 0 0 #0b0616) drop-shadow(-3px 0 0 #0b0616) drop-shadow(0 3px 0 #0b0616) drop-shadow(0 -3px 0 #0b0616) drop-shadow(0 6px 0 rgb(0 0 0 / 0.45));
 }
-.battle-menu a:hover::before,
-.battle-menu a:focus-visible::before,
-.battle-menu a[data-default]:not(:is(.battle-menu:hover a))::before {
-  opacity: 1;
+.sticker > span {
+  display: block;
+  padding: 0.12em 0.45em 0.2em;
+  background: #fff;
+  color: #160c2c;
+  font-family: var(--font-pixel);
+  line-height: 1.1;
 }
-.battle-menu a:focus-visible {
-  outline: 2px dashed #2a2540;
-  outline-offset: 2px;
+.pixel-button {
+  display: inline-block;
+  filter: drop-shadow(0 4px 0 rgb(11 6 22 / 0.9));
+  transition: translate 0.12s steps(2), filter 0.12s steps(2);
 }
-
-/* Pixel frame with a hard offset shadow */
-.pixel-frame {
-  border: 4px solid #1b1530;
-  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.08), 8px 8px 0 rgb(0 0 0 / 0.5);
-  border-radius: 6px;
+.pixel-button > span {
+  display: block;
+  padding: 0.85em 1.6em 0.95em;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 -4px 0 rgb(0 0 0 / 0.22), inset 0 4px 0 rgb(255 255 255 / 0.35);
 }
-
-/* Pixel headline shadow */
-.pixel-shadow {
-  text-shadow: 3px 3px 0 var(--color-dream-deep), 0 0 24px rgb(201 167 245 / 0.5);
+.pixel-button-small > span {
+  padding: 0.6em 1.1em 0.7em;
+  font-size: 11px;
+}
+.pixel-button:hover {
+  translate: 0 -2px;
+  filter: drop-shadow(0 6px 0 rgb(11 6 22 / 0.9));
+}
+.pixel-button:active {
+  translate: 0 2px;
+  filter: drop-shadow(0 2px 0 rgb(11 6 22 / 0.9));
+}
+.pixel-button:focus-visible {
+  outline: 2px dashed #fff;
+  outline-offset: 6px;
+}
+.pixel-button-pink > span {
+  background: #f06aa6;
+  color: #2a0a1e;
+}
+.pixel-button-lilac > span {
+  background: #b9a6ff;
+  color: #1c1240;
+}
+.pixel-button-wood > span {
+  background: #8a4f24;
+  color: #fbe8c8;
+}
+/* Stone blocks with a lit top edge */
+.pixel-ledge {
+  height: 40px;
+  background:
+    linear-gradient(#8f7fc0 0 4px, #5c4c93 4px 8px, transparent 8px),
+    repeating-linear-gradient(90deg, transparent 0 46px, #2a1d4f 46px 48px),
+    linear-gradient(transparent 0 22px, #2a1d4f 22px 24px, transparent 24px),
+    #3d2f6e;
+  box-shadow: 0 6px 0 #1a1033;
+}
+/* Rows of Pokémon sliding past each other */
+@keyframes slide-left {
+  to { transform: translateX(-50%); }
+}
+@keyframes slide-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.slide-left {
+  animation: slide-left 50s linear infinite;
+}
+.slide-right {
+  animation: slide-right 50s linear infinite;
 }
 
 /* Stepped (choppy, retro) motion */
@@ -217,13 +282,6 @@ kbd {
 .twinkle {
   animation: twinkle 2.4s steps(4) infinite;
 }
-@keyframes drift {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.drift {
-  animation: drift 60s linear infinite;
-}
 @keyframes blink {
   50% { opacity: 0; }
 }
@@ -231,21 +289,12 @@ kbd {
   animation: blink 1s steps(1) infinite;
 }
 
-/* Soft mist band built from overlapping glows */
-.mist {
-  background:
-    radial-gradient(40% 60% at 10% 60%, rgb(251 228 246 / 0.55), transparent 70%),
-    radial-gradient(35% 55% at 35% 40%, rgb(233 205 250 / 0.45), transparent 70%),
-    radial-gradient(40% 60% at 60% 65%, rgb(251 228 246 / 0.5), transparent 70%),
-    radial-gradient(35% 55% at 85% 45%, rgb(233 205 250 / 0.45), transparent 70%);
-  filter: blur(8px);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .float,
   .twinkle,
-  .drift,
-  .blink {
+  .blink,
+  .slide-left,
+  .slide-right {
     animation: none !important;
   }
 

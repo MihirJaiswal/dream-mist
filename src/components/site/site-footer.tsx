@@ -1,20 +1,46 @@
+import { Ledge } from "@/components/site/landing/pixel";
+import { edit } from "@/lib/api";
 import Link from "next/link";
 
-/** Site footer */
+/** Footer link columns */
+const columns = [
+  { title: "Play", links: [{ href: "/explore", label: "Explore towns" }, { href: edit(), label: "Open the editor" }] },
+  { title: "Learn", links: [{ href: "/docs/first-game", label: "Your first game" }, { href: "/docs", label: "Docs" }, { href: "/docs/shortcuts", label: "Keyboard shortcuts" }] },
+];
+
+/** Site footer: the ground the night sky ends on */
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-10 md:px-6 text-[13px] text-subtle-fg sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <img src="/site/dreammist.png" alt="" width={20} height={20} className="pixelated" />
-          <span>DreamMist, a fan-made Pokémon town builder for friends.</span>
+    <footer className="night">
+      <Ledge />
+      <div className="bg-[#0d0720]">
+        <div className="grid gap-10 px-4 py-12 md:grid-cols-[2fr_1fr_1fr] md:px-8">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-2.5">
+              <img src="/site/dreammist.png" alt="" width={28} height={28} className="pixelated" />
+              <span className="font-pixel text-[20px] text-[#f06aa6] [text-shadow:2px_2px_0_#4a1640]">DreamMist</span>
+            </Link>
+            <p className="mt-3 max-w-[36ch] font-game text-[15px] leading-relaxed text-[#c9b8f5]">A fan-made Pokémon town builder for friends. Build a town, then let them play it.</p>
+          </div>
+          {columns.map(({ title, links }) => (
+            <nav key={title} aria-label={title}>
+              <p className="font-pixel text-[12px] uppercase tracking-wide text-white">{title}</p>
+              <ul className="mt-4 grid gap-2.5">
+                {links.map(({ href, label }) => (
+                  <li key={href}>
+                    {href.startsWith("/editor")
+                      ? <a href={href} className="font-game text-[15px] text-[#c9b8f5] hover:text-[#f06aa6]">{label}</a>
+                      : <Link href={href} className="font-game text-[15px] text-[#c9b8f5] hover:text-[#f06aa6]">{label}</Link>}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
-        <nav className="flex flex-wrap gap-4">
-          <Link href="/explore" className="hover:text-fg">Explore</Link>
-          <Link href="/docs" className="hover:text-fg">Docs</Link>
-        </nav>
+        <div className="border-t-[3px] border-dashed border-[#2d1a52]">
+          <p className="px-4 py-6 font-game text-[13px] text-[#8a7bb8] md:px-8">Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a non-commercial fan project.</p>
+        </div>
       </div>
-      <p className="mx-auto max-w-7xl px-4 md:px-6 pb-8 text-[12px] text-subtle-fg/80">Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a non-commercial fan project.</p>
     </footer>
   );
 }
