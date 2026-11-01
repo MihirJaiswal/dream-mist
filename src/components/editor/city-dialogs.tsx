@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { type Daytime, daytimes, type Weather, weathers } from "@/game/atmosphere";
 import { type Card, cloud } from "@/game/cloud";
@@ -220,6 +221,49 @@ function History({ close }: { close: () => void }) {
   );
 }
 
+/** Battle background of the open map: the built-in scene, the town's picture, or its own uploaded picture */
+function BattleBackground({ update }: { update: () => void }) {
+  const area = session.area, city = session.city;
+  const own = area.battle;
+  const inherited = area === city ? undefined : city.battle;
+  const shown = own ?? inherited;
+  const [busy, setBusy] = useState(false);
+  const upload = async () => {
+    const file = await pick(imageTypes.join(","));
+    if (!file) {
+      return;
+    }
+    setBusy(true);
+    await session.uploadBattle(file).then(() => (toast.success("Battle background uploaded"), update()), (error) => toast.error(message(error)));
+    setBusy(false);
+  };
+  return (
+    <section className="grid grid-cols-1 gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "Battle background" : `${area.name} battle background`}</p>
+      <div className="flex items-center gap-3 rounded-md border border-border p-2.5">
+        <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-sm border border-border bg-[linear-gradient(#70c0f0,#b8e4f8_52%,#a8d878_52%,#84bc60)]">
+          {shown ? <img src={shown.image} alt="" className="pixelated h-full w-full object-cover" /> : null}
+        </div>
+        <div className="min-w-0 flex-1">
+          <b className="block text-sm">{own ? "Uploaded picture" : inherited ? "The town's picture" : "Built-in scene"}</b>
+          <small className="text-xs text-subtle-fg">{own ? (area === city ? "Used by every map without its own" : "Only on this map") : inherited ? "Set on the outside map. Upload one to use another here" : "Sky and grass outdoors, wall and floor indoors"}</small>
+        </div>
+        <Button variant="secondary" size="sm" disabled={busy} onClick={upload}><Upload />{own ? "Replace" : "Upload"}</Button>
+        {own ? <Button size="icon" variant="ghost" aria-label="Use the default background" title="Use the default background" onClick={() => (session.setBattle(null), update())}><X /></Button> : null}
+      </div>
+      {own
+        ? (
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span>Shadows under the Pokémon<small className="block text-xs text-subtle-fg">Turn off when the picture already has platforms drawn in</small></span>
+            <Switch checked={own.platforms} onCheckedChange={(platforms) => (session.setBattle({ platforms }), update())} />
+          </label>
+        )
+        : null}
+      <Hint>{area === city ? "A wide picture (16:9) works best. Interiors and routes can each have their own: open them and upload one here." : "A wide picture (16:9) works best. Time of day and weather still tint it."}</Hint>
+    </section>
+  );
+}
+
 /** Pick a file */
 function pick(accept: string) {
   return new Promise<File | null>((solve) => {
@@ -305,6 +349,7 @@ function Settings({ close }: { close: () => void }) {
           </div>
           <Hint>Shows over this map in Play, so building stays easy to see. Each interior has its own.</Hint>
         </section>
+        <BattleBackground update={update} />
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Music</p>
           {(["town", "battle"] as const).map((track) => {

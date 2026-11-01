@@ -245,9 +245,10 @@ export class Session {
     const id = this.#areaId();
     const parsed = JSON.parse(town);
     const { interiors: _, ...fields } = sanitize(parsed);
-    //Clear weather and time is stored as no field at all, which assigning wouldn't remove
+    //Clear weather, day time and the built-in battle scene are stored as no field at all, which assigning wouldn't remove
     delete this.city.weather;
     delete this.city.time;
+    delete this.city.battle;
     Object.assign(this.city, fields);
     this.city.interiors = (Array.isArray(parsed.interiors) ? parsed.interiors : []).map((map: City) => sanitize(map, this.city));
     this.area = area(this.city, id) ?? this.city;
@@ -850,6 +851,31 @@ export class Session {
     ui.toast(`Resized to ${w}×${h}`, "success");
   }
 
+  /** Upload a battle background for the open map (on the outside map, it's the default of every map without its own) */
+  async uploadBattle(file: File) {
+    return this.#undoable(async () => {
+      const image = await this.#store(file, "battle", "battle", 512 * 1024);
+      this.area.battle = { image, platforms: this.area.battle?.platforms ?? true };
+      this.broadcastCity();
+      this.changed();
+      this.notify();
+    });
+  }
+
+  /** Draw platforms on the open map's battle background, or remove the background (null) */
+  setBattle(battle: null | { platforms: boolean }) {
+    this.#undoable(() => {
+      if (!battle) {
+        delete this.area.battle;
+      } else if (this.area.battle) {
+        this.area.battle = { ...this.area.battle, ...battle };
+      }
+      this.broadcastCity();
+      this.changed();
+    });
+    this.notify();
+  }
+
   /** Set the weather and time of day of the open map */
   setSky({ weather = this.area.weather, time = this.area.time }: { weather?: Weather; time?: Daytime }) {
     this.#undoable(() => {
@@ -896,7 +922,7 @@ export class Session {
   }
 
   /** Stored url of an uploaded image: online with an account, inside the city otherwise (size-limited) */
-  async #store(file: File, kind: "tileset" | "sprite", name: string, limit: number) {
+  async #store(file: File, kind: "tileset" | "sprite" | "battle", name: string, limit: number) {
     if (cloud.user) {
       return (await cloud.upload(file, kind, name)).url;
     }

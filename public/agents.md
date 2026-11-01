@@ -74,6 +74,7 @@ type City = {
   spawn: { x: number; y: number };  // where visitors arrive (outside map only)
   weather?: "rain" | "snow" | "fog" | "sandstorm";  // leave out for clear
   time?: "evening" | "night";                       // leave out for day
+  battle?: { image: string; platforms: boolean };   // optional battle background picture (url), default for every map
   zones: Zone[];              // shared by every map
   story: Step[];              // shared by every map
   quests: Quest[];            // shared by every map
@@ -93,6 +94,7 @@ type Map = {
   spawn: { x: number; y: number };
   weather?: "rain" | "snow" | "fog" | "sandstorm";
   time?: "evening" | "night";
+  battle?: { image: string; platforms: boolean };   // optional battle background for this map only
   outdoor?: true;                       // a route or town joined by its edges, not by doors
   region?: { x: number; y: number };    // outdoor maps: top-left corner on the region grid
 };
@@ -325,6 +327,8 @@ type Door = { x: number; y: number; to: string; tx: number; ty: number };
 - Routes usually have trees along their long sides and open ends.
 
 ### 7.4 Weather and time
+
+Battles use a built-in scene that matches the map (sky and grass outdoors, wall and floor indoors), tinted by its time and weather, so you don't need to set anything. `battle` takes a picture URL if the user gives you one; leave it out otherwise.
 
 Set `weather` and `time` on any map. Use them for mood: a misty route at dawn (`fog`), a beach at sunset (`time: "evening"`), a haunted grove (`time: "night"`), a desert (`sandstorm`). Interiors are usually left clear.
 

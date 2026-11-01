@@ -1,5 +1,5 @@
 //Imports
-import { assets, type Move, species, type Stage } from "./assets";
+import { assets, battleSprite, type Move, species, type Stage } from "./assets";
 import { type Creature, cure, evolution, evolve, grow, hp, named, stat, type Status, trainer } from "./trainer";
 import { sound } from "./audio";
 import { type ItemId, items } from "./items";
@@ -245,7 +245,22 @@ export class Battle {
   }
 
   /** Run the battle */
+  /** Start downloading the battle sprites of the opening Pokémon on both sides */
+  #preload() {
+    if (typeof Image === "undefined") {
+      return;
+    }
+    const lead = trainer.lead;
+    for (const [creature, back] of [[this.#foe, false], [lead, true]] as const) {
+      if ((creature) && (!creature.art)) {
+        new Image().src = battleSprite(creature.species, { back, shiny: creature.shiny }).src;
+      }
+    }
+  }
+
   async start(): Promise<Outcome> {
+    //Fetch both battle sprites during the intro flash, so they're ready when the Pokémon appear
+    this.#preload();
     Battle.active = this;
     Battle.#announce();
     sound.music("battle");

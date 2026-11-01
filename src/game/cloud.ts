@@ -26,7 +26,7 @@ export type Card = {
 };
 
 /** Upload kinds and their size limits */
-const uploads = { tileset: 4 * 1024 * 1024, sprite: 1024 * 1024, music: 12 * 1024 * 1024, thumb: 1024 * 1024 } as const;
+const uploads = { tileset: 4 * 1024 * 1024, sprite: 1024 * 1024, battle: 4 * 1024 * 1024, music: 12 * 1024 * 1024, thumb: 1024 * 1024 } as const;
 
 /** Turn a Supabase error into a readable one */
 function fail(error: { message: string } | null): never {

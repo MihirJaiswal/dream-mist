@@ -39,6 +39,7 @@ type City = {
   music?: { town?: string; battle?: string };
   weather?: "rain" | "snow" | "fog" | "sandstorm";  // per map, clear when not set
   time?: "evening" | "night";  // per map, day when not set
+  battle?: { image: string; platforms: boolean };  // per map battle background (picture url); maps without one use the outside map's, then the built-in scene
   updated: number;        // timestamp in milliseconds
 };
 ```

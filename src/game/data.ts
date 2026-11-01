@@ -54,6 +54,9 @@ export type Quest = {
   after?: string;
 };
 
+/** Uploaded battle background: the picture, and whether platforms are drawn on it */
+export type BattleBackground = { image: string; platforms: boolean };
+
 /** Door: stepping on it moves the player to another map ("" = outside) */
 export type Door = { x: number; y: number; to: string; tx: number; ty: number };
 
@@ -160,6 +163,8 @@ export type City = {
   weather?: Weather;
   /** Time of day of this map, shown in play mode */
   time?: Daytime;
+  /** Battle background of this map (an uploaded picture). Maps without one use the outside map's, then the built-in scene */
+  battle?: BattleBackground;
   updated: number;
 };
 
@@ -249,6 +254,9 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   }
   if (daytimes.some(({ key }) => key === raw.time) && (raw.time !== "day")) {
     city.time = raw.time;
+  }
+  if ((raw.battle) && (typeof raw.battle.image === "string") && (raw.battle.image)) {
+    city.battle = { image: raw.battle.image, platforms: raw.battle.platforms !== false };
   }
   if ((root) && (raw.outdoor)) {
     city.outdoor = true;

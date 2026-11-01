@@ -2,9 +2,10 @@
 
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { Button } from "@/components/ui/button";
-import { artwork } from "@/game/assets";
+import { artwork, battleSprite } from "@/game/assets";
 import { Battle, type BattleSide, statusLabels } from "@/game/battle";
 import { cloud } from "@/game/cloud";
+import { session } from "@/game/session";
 import { hp, named } from "@/game/trainer";
 import type { Banner, Portrait } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
@@ -118,30 +119,64 @@ export function DialogueBox() {
 // Battle
 
 /** One side of the battle */
-function Side({ side, view, foe }: { side: "ally" | "foe"; view: BattleSide; foe: boolean }) {
+/** Battle background tints for the map's time of day and weather (the Pokémon keep their colors) */
+const tints: Record<string, string> = { evening: "rgb(255 106 32 / 0.22)", night: "rgb(11 24 64 / 0.5)", rain: "rgb(80 112 160 / 0.18)", fog: "rgb(223 230 236 / 0.35)", sandstorm: "rgb(200 160 96 / 0.25)", snow: "rgb(220 235 255 / 0.18)" };
+
+/** Where the battle happens: the map's uploaded background, or the built-in scene (sky, trees and grass outdoors, wall and floor indoors), tinted by the map's time and weather */
+function Scene({ overlays, picture }: { overlays: string[]; picture?: string }) {
+  const area = session.area;
+  const indoor = (Boolean(area)) && (area !== session.city) && (!area.outdoor);
+  return (
+    <div className={cn("scene", indoor ? "indoor" : "field", area?.time === "night" && "night")} aria-hidden="true">
+      {picture
+        ? <div className="picture" style={{ backgroundImage: `url("${picture}")` }} />
+        : (
+          <>
+            <div className="sky" />
+            {indoor ? null : <div className="treeline" />}
+            <div className="ground" />
+          </>
+        )}
+      {overlays.map((key) => <div key={key} className="tint" style={{ background: tints[key] }} />)}
+    </div>
+  );
+}
+
+/** Info box: name, level, condition, HP (and experience for your Pokémon) */
+function Info({ view, foe }: { view: BattleSide; foe: boolean }) {
   const creature = view.creature;
   const ratio = Math.max(0, creature.hp) / hp(creature);
   const start = creature.level ** 3, end = (creature.level + 1) ** 3;
-  const info = (
-    <div className="infobox" style={{ visibility: view.info ? "visible" : "hidden" }}>
+  return (
+    <div className={cn("infobox", foe ? "foe" : "ally")} style={{ visibility: view.info ? "visible" : "hidden" }}>
       <div className="row"><b>{named(creature)}{creature.shiny ? " ✨" : ""}</b><span>{creature.status ? <span className="status" style={{ background: statusLabels[creature.status].color }}>{statusLabels[creature.status].label}</span> : null}Lv{creature.level}</span></div>
       <div className="hp"><small>HP</small><div className="bar"><div className="fill" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div></div>
       {foe ? null : <div className="row small"><span className="hptext">{Math.max(0, creature.hp)} / {hp(creature)}</span><div className="exp"><div className="fill" style={{ width: `${Math.min(1, (creature.exp - start) / (end - start)) * 100}%` }} /></div></div>}
     </div>
   );
+}
+
+/** A Pokémon standing on its platform: animated battle sprite at a whole-pixel size, the still artwork if it can't load */
+function Side({ side, view, foe }: { side: "ally" | "foe"; view: BattleSide; foe: boolean }) {
+  const creature = view.creature;
+  const sprite = battleSprite(creature.species, { back: !foe, shiny: creature.shiny });
+  const [failed, setFailed] = useState("");
+  const custom = Boolean(creature.art);
+  const still = custom || failed === sprite.src;
   return (
     <div className={`side ${side}`}>
-      {foe ? info : null}
       <div className="platform" />
-      <img
-        key={`${view.entered}:${view.fxKey}`}
-        className={cn("mon", view.fx, view.entered && !view.fx ? "enter" : "")}
-        alt=""
-        draggable={false}
-        src={creature.art || artwork(creature.species, { back: !foe, shiny: creature.shiny })}
-        style={{ scale: (creature.art) && (!foe) ? "-1 1" : undefined }}
-      />
-      {foe ? null : info}
+      <div className="stand">
+        <img
+          key={`${view.entered}:${view.fxKey}`}
+          className={cn("mon", still ? "still" : sprite.animated ? "animated" : "big", view.fx, view.entered && !view.fx ? "enter" : "")}
+          alt=""
+          draggable={false}
+          src={custom ? creature.art : still ? artwork(creature.species, { back: !foe, shiny: creature.shiny }) : sprite.src}
+          onError={() => setFailed(sprite.src)}
+          style={{ scale: (custom) && (!foe) ? "-1 1" : undefined }}
+        />
+      </div>
     </div>
   );
 }
@@ -153,12 +188,22 @@ export function BattleScreen() {
   if ((!battle) || (!view)) {
     return null;
   }
+  //The scene's tints also fall on the platforms (through --tint), not on the Pokémon
+  const overlays = [session.area?.time, session.area?.weather].filter((key) => (key) && (tints[key])) as string[];
+  const tint = overlays.map((key) => `linear-gradient(${tints[key]}, ${tints[key]})`).join(", ") || "none";
+  //The map's own battle background, else the outside map's (the city default), else the built-in scene
+  const background = session.area?.battle ?? session.city?.battle;
   return (
     <div className={cn("battle", view.phase === "intro" && "intro", view.phase === "outro" && "outro")}>
       <div className="flash" />
-      <div className="arena">
-        <Side side="foe" view={view.foe} foe />
-        <Side side="ally" view={view.ally} foe={false} />
+      <div className={cn("stage", (background) && (background.platforms ? "picture" : "bare"))} style={{ ["--tint" as string]: tint }}>
+        <Scene overlays={overlays} picture={background?.image} />
+        <div className="arena">
+          <Side side="foe" view={view.foe} foe />
+          <Side side="ally" view={view.ally} foe={false} />
+          <Info view={view.foe} foe />
+          <Info view={view.ally} foe={false} />
+        </div>
       </div>
       <div className="panel">
         <div className="log">{view.log}</div>

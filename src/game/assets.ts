@@ -205,6 +205,12 @@ export function artwork(id: number, { back = false, shiny = false } = {}) {
   return `${sprites}/${era}${back ? "back/" : ""}${shiny ? "shiny/" : ""}${id}.png`;
 }
 
+/** Battle sprite: animated, full-body Gen 5 sprites up to #649, still images after (drawn at whole-pixel sizes by the battle screen) */
+export function battleSprite(id: number, { back = false, shiny = false } = {}) {
+  const view = `${back ? "back/" : ""}${shiny ? "shiny/" : ""}`;
+  return id <= 649 ? { src: `${sprites}/versions/generation-v/black-white/animated/${view}${id}.gif`, animated: true } : { src: `${sprites}/${view}${id}.png`, animated: false };
+}
+
 /** Overworld look of a creature placed on the map (custom sprite, packed box icon, or its PokeAPI sprite scaled to the same size) */
 export function creatureSprite(id: number, look?: string) {
   const custom = creatureLook(look);

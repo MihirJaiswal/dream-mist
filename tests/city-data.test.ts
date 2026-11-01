@@ -42,6 +42,13 @@ describe("sanitize", () => {
     expect(() => sanitize({ width: 5 } as never)).toThrow();
   });
 
+  test("keeps battle backgrounds and drops broken ones", () => {
+    const raw = { ...blank({ width: 6, height: 6 }), battle: { image: "https://example.com/beach.png", platforms: false } };
+    expect(sanitize(raw).battle).toEqual({ image: "https://example.com/beach.png", platforms: false });
+    expect(sanitize({ ...raw, battle: { image: "" } } as never).battle).toBeUndefined();
+    expect(sanitize({ ...raw, battle: { image: "x.png" } } as never).battle).toEqual({ image: "x.png", platforms: true });
+  });
+
   test("repairs grids of the wrong size and bad values", () => {
     const city = sanitize({ width: 2, height: 2, layers: { ground: [1, "2", null, 4], decor: [1], above: "nope" } } as never);
     expect(city.layers.ground).toEqual([1, 2, 0, 4]);
