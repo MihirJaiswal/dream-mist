@@ -149,9 +149,15 @@ function Info({ view, foe }: { view: BattleSide; foe: boolean }) {
   const start = creature.level ** 3, end = (creature.level + 1) ** 3;
   return (
     <div className={cn("infobox", foe ? "foe" : "ally")} style={{ visibility: view.info ? "visible" : "hidden" }}>
-      <div className="row"><b>{named(creature)}{creature.shiny ? " ✨" : ""}</b><span>{creature.status ? <span className="status" style={{ background: statusLabels[creature.status].color }}>{statusLabels[creature.status].label}</span> : null}Lv{creature.level}</span></div>
-      <div className="hp"><small>HP</small><div className="bar"><div className="fill" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div></div>
-      {foe ? null : <div className="row small"><span className="hptext">{Math.max(0, creature.hp)} / {hp(creature)}</span><div className="exp"><div className="fill" style={{ width: `${Math.min(1, (creature.exp - start) / (end - start)) * 100}%` }} /></div></div>}
+      <div className="card">
+        <div className="row">
+          <b>{named(creature)}{creature.shiny ? " ✨" : ""}</b>
+          <span className="level">{creature.status ? <span className="status" style={{ background: statusLabels[creature.status].color }}>{statusLabels[creature.status].label}</span> : null}<small>Lv.</small>{creature.level}</span>
+        </div>
+        <div className="hp"><span className="tag">HP</span><div className="bar"><div className="fill" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div></div>
+        {foe ? null : <div className="numbers">{Math.max(0, creature.hp)}/{hp(creature)}</div>}
+        {foe ? null : <div className="exp"><div className="fill" style={{ width: `${Math.min(1, (creature.exp - start) / (end - start)) * 100}%` }} /></div>}
+      </div>
     </div>
   );
 }
@@ -209,7 +215,7 @@ export function BattleScreen() {
         <div className="log">{view.log}</div>
         <div className="menu" style={{ gridTemplateColumns: `repeat(${view.menu?.columns ?? 2}, 1fr)` }}>
           {view.menu?.choices.map(({ label, detail, color, disabled }, i) => (
-            <button key={i} className="action" disabled={disabled} style={color ? { ["--accent" as string]: color } : undefined} onClick={() => battle.choose(i)}><b>{label}</b><small>{detail}</small></button>
+            <button key={i} className="action" disabled={disabled} style={color ? { ["--accent" as string]: color } : undefined} onClick={() => battle.choose(i)}><b>{label}</b>{/^\d+$/.test(detail) ? null : <small>{detail}</small>}</button>
           ))}
         </div>
       </div>

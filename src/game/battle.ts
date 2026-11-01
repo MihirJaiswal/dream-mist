@@ -299,10 +299,10 @@ export class Battle {
     const profile = trainer.profile!;
     await this.#say(`What will ${named(this.#ally)} do?`, 0);
     const action = await this.#menu([
-      { label: "FIGHT", value: "fight", color: "#f05038" },
-      { label: "BAG", value: "bag", color: "#f8b830" },
-      { label: "POKéMON", value: "party", color: "#48d058" },
-      { label: "RUN", value: "run", color: "#6890f0", disabled: Boolean(this.#opponent) },
+      { label: "FIGHT", value: "fight", color: "#e8505a" },
+      { label: "BAG", value: "bag", color: "#e0a030" },
+      { label: "POKéMON", value: "party", color: "#58b048" },
+      { label: "RUN", value: "run", color: "#4890d8", disabled: Boolean(this.#opponent) },
     ]);
 
     let move = null as Move | null;

@@ -435,17 +435,12 @@
   }
 }
 
-/* Info boxes: the game's paper panel with a dark rim */
+/* Info boxes: Gen 4 style slanted panels (yours slants on the left, the opponent's on the right) with a dark outline */
 .battle .infobox {
   position: absolute;
-  min-width: min(300px, 44vw);
-  padding: 8px 14px 10px;
-  border-radius: 8px;
-  background: var(--paper);
-  box-shadow: inset -3px -3px 0 var(--paper-shade), inset 2px 2px 0 #fff, 0 0 0 3px var(--rim), 0 6px 0 3px rgb(0 0 0 / 0.25);
-  color: var(--ink);
-  font-size: 19px;
   z-index: 3;
+  /* The outline is drawn around the slanted card */
+  filter: drop-shadow(3px 0 0 #2a2a33) drop-shadow(-3px 0 0 #2a2a33) drop-shadow(0 3px 0 #2a2a33) drop-shadow(0 -3px 0 #2a2a33) drop-shadow(0 6px 0 rgb(0 0 0 / 0.25));
 }
 .battle .infobox.foe {
   left: 6%;
@@ -453,68 +448,105 @@
 }
 .battle .infobox.ally {
   right: 6%;
-  top: 56%;
+  top: 54%;
+}
+.battle .infobox .card {
+  position: relative;
+  width: min(330px, 46vw);
+  padding: 8px 18px 10px 34px;
+  background: linear-gradient(#f6f6ee 0 52%, #d6d6ce 52%);
+  clip-path: polygon(26px 0, 100% 0, 100% 100%, 0 100%);
+  color: #404048;
+}
+.battle .infobox.foe .card {
+  padding: 8px 34px 10px 18px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 26px) 100%, 0 100%);
 }
 .battle .infobox .row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
 }
 .battle .infobox b {
+  font-size: 24px;
   font-weight: 700;
-  text-shadow: 2px 2px 0 var(--ink-shadow);
+  line-height: 1.1;
+  text-shadow: 2px 2px 0 #c4c4bc;
+}
+.battle .infobox .level {
+  font-size: 22px;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 #c4c4bc;
+  white-space: nowrap;
+}
+.battle .infobox .level small {
+  font-size: 15px;
 }
 .battle .infobox .status {
-  margin-right: 6px;
-  padding: 0 5px;
+  margin-right: 8px;
+  padding: 1px 5px;
   border-radius: 3px;
   color: #fff;
   font-size: 12px;
   font-weight: 700;
+  text-shadow: none;
+  vertical-align: middle;
 }
+/* HP: an orange tag and a green bar in a dark track */
 .battle .infobox .hp {
   display: flex;
   align-items: center;
-  gap: 6px;
   margin-top: 6px;
-  padding: 3px 4px;
+  padding: 3px 4px 3px 3px;
   border-radius: 4px;
-  background: var(--rim);
+  background: #3a3a44;
 }
-.battle .infobox .hp small {
-  font-size: 12px;
+.battle .infobox .hp .tag {
+  padding: 0 6px;
+  margin-right: 5px;
+  border-radius: 3px;
+  background: #e0902a;
+  color: #fff4a8;
+  font-size: 13px;
   font-weight: 700;
-  color: #f8b830;
-  padding: 0 2px;
+  line-height: 1.25;
+  text-shadow: 1px 1px 0 #8a4a10;
 }
 .battle .infobox .bar {
   flex: 1;
-  height: 9px;
-  background: #506858;
+  height: 8px;
   border-radius: 3px;
+  background: #5a5a64;
   overflow: hidden;
-  border: 1px solid #fff;
 }
 .battle .infobox .bar .fill {
   height: 100%;
+  border-radius: 3px;
   transition: width 0.6s ease-out, background 0.6s;
 }
-.battle .infobox .row.small {
-  font-size: 15px;
-  margin-top: 5px;
+/* Your HP in numbers, on a lighter pill under the bar */
+.battle .infobox .numbers {
+  width: fit-content;
+  margin: 5px 0 0 auto;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #e6e6de;
+  box-shadow: inset 0 0 0 2px #c4c4bc;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 2px 2px 0 #c4c4bc;
 }
+/* Experience: a blue bar along the bottom edge */
 .battle .infobox .exp {
-  flex: 1;
-  height: 5px;
-  background: #506858;
-  margin-left: 10px;
-  border-radius: 2px;
-  overflow: hidden;
+  height: 6px;
+  margin: 8px -18px -10px -34px;
+  background: #5a5a68;
 }
 .battle .infobox .exp .fill {
   height: 100%;
-  background: #40c8f8;
+  background: linear-gradient(#58b0f8 0 50%, #3878e0 50%);
   transition: width 0.8s;
 }
 
@@ -533,15 +565,12 @@
     grid-template-columns: 1fr;
   }
 }
-.battle .log,
-.battle .menu {
-  /* Same height whether the menu shows choices or not, so the scene never jumps */
-  min-height: 112px;
+.battle .log {
+  /* Same height as the commands whether they show or not, so the scene never jumps */
+  min-height: 136px;
   border-radius: 10px;
   background: var(--paper);
   box-shadow: inset -4px -4px 0 var(--paper-shade), inset 3px 3px 0 #fff, 0 0 0 3px var(--trim), 0 0 0 7px var(--rim);
-}
-.battle .log {
   margin: 7px;
   padding: 14px 20px;
   font-size: 23px;
@@ -550,63 +579,62 @@
   text-shadow: 2px 2px 0 var(--ink-shadow);
   white-space: pre-wrap;
 }
+/* Commands: chunky Gen 4 style pills, banded in their color (the command's, or the move's type) */
 .battle .menu {
   display: grid;
-  gap: 2px 8px;
+  gap: 10px;
   margin: 7px;
-  padding: 10px 12px;
   align-content: center;
+  min-height: 136px;
 }
 .battle .action {
-  --accent: transparent;
+  --accent: #8890a0;
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 6px 10px 6px 28px;
-  border-radius: 6px;
-  background: transparent;
-  text-align: left;
-  color: var(--ink);
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: 6px 12px;
+  border: 3px solid #23252e;
+  border-radius: 16px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--accent) 45%, white) 0 34%, var(--accent) 34% 68%, color-mix(in srgb, var(--accent) 72%, black) 68%);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.85), 0 4px 0 #15161c;
+  color: #fff;
   font: inherit;
+  text-align: center;
+  transition: translate 0.08s steps(2), filter 0.08s steps(2), box-shadow 0.08s steps(2);
 }
 .battle .action b {
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
-  text-shadow: 2px 2px 0 var(--ink-shadow);
+  letter-spacing: 0.03em;
+  line-height: 1.05;
+  /* Dark pixel outline so the label reads on every color */
+  text-shadow: 2px 0 0 #2a2a33, -2px 0 0 #2a2a33, 0 2px 0 #2a2a33, 0 -2px 0 #2a2a33, 2px 2px 0 #2a2a33;
 }
 .battle .action small {
-  font-size: 13px;
-  color: #7a7a82;
-}
-/* A colored chip for the move type or command, and the ▶ cursor on the choice under the pointer */
-.battle .action::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  top: 14px;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: var(--accent);
+  font-size: 12px;
+  color: #fff;
+  opacity: 0.92;
+  text-shadow: 1px 1px 0 #2a2a33;
 }
 .battle .action:hover:not(:disabled),
 .battle .action:focus-visible {
-  background: rgb(0 0 0 / 0.05);
+  translate: 0 -2px;
+  filter: brightness(1.08);
+  box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px #f8f8f8, 0 6px 0 #15161c;
   outline: none;
 }
-.battle .action:hover:not(:disabled)::after,
-.battle .action:focus-visible::after {
-  content: "▶";
-  width: auto;
-  height: auto;
-  top: 6px;
-  left: 8px;
-  background: none;
-  color: var(--ink);
-  font-size: 15px;
+.battle .action:active:not(:disabled) {
+  translate: 0 2px;
+  box-shadow: inset 0 0 0 2px #fff, 0 2px 0 #15161c;
 }
 .battle .action:disabled {
-  opacity: 0.4;
+  filter: grayscale(0.85) brightness(0.8);
+  opacity: 0.7;
 }
 .battle .orb {
   position: absolute;
