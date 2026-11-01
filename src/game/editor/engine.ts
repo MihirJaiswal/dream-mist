@@ -1305,19 +1305,44 @@ export class EditorEngine {
     this.#notify();
   }
 
-  /** Add a story step at the end */
-  addStep() {
+  /** Add a step at the end of the main story, or of a side quest */
+  addStep(quest = "") {
     const story = this.#city.story;
     const n = Math.max(0, ...story.map(({ n }) => n)) + 1;
-    this.mutate(() => story.push({ id: uid(), n, name: story.length ? `Step ${story.length + 1}` : "Meet the Professor", blocked: "The path is blocked. Maybe someone in town can help." }));
+    const count = story.filter((step) => (step.quest ?? "") === quest).length;
+    const name = count ? `Step ${count + 1}` : quest ? "Accept the quest" : "Meet the Professor";
+    this.mutate(() => story.push({ id: uid(), n, name, blocked: "The path is blocked. Maybe someone in town can help.", ...(quest ? { quest } : {}) }));
     this.#step = n;
     this.#notify();
   }
 
-  /** Move a step earlier (-1) or later (+1) */
-  moveStep(index: number, delta: number) {
+  /** Move a step earlier (-1) or later (+1) in its lane */
+  moveStep(id: string, delta: number) {
     const story = this.#city.story;
-    this.mutate(() => story.splice(index + delta, 0, ...story.splice(index, 1)));
+    const step = story.find((step) => step.id === id);
+    const lane = story.filter((other) => (other.quest ?? "") === (step?.quest ?? ""));
+    const other = lane[lane.indexOf(step!) + delta];
+    if ((!step) || (!other)) {
+      return;
+    }
+    const [a, b] = [story.indexOf(step), story.indexOf(other)];
+    this.mutate(() => ([story[a], story[b]] = [story[b], story[a]]));
+  }
+
+  /** Start a new side quest, with its first step */
+  addQuest() {
+    const id = uid();
+    this.mutate(() => this.#city.quests.push({ id, name: this.#city.quests.length ? `Side quest ${this.#city.quests.length + 1}` : "Lost kitten" }));
+    this.addStep(id);
+    return id;
+  }
+
+  /** Delete a side quest and its steps (their gates open and people stop using them) */
+  deleteQuest(id: string) {
+    for (const step of this.#city.story.filter((step) => step.quest === id)) {
+      this.deleteStep(step.id);
+    }
+    this.mutate(() => this.#city.quests.splice(this.#city.quests.findIndex((quest) => quest.id === id), 1));
   }
 
   /** Delete a step: its gates open and people stop using it */
@@ -1327,7 +1352,15 @@ export class EditorEngine {
     if (!step) {
       return;
     }
-    this.mutate(() => story.splice(story.indexOf(step), 1));
+    this.mutate(() => {
+      story.splice(story.indexOf(step), 1);
+      //Quests starting after it start right away
+      for (const quest of this.#city.quests) {
+        if (quest.after === step.id) {
+          delete quest.after;
+        }
+      }
+    });
     for (const map of [this.#world, ...this.#world.interiors]) {
       map.gate.forEach((value, index) => (value === step.n) && (map === this.#city ? this.#apply("gate", index, 0) : map.gate[index] = 0));
       for (const npc of map.npcs) {
@@ -1667,7 +1700,7 @@ export class EditorEngine {
 
   /** Apply a snapshot-tracked change (people, spawn, zones, story and doors) as one undo step */
   mutate(fn: () => void) {
-    const snapshot = () => JSON.stringify({ npcs: this.#city.npcs, spawn: this.#city.spawn, zones: this.#city.zones, story: this.#city.story, doors: this.#city.doors });
+    const snapshot = () => JSON.stringify({ npcs: this.#city.npcs, spawn: this.#city.spawn, zones: this.#city.zones, story: this.#city.story, quests: this.#city.quests, doors: this.#city.doors });
     const before = snapshot();
     fn();
     const after = snapshot();
@@ -1688,7 +1721,7 @@ export class EditorEngine {
 
   /** Send people, spawn, zones, story and doors to the live room */
   #emitMeta() {
-    this.onmeta?.({ npcs: this.#city.npcs, spawn: this.#city.spawn, zones: this.#city.zones, story: this.#city.story, doors: this.#city.doors });
+    this.onmeta?.({ npcs: this.#city.npcs, spawn: this.#city.spawn, zones: this.#city.zones, story: this.#city.story, quests: this.#city.quests, doors: this.#city.doors });
   }
 
   /** Push a history entry */

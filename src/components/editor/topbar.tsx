@@ -6,7 +6,7 @@ import { useSession } from "@/components/editor/hooks";
 import { publish, room, share } from "@/components/editor/share-dialogs";
 import { openSearch } from "@/components/editor/shortcuts";
 import { startTour } from "@/components/editor/tour";
-import { card, party } from "@/components/editor/trainer-dialogs";
+import { card, journalDialog, party } from "@/components/editor/trainer-dialogs";
 import { TextInput, Tip } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -14,7 +14,7 @@ import { sound } from "@/game/audio";
 import { cloud } from "@/game/cloud";
 import { message } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { Backpack, BookOpen, CaretDown, Check, ClockCounterClockwise, Cloud, DownloadSimple, Export, Folder, GearSix, GitFork, Globe, IdentificationCard, MagnifyingGlass, MapTrifold, PencilSimple, Play, Plus, Sparkle, SpeakerHigh, SpeakerSlash, Upload, Warning } from "@phosphor-icons/react";
+import { Backpack, BookOpen, CaretDown, Check, ClockCounterClockwise, Cloud, DownloadSimple, Export, Folder, GearSix, GitFork, Globe, IdentificationCard, MagnifyingGlass, MapTrifold, Notebook, PencilSimple, Play, Plus, Sparkle, SpeakerHigh, SpeakerSlash, Upload, Warning } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 /** Where the city is saved, and what to do about it */
@@ -78,6 +78,7 @@ export function Topbar() {
       <div className="ml-auto flex items-center gap-1.5">
         <Tip label="Search commands" shortcut="⌘K" description="Find any action, tool, stamp, map or person"><Button variant="ghost" size="icon" aria-label="Search commands" onClick={openSearch}><MagnifyingGlass size={17} /></Button></Tip>
         {mode === "play" ? <Tip label="Party" description="Your Pokémon, PC box and bag"><Button variant="ghost" size="icon" aria-label="Party" onClick={() => party()}><Backpack size={17} /></Button></Tip> : null}
+        {mode === "play" ? <Tip label="Journal" description="What to do next, and your side quests (J)"><Button variant="ghost" size="icon" aria-label="Journal" onClick={() => journalDialog()}><Notebook size={17} /></Button></Tip> : null}
         {mode === "play" ? <Tip label="Trainer card" description="Badges, Pokédex and progress"><Button variant="ghost" size="icon" aria-label="Trainer card" onClick={() => card()}><IdentificationCard size={17} /></Button></Tip> : null}
         {live
           ? (

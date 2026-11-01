@@ -8,6 +8,7 @@ import { Battle } from "./battle";
 import { creatureImage, scaleOf } from "./sprites";
 import { create, trainer } from "./trainer";
 import { itemCount, itemIds, items } from "./items";
+import { milestone, open } from "./story";
 import { sound } from "./audio";
 import { type Portrait, ui } from "./ui-bridge";
 
@@ -586,10 +587,11 @@ export class Play {
   /** Complete a person's story step and hand out their reward */
   async #progress(data: Npc) {
     const story = data.story;
-    if ((!story?.completes) || (!trainer.complete(this.#world.id, story.completes))) {
+    const step = this.#world.story.find(({ id }) => id === story?.completes);
+    //A side quest's steps only happen once it has started
+    if ((!story?.completes) || ((step) && (!open(this.#world, step, (id) => this.#done(id)))) || (!trainer.complete(this.#world.id, story.completes))) {
       return;
     }
-    const step = this.#world.story.find(({ id }) => id === story.completes);
     const { species: id, level = 5, balls = 0, potions = 0, money = 0 } = story.reward ?? {};
     const profile = trainer.profile!;
     if ((id) && (species(id))) {
@@ -609,7 +611,7 @@ export class Play {
     }
     trainer.save();
     if (step) {
-      ui.toast(`Story: ${step.name}`, "success");
+      ui.banner(milestone(this.#world, step, (id) => this.#done(id)));
     }
     this.#refresh(true);
   }

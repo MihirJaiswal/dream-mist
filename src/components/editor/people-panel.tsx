@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { artwork, assets, npc as texture, portrait, preview, species } from "@/game/assets";
@@ -18,6 +18,7 @@ import type { EditorEngine } from "@/game/editor/engine";
 import { type ItemId, itemIds, items } from "@/game/items";
 import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
+import { lanes } from "@/game/story";
 import { cn } from "@/lib/utils";
 import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Eye, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
@@ -505,7 +506,12 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
         <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="none">{empty}</SelectItem>
-          {story.map((item, i) => <SelectItem key={item.id} value={item.id}>{i + 1}. {item.name}</SelectItem>)}
+          {lanes(editor.city).filter(({ steps }) => steps.length).map(({ quest, steps }) => (
+            <SelectGroup key={quest?.id ?? "main"}>
+              <SelectLabel>{quest?.name ?? "Main story"}</SelectLabel>
+              {steps.map((item, i) => <SelectItem key={item.id} value={item.id}>{i + 1}. {item.name}</SelectItem>)}
+            </SelectGroup>
+          ))}
         </SelectContent>
       </Select>
     </Field>

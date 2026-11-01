@@ -27,8 +27,9 @@ type City = {
   npcs: Npc[];
   spawn: { x: number; y: number };
   doors: Door[];
-  story: Step[];
-  interiors: City[];      // same shape, without story, zones, tilesets, music
+  story: Step[];          // main story and side quest steps, in order within each
+  quests: Quest[];        // side quests
+  interiors: City[];      // same shape, without story, quests, zones, tilesets, music
   tilesets?: Tileset[];
   sprites?: Sprite[];     // custom looks for people and Pokémon
   music?: { town?: string; battle?: string };
@@ -53,11 +54,19 @@ Every grid is a flat array of `width × height` numbers. The tile at column `x` 
 ```ts
 type Step = {
   id: string;             // used by people's story settings
+  quest?: string;         // side quest id, main story when not set
+  goal?: string;          // what the Journal says while it's the next step
   n: number;              // used by gate tiles, stays the same when steps are reordered
   name: string;
   blocked: string;        // message at the gates
   blocker?: "wall" | "object" | "person";
   tile?: number;          // tile drawn on the gates when blocker is "object"
+};
+
+type Quest = {
+  id: string;
+  name: string;
+  after?: string;         // step id: the quest starts once it's done
 };
 ```
 

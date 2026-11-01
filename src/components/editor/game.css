@@ -566,3 +566,51 @@
     opacity: 0;
   }
 }
+
+/* Story and quest banner: a small plaque that drops in at the top of the screen */
+.quest-banner {
+  position: fixed;
+  left: 50%;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  z-index: 65;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 10px 22px 12px;
+  border-radius: 10px;
+  background: #f8f8f4;
+  box-shadow:
+    inset -3px -3px 0 #e4e4dc,
+    inset 2px 2px 0 #ffffff,
+    0 0 0 3px #e0b44c,
+    0 0 0 7px #4a4e5e,
+    0 0 0 9px #2c2f3a,
+    0 12px 28px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  color: #4a4a52;
+  text-align: center;
+  pointer-events: none;
+  animation: quest-banner 3.6s ease both;
+}
+.quest-banner .kind {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #b07c18;
+}
+.quest-banner .title {
+  display: block;
+  font-size: 22px;
+  line-height: 1.3;
+  text-shadow: 2px 2px 0 #d4d4cc;
+}
+.quest-banner .text {
+  display: block;
+  font-size: 15px;
+  color: #6a6a72;
+}
+@keyframes quest-banner {
+  0% { opacity: 0; transform: translate(-50%, -16px); }
+  8%, 88% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}

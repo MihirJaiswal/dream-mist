@@ -4,13 +4,15 @@ import { cities, importTileset, newCity, settings, versionHistory } from "@/comp
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { publish, share } from "@/components/editor/share-dialogs";
 import { shortcutsSheet } from "@/components/editor/shortcuts";
+import { timeline } from "@/components/editor/story-timeline";
 import { startTour } from "@/components/editor/tour";
+import { journalDialog } from "@/components/editor/trainer-dialogs";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut } from "@/components/ui/command";
 import { species } from "@/game/assets";
 import { brushes, terrains } from "@/game/brushes";
 import { kindOf, type Stamp, targets, tools } from "@/game/editor/constants";
 import { problems } from "@/game/problems";
-import { ArrowArcLeft, ArrowArcRight, BookOpen, ClockCounterClockwise, Crosshair, DoorOpen, DownloadSimple, Export, Folder, GearSix, GridFour, Image as ImageIcon, Keyboard, MapTrifold, PaintBrush, PencilSimple, Play, Plus, ShareNetwork, Sparkle, Stack, User, Warning } from "@phosphor-icons/react";
+import { ArrowArcLeft, ArrowArcRight, BookOpen, ClockCounterClockwise, Crosshair, DoorOpen, DownloadSimple, Export, Folder, GearSix, GridFour, Image as ImageIcon, Keyboard, MapTrifold, Notebook, PaintBrush, PencilSimple, Play, Plus, ShareNetwork, Sparkle, Stack, TreeStructure, User, Warning } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useState } from "react";
 
 /** Command palette: Cmd+K (Ctrl+K) finds any action, tool, layer, stamp, map, person or problem by typing */
@@ -63,6 +65,8 @@ export function CommandPalette() {
           {building ? item("undo", "Undo", <ArrowArcLeft />, () => editor.undo(), "⌘Z") : null}
           {building ? item("redo", "Redo", <ArrowArcRight />, () => editor.redo(), "⇧⌘Z") : null}
           {building ? item("grid", "Show or hide the grid", <GridFour />, () => editor.toggleGrid(), "G") : null}
+          {session.mode === "play" ? item("journal", "Journal", <Notebook />, () => journalDialog(), "J", ["quests", "story", "objective"]) : null}
+          {building ? item("timeline", "Story timeline", <TreeStructure />, () => timeline(editor), undefined, ["quests", "side quest", "main story"]) : null}
           {item("center", "Fit the map on screen", <Crosshair />, () => session.map.fit(), "0", ["center", "zoom"])}
           {building ? item("share", "Share or invite friends", <ShareNetwork />, () => share(), undefined, ["link", "room", "live"]) : null}
           {building ? item("publish", "Publish on Explore", <Export />, () => publish()) : null}

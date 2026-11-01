@@ -64,9 +64,22 @@ describe("problems", () => {
       person({ name: "Prof", story: { requires: "a", completes: "b" } }),
       person({ name: "Ghost", story: { after: "c", completes: "c" } }),
     ];
-    expect(texts(city)).toEqual(['Story step 3, "Lost step", can never happen: whoever completes it waits for a step that never happens']);
+    expect(texts(city)).toEqual(['Story step "Lost step" can never happen: whoever completes it waits for a step that never happens']);
     city.npcs.pop();
-    expect(texts(city)).toEqual(['Story step 3, "Lost step", can never happen: nobody completes it']);
+    expect(texts(city)).toEqual(['Story step "Lost step" can never happen: nobody completes it']);
+  });
+
+  test("side quests that start after a step that never happens, or have no steps", () => {
+    const city = blank();
+    city.zones = [];
+    city.story = [{ id: "a", n: 1, name: "Lost step", blocked: "" }, { id: "k", n: 2, name: "Find Skitty", blocked: "", quest: "q" }];
+    city.quests = [{ id: "q", name: "Lost kitten", after: "a" }, { id: "e", name: "Empty" }];
+    city.npcs = [person({ name: "Girl", story: { completes: "k" } })];
+    expect(texts(city)).toEqual([
+      'Story step "Lost step" can never happen: nobody completes it',
+      'Story step "Find Skitty" (Lost kitten) can never happen: its side quest starts after a step that never happens',
+      'Side quest "Empty" has no steps yet',
+    ]);
   });
 
   test("gates and people left from deleted steps", () => {

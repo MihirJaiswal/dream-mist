@@ -6,7 +6,7 @@ import { artwork } from "@/game/assets";
 import { Battle, type BattleSide, statusLabels } from "@/game/battle";
 import { cloud } from "@/game/cloud";
 import { hp, named } from "@/game/trainer";
-import type { Portrait } from "@/game/ui-bridge";
+import type { Banner, Portrait } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Eyedropper, Users } from "@phosphor-icons/react";
@@ -190,6 +190,46 @@ export function Gamepad() {
     <div className="gamepad" data-active={session.mode === "play" ? "" : undefined}>
       <div className="dpad">{pad("up", "▲")}{pad("left", "◀")}{pad("right", "▶")}{pad("down", "▼")}</div>
       {pad("action", "A")}
+    </div>
+  );
+}
+
+//=================================================================================================
+// Story and quest banners
+
+let banners = [] as (Banner & { key: number })[];
+const bannerListeners = new Set<() => void>();
+const subscribeBanners = (listener: () => void) => (bannerListeners.add(listener), () => void bannerListeners.delete(listener));
+let bannerKey = 0;
+
+/** Show a banner at the top of the screen for a moment (they queue up) */
+export function banner(next: Banner) {
+  banners = [...banners, { ...next, key: ++bannerKey }];
+  bannerListeners.forEach((listener) => listener());
+}
+
+/** Story progress and quests: "New quest: Lost kitten", "Next: Find the Professor" */
+export function QuestBanner() {
+  const queued = useSyncExternalStore(subscribeBanners, () => banners, () => banners);
+  const current = queued[0];
+  useEffect(() => {
+    if (!current) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      banners = banners.slice(1);
+      bannerListeners.forEach((listener) => listener());
+    }, 3600);
+    return () => clearTimeout(timer);
+  }, [current]);
+  if (!current) {
+    return null;
+  }
+  return (
+    <div key={current.key} role="status" className="quest-banner">
+      <span className="kind">{current.kind === "quest" ? "Side quest" : "Story"}</span>
+      <span className="title">{current.title}</span>
+      {current.text ? <span className="text">{current.text}</span> : null}
     </div>
   );
 }

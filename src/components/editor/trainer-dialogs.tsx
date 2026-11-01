@@ -14,9 +14,10 @@ import { colors, statusLabels } from "@/game/battle";
 import { type ItemId, itemCount, items } from "@/game/items";
 import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
+import { type Entry, goal, journal } from "@/game/story";
 import { type Creature, hp, named, starters, type Status, trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
-import { Medal, Minus, Plus, Trash } from "@phosphor-icons/react";
+import { Flag, Medal, Minus, Plus, Scroll, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -179,6 +180,44 @@ function TrainerCard({ close }: { close: () => void }) {
             }
           }}><Trash />Start over</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+//=================================================================================================
+// Journal
+
+/** The player's Journal: what to do next in the main story, and side quests in progress */
+export function journalDialog() {
+  return openDialog<void>((close) => <Journal close={close} />);
+}
+
+function Journal({ close }: { close: () => void }) {
+  const city = session.city;
+  const page = journal(city, (id) => trainer.done(city.id, id));
+  const entry = ({ name, next, done, total, quest }: Entry) => (
+    <div key={quest?.id ?? "main"} className={cn("grid gap-1 rounded-lg border p-3", next ? "border-border bg-card" : "border-transparent bg-muted/50")}>
+      <div className="flex items-center gap-2">
+        {quest ? <Scroll size={16} className="shrink-0 text-select" /> : <Flag size={16} className="shrink-0" />}
+        <b className="min-w-0 flex-1 truncate text-sm">{name}</b>
+        <span className="font-mono text-xs text-subtle-fg">{done}/{total}</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-select" style={{ width: `${(done / total) * 100}%` }} /></div>
+      <p className="text-sm text-muted-foreground">{next ? goal(next) : quest ? "Complete!" : "The main story is complete!"}</p>
+    </div>
+  );
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader><DialogTitle>Journal</DialogTitle><DialogDescription>{city.name}</DialogDescription></DialogHeader>
+        {(!page.main) && (!page.active.length) && (!page.complete.length)
+          ? <Hint>This town has no story yet. Explore, battle and catch Pokémon!</Hint>
+          : null}
+        {page.main ? entry(page.main) : null}
+        {page.active.length ? <><p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Side quests</p><div className="grid gap-2">{page.active.map(entry)}</div></> : null}
+        {page.complete.length ? <><p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Completed</p><div className="grid gap-2">{page.complete.map(entry)}</div></> : null}
+        {(page.main) || (page.active.length) ? null : <Hint>Talk to people around town: some of them need your help.</Hint>}
       </DialogContent>
     </Dialog>
   );

@@ -1,6 +1,7 @@
 //Imports
 import type { City } from "./data";
 import type { Target } from "./editor/constants";
+import { questOf, stepLabel } from "./story";
 
 /** Something in a town that won't work as intended, and where to fix it */
 export type Problem = {
@@ -96,19 +97,29 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
       if ((!story?.completes) || (reachable.has(story.completes))) {
         continue;
       }
-      if (((!story.after) || (reachable.has(story.after))) && ((!story.requires) || (reachable.has(story.requires)))) {
+      //A side quest's steps also wait until the quest starts
+      const step = city.story.find(({ id }) => id === story.completes);
+      const start = step ? questOf(city, step)?.after : undefined;
+      if (((!story.after) || (reachable.has(story.after))) && ((!story.requires) || (reachable.has(story.requires))) && ((!start) || (reachable.has(start)))) {
         reachable.add(story.completes);
         changed = true;
       }
     }
   }
-  city.story.forEach((step, index) => {
+  city.story.forEach((step) => {
     if (reachable.has(step.id)) {
       return;
     }
     const completer = people.some(({ npc }) => npc.story?.completes === step.id);
-    found.push({ kind: "error", text: completer ? `Story step ${index + 1}, "${step.name}", can never happen: whoever completes it waits for a step that never happens` : `Story step ${index + 1}, "${step.name}", can never happen: nobody completes it`, map: "", layer: "story", step: step.n });
+    const start = questOf(city, step)?.after;
+    const why = !completer ? "nobody completes it" : (start) && (!reachable.has(start)) ? "its side quest starts after a step that never happens" : "whoever completes it waits for a step that never happens";
+    found.push({ kind: "error", text: `Story step ${stepLabel(city, step)} can never happen: ${why}`, map: "", layer: "story", step: step.n });
   });
+  for (const quest of city.quests) {
+    if (!city.story.some((step) => step.quest === quest.id)) {
+      found.push({ kind: "warning", text: `Side quest "${quest.name}" has no steps yet`, map: "", layer: "story" });
+    }
+  }
   for (const { npc, index, map } of people) {
     const missing = (["after", "until", "requires", "completes"] as const).filter((key) => (npc.story?.[key]) && (!steps.has(npc.story[key]!)));
     if (missing.length) {

@@ -20,6 +20,7 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── atmosphere.ts     Weather and time of day drawn over the map in play mode
 │   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers
 │   │   ├── battle.ts         Battles: damage, stat changes, conditions, catching, turns. Keeps a `view` the React battle screen draws
+│   │   ├── story.ts          Story lanes: main story and side quests, the Journal and progress banners
 │   │   ├── problems.ts       Finds what's broken in a town (doors, people, spawn, zones, story) for the Problems list
 │   │   ├── trainer.ts        Your trainer and party: stats, levels, moves, evolution, bag and money
 │   │   ├── items.ts          Items sold in the Poké Mart: balls, potions, Full Heal

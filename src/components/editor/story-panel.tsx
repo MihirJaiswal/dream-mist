@@ -1,53 +1,104 @@
 "use client";
 
 import { useEditor } from "@/components/editor/hooks";
+import { timeline } from "@/components/editor/story-timeline";
 import { CanvasView, Field, Hint, TextInput, Tip } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { npc as texture, preview } from "@/game/assets";
-import type { Step } from "@/game/data";
+import type { Quest, Step } from "@/game/data";
 import { obstacles } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
+import { lanes, stepLabel } from "@/game/story";
 import { ui } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
-import { ArrowCounterClockwise, CaretDown, CaretUp, Plus, X } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CaretDown, CaretUp, Flag, Plus, Scroll, TreeStructure, X } from "@phosphor-icons/react";
 
-/** Story timeline: steps in order, what blocks the way until each is done */
+/** Story timeline: the main story and side quests, each a chain of steps, and what blocks the way until each is done */
 export function StoryPanel() {
   const editor = useEditor();
-  const story = editor.city.story;
-  const current = editor.currentStep;
+  const city = editor.city;
+  const [main, ...sides] = lanes(city);
   return (
-    <div className="grid grid-cols-1 gap-2">
-      <Hint>Steps happen in order. Pick a step and paint gates on the map: those tiles stay blocked until the step is done. Choose who completes each step in a person&apos;s Story settings.</Hint>
-      {story.length
-        ? (
-          <ol className="relative grid gap-1.5 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-px before:bg-border">
-            {story.map((step, i) => {
-              const active = step.n === current;
-              const by = editor.people("completes", step.id), shows = editor.people("after", step.id), hides = editor.people("until", step.id), count = editor.gates(step.n);
-              return (
-                <li key={step.id} onClick={(event) => !(event.target as HTMLElement).closest("input, button, textarea, [role=combobox]") && editor.setStep(step.n)} className={cn("relative flex gap-2 rounded-lg border p-2", active ? "border-select bg-card" : "border-transparent hover:bg-muted/50")}>
-                  <span className={cn("z-10 grid size-6 shrink-0 place-items-center rounded-full border font-mono text-[11px]", active ? "border-foreground bg-foreground text-background" : "border-border bg-background text-muted-foreground")}>{i + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-0.5">
-                      <TextInput aria-label="Step name" value={step.name} maxLength={40} onCommit={(name) => editor.mutate(() => step.name = name.trim() || "Untitled step")} className="h-7 border-transparent bg-transparent px-1 text-sm font-medium shadow-none focus-visible:border-input" />
-                      <button aria-label="Move earlier" title="Move earlier" disabled={i === 0} onClick={() => editor.moveStep(i, -1)} className="grid size-6 place-items-center rounded text-subtle-fg hover:text-foreground disabled:opacity-30"><CaretUp size={13} /></button>
-                      <button aria-label="Move later" title="Move later" disabled={i === story.length - 1} onClick={() => editor.moveStep(i, 1)} className="grid size-6 place-items-center rounded text-subtle-fg hover:text-foreground disabled:opacity-30"><CaretDown size={13} /></button>
-                      <button aria-label="Delete step" title="Delete step" onClick={async () => (await ui.confirm(`Delete “${step.name}”?`, { text: "Its gates open and people stop using this step.", action: "Delete", danger: true })) && editor.deleteStep(step.id)} className="grid size-6 place-items-center rounded text-subtle-fg hover:text-destructive"><X size={13} /></button>
-                    </div>
-                    <p className="px-1 text-[11px] text-subtle-fg">{[by.length ? `Done by ${by.join(", ")}` : "Nobody completes it yet", count ? `${count} gate tile${count > 1 ? "s" : ""}` : "", shows.length ? `shows ${shows.join(", ")}` : "", hides.length ? `hides ${hides.join(", ")}` : ""].filter(Boolean).join(" · ")}</p>
-                    {active ? <Blocker editor={editor} step={step} /> : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )
-        : <p className="py-2 text-center text-xs text-subtle-fg">No story yet. Add the first step, like “Meet the Professor”.</p>}
-      <Button variant="outline" size="sm" onClick={() => editor.addStep()}><Plus />Add step</Button>
+    <div className="grid grid-cols-1 gap-3">
+      <Hint>The main story and each side quest are chains of steps. Pick a step and paint gates on the map: those tiles stay blocked until it&apos;s done. Choose who completes each step in a person&apos;s Story settings.</Hint>
+      <Button variant="secondary" size="sm" onClick={() => timeline(editor)}><TreeStructure />Open the timeline</Button>
+      <section className="grid gap-1.5">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle-fg"><Flag size={12} />Main story</p>
+        <Steps editor={editor} steps={main.steps} empty="No story yet. Add the first step, like “Meet the Professor”." />
+        <Button variant="outline" size="sm" onClick={() => editor.addStep()}><Plus />Add step</Button>
+      </section>
+      {sides.map(({ quest, steps }) => <QuestLane key={quest!.id} editor={editor} quest={quest!} steps={steps} />)}
+      <Button variant="outline" size="sm" onClick={() => editor.addQuest()}><Scroll />New side quest</Button>
       <Button variant="ghost" size="sm" title="Forget your own progress so you can test the story again" onClick={() => editor.restart()}><ArrowCounterClockwise />Restart my progress</Button>
     </div>
+  );
+}
+
+/** A side quest: its name, when it starts, and its steps */
+function QuestLane({ editor, quest, steps }: { editor: EditorEngine; quest: Quest; steps: Step[] }) {
+  const city = editor.city;
+  const before = city.story.filter((step) => step.quest !== quest.id);
+  return (
+    <section className="grid gap-1.5 rounded-lg border border-border p-2">
+      <div className="flex items-center gap-1">
+        <Scroll size={14} className="shrink-0 text-select" />
+        <TextInput aria-label="Side quest name" value={quest.name} maxLength={40} onCommit={(name) => editor.mutate(() => quest.name = name.trim() || "Side quest")} className="h-7 border-transparent bg-transparent px-1 text-sm font-semibold shadow-none focus-visible:border-input" />
+        <button aria-label="Delete side quest" title="Delete side quest" onClick={async () => (await ui.confirm(`Delete “${quest.name}”?`, { text: `Its ${steps.length === 1 ? "step" : `${steps.length} steps`} go too: their gates open and people stop using them.`, action: "Delete", danger: true })) && editor.deleteQuest(quest.id)} className="grid size-6 shrink-0 place-items-center rounded text-subtle-fg hover:text-destructive"><X size={13} /></button>
+      </div>
+      <Field label="Starts">
+        <Select value={quest.after ?? "now"} onValueChange={(value) => editor.mutate(() => value === "now" ? delete quest.after : quest.after = value)}>
+          <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="now">Right away</SelectItem>
+            {before.map((step) => <SelectItem key={step.id} value={step.id}>After {stepLabel(city, step)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Hint>It shows in the player&apos;s Journal once its first step is done, and stays secret until then.</Hint>
+      <Steps editor={editor} steps={steps} empty="No steps yet." />
+      <Button variant="outline" size="sm" onClick={() => editor.addStep(quest.id)}><Plus />Add step</Button>
+    </section>
+  );
+}
+
+/** Steps of one lane, in order */
+function Steps({ editor, steps, empty }: { editor: EditorEngine; steps: Step[]; empty: string }) {
+  const current = editor.currentStep;
+  if (!steps.length) {
+    return <p className="py-1 text-center text-xs text-subtle-fg">{empty}</p>;
+  }
+  return (
+    <ol className="relative grid gap-1.5 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-px before:bg-border">
+      {steps.map((step, i) => {
+        const active = step.n === current;
+        const by = editor.people("completes", step.id), shows = editor.people("after", step.id), hides = editor.people("until", step.id), count = editor.gates(step.n);
+        return (
+          <li key={step.id} onClick={(event) => !(event.target as HTMLElement).closest("input, button, textarea, [role=combobox]") && editor.setStep(step.n)} className={cn("relative flex gap-2 rounded-lg border p-2", active ? "border-select bg-card" : "border-transparent hover:bg-muted/50")}>
+            <span className={cn("z-10 grid size-6 shrink-0 place-items-center rounded-full border font-mono text-[11px]", active ? "border-foreground bg-foreground text-background" : "border-border bg-background text-muted-foreground")}>{i + 1}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-0.5">
+                <TextInput aria-label="Step name" value={step.name} maxLength={40} onCommit={(name) => editor.mutate(() => step.name = name.trim() || "Untitled step")} className="h-7 border-transparent bg-transparent px-1 text-sm font-medium shadow-none focus-visible:border-input" />
+                <button aria-label="Move earlier" title="Move earlier" disabled={i === 0} onClick={() => editor.moveStep(step.id, -1)} className="grid size-6 place-items-center rounded text-subtle-fg hover:text-foreground disabled:opacity-30"><CaretUp size={13} /></button>
+                <button aria-label="Move later" title="Move later" disabled={i === steps.length - 1} onClick={() => editor.moveStep(step.id, 1)} className="grid size-6 place-items-center rounded text-subtle-fg hover:text-foreground disabled:opacity-30"><CaretDown size={13} /></button>
+                <button aria-label="Delete step" title="Delete step" onClick={async () => (await ui.confirm(`Delete “${step.name}”?`, { text: "Its gates open and people stop using this step.", action: "Delete", danger: true })) && editor.deleteStep(step.id)} className="grid size-6 place-items-center rounded text-subtle-fg hover:text-destructive"><X size={13} /></button>
+              </div>
+              <p className="px-1 text-[11px] text-subtle-fg">{[by.length ? `Done by ${by.join(", ")}` : "Nobody completes it yet", count ? `${count} gate tile${count > 1 ? "s" : ""}` : "", shows.length ? `shows ${shows.join(", ")}` : "", hides.length ? `hides ${hides.join(", ")}` : ""].filter(Boolean).join(" · ")}</p>
+              {active
+                ? (
+                  <div className="mt-2 grid gap-2 px-1">
+                    <Field label="Journal says">
+                      <TextInput value={step.goal ?? ""} placeholder={step.name} maxLength={80} onCommit={(text) => editor.mutate(() => text.trim() ? step.goal = text.trim() : delete step.goal)} className="h-8" />
+                    </Field>
+                  </div>
+                )
+                : null}
+              {active ? <Blocker editor={editor} step={step} /> : null}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

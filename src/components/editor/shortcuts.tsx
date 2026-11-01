@@ -1,6 +1,7 @@
 "use client";
 
 import { openDialog } from "@/components/editor/dialogs";
+import { journalDialog } from "@/components/editor/trainer-dialogs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { session } from "@/game/session";
 import { useEffect } from "react";
@@ -42,6 +43,10 @@ export const shortcuts = [
   {
     group: "Testing",
     keys: [["P", "Play from the tile under the cursor"], ["⌘ Z / ⇧ ⌘ Z", "Undo, redo"]],
+  },
+  {
+    group: "Play mode",
+    keys: [["WASD, arrow keys", "Walk (Shift runs)"], ["Space, Enter, Z, E", "Talk, read, continue"], ["J", "Open the Journal"], ["1 to 4", "Pick a battle option"]],
   },
 ] as const;
 
@@ -104,6 +109,11 @@ export function useAppShortcuts({ onPanels }: { onPanels: () => void }) {
       if ((command) && (event.key === "\\")) {
         event.preventDefault();
         return onPanels();
+      }
+      if ((key === "j") && (!typing) && (!command) && (session.ready) && (session.mode === "play") && (!document.querySelector("[role=dialog], [role=alertdialog]"))) {
+        event.preventDefault();
+        void journalDialog();
+        return;
       }
       if ((event.key === "?") && (!typing) && (!command) && (!document.querySelector("[role=dialog], [role=alertdialog]"))) {
         event.preventDefault();

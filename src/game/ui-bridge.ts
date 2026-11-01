@@ -9,6 +9,9 @@ import type { ItemId } from "./items";
 /** Picture beside the dialogue box: large artwork, or a map sprite drawn bigger */
 export type Portrait = { src: string; kind: "art" | "sprite" };
 
+/** Story or quest banner */
+export type Banner = { title: string; text: string; kind: "story" | "quest" };
+
 /** Toast kinds */
 export type ToastType = "info" | "error" | "success" | "warning";
 
@@ -22,6 +25,8 @@ export type UiBridge = {
   hush(): void;
   /** Poké Mart: buy items with the trainer's money (resolves when they leave) */
   shop(stock: ItemId[], options?: { speaker?: string; portrait?: Portrait }): Promise<void>;
+  /** Big banner at the top of the screen for a moment (story progress, quests) */
+  banner(banner: Banner): void;
   /** Yes/no question, resolves with the answer */
   confirm(title: string, options?: { text?: string; action?: string; danger?: boolean }): Promise<boolean>;
   /** Ask to sign in (resolves when the window closes, signed in or not) */
@@ -43,6 +48,7 @@ export const ui: UiBridge = {
   say: async () => {},
   hush: () => {},
   shop: async () => {},
+  banner: () => {},
   confirm: async () => false,
   signIn: async () => {},
   onboarding: async () => {},

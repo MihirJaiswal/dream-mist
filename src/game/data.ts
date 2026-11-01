@@ -28,9 +28,13 @@ export type Zone = {
   creatures: { species: number; min: number; max: number }[];
 };
 
-/** Story step (the city timeline, in order) */
+/** Story step (the city timeline: main story steps in order, and the steps of each side quest) */
 export type Step = {
   id: string;
+  /** Side quest this step belongs to (main story when not set) */
+  quest?: string;
+  /** What the Journal tells the player to do while this is their next step (the step name when empty) */
+  goal?: string;
   /** Stable number used by gates (kept when steps are reordered) */
   n: number;
   name: string;
@@ -40,6 +44,14 @@ export type Step = {
   blocker?: "wall" | "object" | "person";
   /** Object tile value drawn on this step gates (blocker "object") */
   tile?: number;
+};
+
+/** Side quest: its own chain of story steps, next to the main story */
+export type Quest = {
+  id: string;
+  name: string;
+  /** Starts once this step is done (main story or another quest): its steps can't happen before */
+  after?: string;
 };
 
 /** Door: stepping on it moves the player to another map ("" = outside) */
@@ -130,6 +142,8 @@ export type City = {
   doors: Door[];
   /** Story timeline (outside map only, shared by interiors) */
   story: Step[];
+  /** Side quests, each with steps in `story` (outside map only, shared by interiors) */
+  quests: Quest[];
   /** Interior maps (houses, Pokémon Center, gyms), same shape as a city */
   interiors: City[];
   /** Custom tilesets (uploaded images) */
@@ -166,6 +180,7 @@ export function blank({ width = 40, height = 30, ground = 0, name = "New Town", 
     gate: new Array(size).fill(0),
     doors: [],
     story: [],
+    quests: [],
     interiors: [],
     zones: [{ name: "Tall grass", rate: 0.12, color: 0x2ecc40, creatures: [{ species: 263, min: 2, max: 4 }, { species: 265, min: 2, max: 4 }, { species: 261, min: 3, max: 4 }, { species: 280, min: 3, max: 5 }] }],
     npcs: [],
@@ -237,6 +252,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
     city.name = `${raw.name ?? "Interior"}`.slice(0, 40);
     return attach(city, root);
   }
+  city.quests = Array.isArray(raw.quests) ? raw.quests.filter((quest) => quest && quest.id).map(({ id, name, after }) => ({ id: `${id}`, name: `${name ?? "Side quest"}`.slice(0, 40), ...(after ? { after: `${after}` } : {}) })) : [];
   city.interiors = Array.isArray(raw.interiors) ? raw.interiors.slice(0, 40).map((interior) => sanitize(interior, city)) : [];
   city.tilesets = Array.isArray(raw.tilesets) ? raw.tilesets : [];
   city.sprites = Array.isArray(raw.sprites) ? raw.sprites.filter((sprite) => sprite && sprite.id && sprite.url) : [];
@@ -250,7 +266,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
 
 /** Make an interior share the root zones, story, tilesets and music (not serialized twice) */
 function attach(interior: City, root: City) {
-  for (const key of ["zones", "story", "tilesets", "sprites", "music", "author"] as const) {
+  for (const key of ["zones", "story", "quests", "tilesets", "sprites", "music", "author"] as const) {
     Object.defineProperty(interior, key, { enumerable: false, configurable: true, get: () => root[key], set: (value) => (root as Record<string, unknown>)[key] = value });
   }
   delete (interior as Partial<City>).interiors;
