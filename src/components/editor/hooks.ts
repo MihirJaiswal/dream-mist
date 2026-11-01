@@ -5,7 +5,11 @@ import { useSyncExternalStore } from "react";
 
 /** Re-render when the session changes (open city, mode, account, room…) */
 export function useSession() {
-  useSyncExternalStore(session.subscribe, () => session.version, () => 0);
+  useSyncExternalStore(
+    session.subscribe,
+    () => session.version,
+    () => 0,
+  );
   return session;
 }
 
@@ -13,7 +17,11 @@ export function useSession() {
 export function useEditor() {
   useSession();
   const editor = session.editor;
-  useSyncExternalStore(editor?.subscribe ?? noop, () => editor?.version ?? 0, () => 0);
+  useSyncExternalStore(
+    editor?.subscribe ?? noop,
+    () => editor?.version ?? 0,
+    () => 0,
+  );
   return editor;
 }
 

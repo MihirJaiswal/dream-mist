@@ -4,8 +4,21 @@ import Link from "next/link";
 
 /** Footer link columns */
 const columns = [
-  { title: "Play", links: [{ href: "/explore", label: "Explore towns" }, { href: edit(), label: "Open the editor" }] },
-  { title: "Learn", links: [{ href: "/docs/first-game", label: "Your first game" }, { href: "/docs", label: "Docs" }, { href: "/docs/shortcuts", label: "Keyboard shortcuts" }] },
+  {
+    title: "Play",
+    links: [
+      { href: "/explore", label: "Explore towns" },
+      { href: edit(), label: "Open the editor" },
+    ],
+  },
+  {
+    title: "Learn",
+    links: [
+      { href: "/docs/first-game", label: "Your first game" },
+      { href: "/docs", label: "Docs" },
+      { href: "/docs/shortcuts", label: "Keyboard shortcuts" },
+    ],
+  },
 ];
 
 /** Site footer: the ground the night sky ends on */
@@ -20,7 +33,9 @@ export function SiteFooter() {
               <img src="/site/dreammist.png" alt="" width={28} height={28} className="pixelated" />
               <span className="font-pixel text-[20px] text-[#f06aa6] [text-shadow:2px_2px_0_#4a1640]">DreamMist</span>
             </Link>
-            <p className="mt-3 max-w-[36ch] font-game text-[15px] leading-relaxed text-[#c9b8f5]">A fan-made Pokémon town builder for friends. Build a town, then let them play it.</p>
+            <p className="mt-3 max-w-[36ch] font-game text-[15px] leading-relaxed text-[#c9b8f5]">
+              A fan-made Pokémon town builder for friends. Build a town, then let them play it.
+            </p>
           </div>
           {columns.map(({ title, links }) => (
             <nav key={title} aria-label={title}>
@@ -28,9 +43,15 @@ export function SiteFooter() {
               <ul className="mt-4 grid gap-2.5">
                 {links.map(({ href, label }) => (
                   <li key={href}>
-                    {href.startsWith("/editor")
-                      ? <a href={href} className="font-game text-[15px] text-[#c9b8f5] hover:text-[#f06aa6]">{label}</a>
-                      : <Link href={href} className="font-game text-[15px] text-[#c9b8f5] hover:text-[#f06aa6]">{label}</Link>}
+                    {href.startsWith("/editor") ? (
+                      <a href={href} className="font-game text-[15px] text-[#c9b8f5] hover:text-[#f06aa6]">
+                        {label}
+                      </a>
+                    ) : (
+                      <Link href={href} className="font-game text-[15px] text-[#c9b8f5] hover:text-[#f06aa6]">
+                        {label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -38,7 +59,9 @@ export function SiteFooter() {
           ))}
         </div>
         <div className="border-t-[3px] border-dashed border-[#2d1a52]">
-          <p className="px-4 py-6 font-game text-[13px] text-[#8a7bb8] md:px-8">Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a non-commercial fan project.</p>
+          <p className="px-4 py-6 font-game text-[13px] text-[#8a7bb8] md:px-8">
+            Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a non-commercial fan project.
+          </p>
         </div>
       </div>
     </footer>

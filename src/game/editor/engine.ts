@@ -8,7 +8,23 @@ import { collides, isOutdoor, type Side, spot } from "../region";
 import { scaleOf } from "../sprites";
 import { custom as sheets, decode, encode, range } from "../tilesets";
 import { ui } from "../ui-bridge";
-import { type Clip, convert, type Grid, grids, type Kind, kindOf, obstacles, placing, type Stamp, type Target, type Template, type Tool, targets, tools, zoneColors } from "./constants";
+import {
+  type Clip,
+  convert,
+  type Grid,
+  grids,
+  type Kind,
+  kindOf,
+  obstacles,
+  placing,
+  type Stamp,
+  type Target,
+  type Template,
+  type Tool,
+  targets,
+  tools,
+  zoneColors,
+} from "./constants";
 
 /** Single cell change */
 type Change = { grid: Grid; index: number; before: number; after: number };
@@ -17,7 +33,7 @@ type Change = { grid: Grid; index: number; before: number; after: number };
 type Entry = { changes: Change[] } | { snapshot: { before: string; after: string } } | { town: { before: string; after: string } };
 
 /** Is a tile value tall grass (a brush that brings wild Pokémon) */
-const tall = (value: number) => (value > 0) && (brushes.some(({ zone, tiles }) => zone && tiles[0] === value));
+const tall = (value: number) => value > 0 && brushes.some(({ zone, tiles }) => zone && tiles[0] === value);
 
 /** Grids that can be hidden in the editor (people, spawn and doors are always shown) */
 const hideable = ["ground", "decor", "above", "solid", "zone", "story"] as readonly string[];
@@ -191,12 +207,16 @@ export class EditorEngine {
   /** Is the current brush a favorite */
   get favorite() {
     const tiles = JSON.stringify(this.#stamp.tiles);
-    return this.#favorites.findIndex((stamp) => (JSON.stringify(stamp.tiles) === tiles) && (stamp.terrain === this.#stamp.terrain));
+    return this.#favorites.findIndex((stamp) => JSON.stringify(stamp.tiles) === tiles && stamp.terrain === this.#stamp.terrain);
   }
 
   /** Save the current brush as a favorite */
   addFavorite(name: string) {
-    const stamp = { ...this.#stamp, tiles: [...this.#stamp.tiles], name: name.trim().slice(0, 32) || this.#stamp.name || `${this.#stamp.w}×${this.#stamp.h} tiles` };
+    const stamp = {
+      ...this.#stamp,
+      tiles: [...this.#stamp.tiles],
+      name: name.trim().slice(0, 32) || this.#stamp.name || `${this.#stamp.w}×${this.#stamp.h} tiles`,
+    };
     this.#favorites = [stamp, ...this.#favorites.filter((other) => JSON.stringify(other.tiles) !== JSON.stringify(stamp.tiles))].slice(0, 60);
     storage.set("favorites", this.#favorites);
     this.#stamp = { ...this.#stamp, name: stamp.name };
@@ -210,7 +230,7 @@ export class EditorEngine {
     this.#notify();
   }
   get sheet() {
-    return (this.#sheet >= 0) && (!sheets.has(this.#sheet)) ? -1 : this.#sheet;
+    return this.#sheet >= 0 && !sheets.has(this.#sheet) ? -1 : this.#sheet;
   }
   get paletteScale() {
     return this.#paletteScale;
@@ -246,7 +266,7 @@ export class EditorEngine {
     this.#map.containers.overlay.addChild(this.#marquee);
     this.#map.containers.actors.addChild(this.#markers);
     this.#map.onpointer = (type, tile, event) => this.#pointer(type, tile, event);
-    this.#map.onleave = () => (this.#hovered = null, this.#coordsListeners.forEach((listener) => listener(null)));
+    this.#map.onleave = () => ((this.#hovered = null), this.#coordsListeners.forEach((listener) => listener(null)));
     this.#map.overlays.grid.visible = storage.get("grid", true);
     document.addEventListener("keydown", this.#keys);
     this.#markersRefresh();
@@ -306,7 +326,7 @@ export class EditorEngine {
   /** Apply edits made by someone else in a live room */
   remote(changes: [string, number, number][]) {
     for (const [grid, index, value] of changes) {
-      if ((index >= 0) && (index < this.#city.width * this.#city.height) && ((grids as readonly string[]).includes(grid))) {
+      if (index >= 0 && index < this.#city.width * this.#city.height && (grids as readonly string[]).includes(grid)) {
         this.#apply(grid as Grid, index, value, false);
       }
     }
@@ -325,7 +345,7 @@ export class EditorEngine {
 
   /** Choose what to edit */
   select(target: Target) {
-    if ((this.#blocking) && (target !== "story")) {
+    if (this.#blocking && target !== "story") {
       this.#blocking = "";
     }
     if (this.#pathing >= 0) {
@@ -334,7 +354,7 @@ export class EditorEngine {
     this.#target = target;
     this.#selected = -1;
     this.#door = -1;
-    if ((placing.includes(target)) && (this.#tool !== "brush")) {
+    if (placing.includes(target) && this.#tool !== "brush") {
       this.#tool = "brush";
     }
     //The brush preview shows again when the pointer moves over the map
@@ -350,20 +370,20 @@ export class EditorEngine {
   use(stamp: Stamp) {
     //Tiles picked from the palette: a built-in stamp's tiles become that stamp (a whole tree gets its top above),
     //others go to the layer they usually sit on in real maps
-    if ((!stamp.layer) && (!stamp.terrain)) {
-      const same = brushes.find(({ w, h, tiles }) => (w === stamp.w) && (h === stamp.h) && (tiles.join() === stamp.tiles.join()));
+    if (!stamp.layer && !stamp.terrain) {
+      const same = brushes.find(({ w, h, tiles }) => w === stamp.w && h === stamp.h && tiles.join() === stamp.tiles.join());
       stamp = same ? { ...same } : { ...stamp, layer: layerOf(stamp.tiles) ?? undefined };
     }
     //See-through tiles never go on the ground (nothing is drawn under it, so the clear parts would show black)
-    if (((stamp.layer ?? this.#target) === "ground") && (stamp.tiles.some((value) => this.#seeThrough(value)))) {
+    if ((stamp.layer ?? this.#target) === "ground" && stamp.tiles.some((value) => this.#seeThrough(value))) {
       stamp = { ...stamp, layer: "decor" };
     }
     this.#stamp = { ...stamp, tiles: [...stamp.tiles] };
-    if ((stamp.layer) && (stamp.layer !== this.#target)) {
+    if (stamp.layer && stamp.layer !== this.#target) {
       this.#target = stamp.layer;
       this.#overlaysRefresh();
     }
-    if ((this.#tool !== "rect") && (this.#tool !== "fill")) {
+    if (this.#tool !== "rect" && this.#tool !== "fill") {
       this.#tool = "brush";
     }
     const id = JSON.stringify(stamp);
@@ -380,7 +400,7 @@ export class EditorEngine {
     }
     const index = y * this.#city.width + x;
     const [front, back] = [this.#city.layers.above[index], this.#city.layers.decor[index]];
-    return (front) && (back) ? { front, back } : null;
+    return front && back ? { front, back } : null;
   }
 
   /**
@@ -392,12 +412,13 @@ export class EditorEngine {
       return 0;
     }
     const { width } = this.#city;
-    const seen = new Set<number>(), queue = [tile];
+    const seen = new Set<number>(),
+      queue = [tile];
     this.#batch(() => {
       while (queue.length) {
         const { x, y } = queue.pop()!;
         const index = y * width + x;
-        if ((seen.has(index)) || (!this.stackAt({ x, y }))) {
+        if (seen.has(index) || !this.stackAt({ x, y })) {
           continue;
         }
         seen.add(index);
@@ -502,7 +523,17 @@ export class EditorEngine {
       const source = value ? this.source(decode(value).index) : null;
       if (source) {
         const { frame } = decode(value);
-        context.drawImage(source.canvas, (frame % source.columns) * size, Math.floor(frame / source.columns) * size, size, size, (i % stamp.w) * size * scale, Math.floor(i / stamp.w) * size * scale, size * scale, size * scale);
+        context.drawImage(
+          source.canvas,
+          (frame % source.columns) * size,
+          Math.floor(frame / source.columns) * size,
+          size,
+          size,
+          (i % stamp.w) * size * scale,
+          Math.floor(i / stamp.w) * size * scale,
+          size * scale,
+          size * scale,
+        );
       }
     });
     return canvas;
@@ -518,7 +549,7 @@ export class EditorEngine {
 
   /** Tile layer being edited (null on gameplay targets) */
   get layer() {
-    return (layers as readonly string[]).includes(this.#target) ? this.#target as Layer : null;
+    return (layers as readonly string[]).includes(this.#target) ? (this.#target as Layer) : null;
   }
 
   /** Values of a grid */
@@ -548,7 +579,7 @@ export class EditorEngine {
     if (emit) {
       this.onedit?.([[grid, index, value]]);
     }
-    if ((grid === "solid") || (grid === "zone") || (grid === "gate")) {
+    if (grid === "solid" || grid === "zone" || grid === "gate") {
       this.#grid(grid)[index] = value;
       this.#redrawOverlays();
     } else {
@@ -586,11 +617,11 @@ export class EditorEngine {
     if (!this.#map.inside({ x, y })) {
       return;
     }
-    if ((this.#tool === "erase") && (this.#shift)) {
+    if (this.#tool === "erase" && this.#shift) {
       //Shift+erase clears every tile layer of the square (not locked ones)
       for (const grid of layers) {
         if (!this.#locked.has(grid)) {
-          if ((this.#auto) && (tall(this.#city.layers[grid][y * this.#city.width + x]))) {
+          if (this.#auto && tall(this.#city.layers[grid][y * this.#city.width + x])) {
             this.#set("zone", x, y, 0);
           }
           this.#set(grid, x, y, 0);
@@ -601,7 +632,7 @@ export class EditorEngine {
     }
     if (this.#tool === "erase") {
       //Erasing tall grass removes its wild Pokémon too
-      if ((this.#auto) && (tall(this.#city.layers[layer][y * this.#city.width + x]))) {
+      if (this.#auto && tall(this.#city.layers[layer][y * this.#city.width + x])) {
         this.#set("zone", x, y, 0);
       }
       this.#set(layer, x, y, 0);
@@ -609,7 +640,7 @@ export class EditorEngine {
       this.#retile(layer, x, y);
       //Erasing objects also removes what was stacked above them (tree tops, overlapping pieces), but not roofs drawn there on purpose
       const up = this.#city.layers.above[y * this.#city.width + x];
-      if ((layer === "decor") && (up) && ((tops.has(up)) || ((up < range) && (!assets.above.has(up - 1))))) {
+      if (layer === "decor" && up && (tops.has(up) || (up < range && !assets.above.has(up - 1)))) {
         this.#set("above", x, y, 0);
       }
       return;
@@ -625,22 +656,23 @@ export class EditorEngine {
       return;
     }
     const { w, h, tiles } = this.#stamp;
-    const i = ((x - origin.x) % w + w) % w, j = ((y - origin.y) % h + h) % h;
+    const i = (((x - origin.x) % w) + w) % w,
+      j = (((y - origin.y) % h) + h) % h;
     const pool = this.#random ? tiles.filter(Boolean) : [];
     const value = pool.length ? pool[Math.floor(Math.random() * pool.length)] : tiles[j * w + i];
     //Tree tops go on the Above layer, over whatever stands behind them
-    if ((value) && (layer === "decor") && (j < (this.#stamp.top ?? 0)) && (!pool.length)) {
+    if (value && layer === "decor" && j < (this.#stamp.top ?? 0) && !pool.length) {
       this.#set("above", x, y, value);
       return;
     }
     //A see-through piece painted where a solid object (tree, rock, building) already stands goes over it instead of replacing it,
     //so what you paint last is on top. Walkable decoration (flowers, tall grass) is simply replaced
     const under = layer === "decor" ? this.#city.layers.decor[y * this.#city.width + x] : 0;
-    const blocking = (under >= range) || ((under > 0) && (!assets.walkable.has(under - 1)));
-    if ((value) && (blocking) && (under !== value) && (!this.#stamp.zone) && (this.#seeThrough(value)) && (!this.#city.layers.above[y * this.#city.width + x])) {
+    const blocking = under >= range || (under > 0 && !assets.walkable.has(under - 1));
+    if (value && blocking && under !== value && !this.#stamp.zone && this.#seeThrough(value) && !this.#city.layers.above[y * this.#city.width + x]) {
       this.#set("above", x, y, value);
       //It still blocks when it should (the Above layer never sets collision on its own)
-      if ((this.#auto) && (this.#stamp.solid !== "none") && ((value >= range) || (!assets.walkable.has(value - 1)))) {
+      if (this.#auto && this.#stamp.solid !== "none" && (value >= range || !assets.walkable.has(value - 1))) {
         this.#set("solid", x, y, 1);
       }
       return;
@@ -651,7 +683,7 @@ export class EditorEngine {
       this.#set(layer, x, y, value);
       this.#collide(layer, x, y);
       //Tall grass brings wild encounters along (and painting over it removes them)
-      if ((this.#auto) && (layer !== "above")) {
+      if (this.#auto && layer !== "above") {
         if (this.#stamp.zone) {
           this.#set("zone", x, y, this.#grassZone());
         } else if (tall(previous)) {
@@ -663,16 +695,17 @@ export class EditorEngine {
 
   /** Recompute collision of a cell after a tile change (when automatic collision is on) */
   #collide(layer: Layer, x: number, y: number) {
-    if ((!this.#auto) || (layer === "above")) {
+    if (!this.#auto || layer === "above") {
       return;
     }
     const index = y * this.#city.width + x;
-    const ground = this.#city.layers.ground[index] - 1, decor = this.#city.layers.decor[index] - 1;
-    let solid = (ground >= 0) && (assets.water.has(ground)) ? 1 : 0;
+    const ground = this.#city.layers.ground[index] - 1,
+      decor = this.#city.layers.decor[index] - 1;
+    let solid = ground >= 0 && assets.water.has(ground) ? 1 : 0;
     if (decor >= 0) {
-      const forced = (layer === "decor") && (this.#stamp.solid) && (this.#tool !== "erase") ? this.#stamp.solid : null;
+      const forced = layer === "decor" && this.#stamp.solid && this.#tool !== "erase" ? this.#stamp.solid : null;
       solid = forced === "all" ? 1 : forced === "none" ? solid : assets.walkable.has(decor) ? solid : 1;
-    } else if ((layer === "ground") && (this.#stamp.solid === "all") && (this.#tool !== "erase")) {
+    } else if (layer === "ground" && this.#stamp.solid === "all" && this.#tool !== "erase") {
       solid = 1;
     }
     this.#set("solid", x, y, solid);
@@ -682,7 +715,15 @@ export class EditorEngine {
   #grassZone() {
     let index = this.#city.zones.findIndex(({ name }) => /grass/i.test(name));
     if (index < 0) {
-      this.#city.zones.push({ name: "Tall grass", rate: 0.12, color: 0x2ecc40, creatures: [{ species: 263, min: 2, max: 4 }, { species: 265, min: 2, max: 4 }] });
+      this.#city.zones.push({
+        name: "Tall grass",
+        rate: 0.12,
+        color: 0x2ecc40,
+        creatures: [
+          { species: 263, min: 2, max: 4 },
+          { species: 265, min: 2, max: 4 },
+        ],
+      });
       index = this.#city.zones.length - 1;
       this.#emitMeta();
     }
@@ -692,7 +733,7 @@ export class EditorEngine {
   /** Re-pick terrain borders around a cell */
   #retile(layer: Layer, x: number, y: number) {
     const values = this.#city.layers[layer];
-    const of = (x: number, y: number) => this.#map.inside({ x, y }) ? terrainOf(values[y * this.#city.width + x]) : undefined;
+    const of = (x: number, y: number) => (this.#map.inside({ x, y }) ? terrainOf(values[y * this.#city.width + x]) : undefined);
     for (let j = -1; j <= 1; j++) {
       for (let i = -1; i <= 1; i++) {
         const [cx, cy] = [x + i, y + j];
@@ -712,7 +753,7 @@ export class EditorEngine {
 
   /** Stamp the whole brush at a position */
   #brush(x: number, y: number) {
-    if ((this.#tool === "erase") || (!this.layer) || (this.#random) || (this.#stamp.terrain)) {
+    if (this.#tool === "erase" || !this.layer || this.#random || this.#stamp.terrain) {
       return this.#paint(x, y);
     }
     const { w, h } = this.#stamp;
@@ -737,7 +778,7 @@ export class EditorEngine {
     while (queue.length) {
       const [cx, cy] = queue.pop()!;
       const index = cy * width + cx;
-      if ((cx < 0) || (cy < 0) || (cx >= width) || (cy >= height) || (seen[index]) || (values[index] !== from)) {
+      if (cx < 0 || cy < 0 || cx >= width || cy >= height || seen[index] || values[index] !== from) {
         continue;
       }
       seen[index] = 1;
@@ -766,7 +807,7 @@ export class EditorEngine {
   /** Pointer events on the map */
   #pointer(type: "down" | "move" | "up", tile: { x: number; y: number }, event?: PointerEvent) {
     //Alt+click picks the tile under the cursor as the brush, whatever the tool (like an eyedropper)
-    if ((type === "down") && (event?.altKey) && (this.layer) && (["brush", "rect", "fill", "erase"].includes(this.#tool))) {
+    if (type === "down" && event?.altKey && this.layer && ["brush", "rect", "fill", "erase"].includes(this.#tool)) {
       this.#grabbing = true;
       return this.#pick(tile);
     }
@@ -776,7 +817,7 @@ export class EditorEngine {
     }
     this.#shift = Boolean(event?.shiftKey);
     //Shift while dragging a brush or eraser keeps the stroke on a straight line
-    if ((type === "move") && (this.#shift) && (this.#stroke) && ((this.#tool === "brush") || (this.#tool === "erase"))) {
+    if (type === "move" && this.#shift && this.#stroke && (this.#tool === "brush" || this.#tool === "erase")) {
       const { start } = this.#stroke;
       tile = Math.abs(tile.x - start.x) >= Math.abs(tile.y - start.y) ? { x: tile.x, y: start.y } : { x: start.x, y: tile.y };
     }
@@ -789,9 +830,9 @@ export class EditorEngine {
     if (this.#tool === "select") {
       return this.#selecting(type, tile);
     }
-    if ((type === "move") || (type === "down")) {
-      const stamped = (this.layer) && (this.#tool === "brush") && (!this.#random) && (!this.#stamp.terrain);
-      if ((this.#stroke) && (this.#tool === "rect")) {
+    if (type === "move" || type === "down") {
+      const stamped = this.layer && this.#tool === "brush" && !this.#random && !this.#stamp.terrain;
+      if (this.#stroke && this.#tool === "rect") {
         const { start } = this.#stroke;
         this.#map.cursor(Math.min(start.x, x), Math.min(start.y, y), Math.abs(x - start.x) + 1, Math.abs(y - start.y) + 1, 0x7fdbff);
       } else {
@@ -802,13 +843,13 @@ export class EditorEngine {
     }
 
     //Path drawing, people, doors and spawn
-    if ((this.#target === "npc") && (this.#pathing >= 0)) {
+    if (this.#target === "npc" && this.#pathing >= 0) {
       return this.#placePath(type, tile);
     }
     if (placing.includes(this.#target)) {
       return this.#placing(type, tile);
     }
-    if ((this.#target === "story") && (this.#blocking)) {
+    if (this.#target === "story" && this.#blocking) {
       return this.#placeBlocker(type, tile);
     }
 
@@ -820,7 +861,7 @@ export class EditorEngine {
         ui.toast(`${targets.find(({ key }) => key === this.#target)!.label} layer is locked`, "error");
         return;
       }
-      if ((this.#target === "story") && (!this.#step) && (this.#tool !== "erase")) {
+      if (this.#target === "story" && !this.#step && this.#tool !== "erase") {
         ui.toast("Add a story step first, then paint its gates", "error");
         return;
       }
@@ -830,23 +871,24 @@ export class EditorEngine {
       } else if (this.#tool !== "rect") {
         this.#brush(x, y);
       }
-    } else if ((type === "move") && (this.#stroke) && ((this.#tool === "brush") || (this.#tool === "erase"))) {
+    } else if (type === "move" && this.#stroke && (this.#tool === "brush" || this.#tool === "erase")) {
       //Interpolate between the last and current position
       const { last } = this.#stroke;
       const steps = Math.max(Math.abs(x - last.x), Math.abs(y - last.y));
       for (let s = 1; s <= steps; s++) {
-        const px = Math.round(last.x + (x - last.x) * s / steps), py = Math.round(last.y + (y - last.y) * s / steps);
+        const px = Math.round(last.x + ((x - last.x) * s) / steps),
+          py = Math.round(last.y + ((y - last.y) * s) / steps);
         //Large stamps only paint on stamp-aligned positions to avoid smearing
-        if ((this.layer) && (this.#tool === "brush") && ((this.#stamp.w > 1) || (this.#stamp.h > 1))) {
+        if (this.layer && this.#tool === "brush" && (this.#stamp.w > 1 || this.#stamp.h > 1)) {
           const { start } = this.#stroke;
-          if (((px - start.x) % this.#stamp.w) || ((py - start.y) % this.#stamp.h)) {
+          if ((px - start.x) % this.#stamp.w || (py - start.y) % this.#stamp.h) {
             continue;
           }
         }
         this.#brush(px, py);
       }
       this.#stroke.last = tile;
-    } else if ((type === "up") && (this.#stroke)) {
+    } else if (type === "up" && this.#stroke) {
       if (this.#tool === "rect") {
         const { start } = this.#stroke;
         for (let j = Math.min(start.y, y); j <= Math.max(start.y, y); j++) {
@@ -872,39 +914,39 @@ export class EditorEngine {
 
   /** Keyboard shortcuts */
   #keys = (event: KeyboardEvent) => {
-    if (((event.target as HTMLElement)?.closest?.("input, textarea, select, [contenteditable]")) || (document.querySelector("[role=dialog], [role=alertdialog]"))) {
+    if ((event.target as HTMLElement)?.closest?.("input, textarea, select, [contenteditable]") || document.querySelector("[role=dialog], [role=alertdialog]")) {
       return;
     }
     const key = event.key.toLowerCase();
-    if ((event.ctrlKey || event.metaKey) && (key === "z")) {
+    if ((event.ctrlKey || event.metaKey) && key === "z") {
       event.preventDefault();
       return event.shiftKey ? this.redo() : this.undo();
     }
-    if ((event.ctrlKey || event.metaKey) && (key === "y")) {
+    if ((event.ctrlKey || event.metaKey) && key === "y") {
       event.preventDefault();
       return this.redo();
     }
-    if ((event.ctrlKey || event.metaKey) && (["c", "x", "v"].includes(key))) {
+    if ((event.ctrlKey || event.metaKey) && ["c", "x", "v"].includes(key)) {
       event.preventDefault();
       return key === "c" ? this.copy() : key === "x" ? this.cut() : this.paste();
     }
-    if ((event.ctrlKey || event.metaKey) && (key === "a")) {
+    if ((event.ctrlKey || event.metaKey) && key === "a") {
       event.preventDefault();
       return this.selectAll();
     }
-    if ((event.ctrlKey || event.metaKey) && (key === "d")) {
+    if ((event.ctrlKey || event.metaKey) && key === "d") {
       event.preventDefault();
       return this.duplicate();
     }
     //Arrow keys move the selection (Shift: 5 tiles)
     const arrow = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[key];
-    if ((arrow) && (this.#area) && (!this.#pasting)) {
+    if (arrow && this.#area && !this.#pasting) {
       event.preventDefault();
       const step = event.shiftKey ? 5 : 1;
       return this.nudge(arrow[0] * step, arrow[1] * step);
     }
     //⇧1 fits the map, ⇧2 zooms to the selection (by key position, whatever the keyboard layout)
-    if ((event.shiftKey) && (!event.ctrlKey) && (!event.metaKey) && ((event.code === "Digit1") || (event.code === "Digit2"))) {
+    if (event.shiftKey && !event.ctrlKey && !event.metaKey && (event.code === "Digit1" || event.code === "Digit2")) {
       event.preventDefault();
       return event.code === "Digit1" ? this.#map.fit() : this.zoomToSelection();
     }
@@ -921,7 +963,7 @@ export class EditorEngine {
       this.#ghostRefresh();
       return this.#notify();
     }
-    if (((key === "delete") || (key === "backspace")) && (this.#area) && (this.#tool === "select")) {
+    if ((key === "delete" || key === "backspace") && this.#area && this.#tool === "select") {
       return this.clear();
     }
     if (event.ctrlKey || event.metaKey || event.altKey) {
@@ -931,7 +973,7 @@ export class EditorEngine {
     if (tool) {
       return this.setTool(tool.key);
     }
-    if ((Number(key) >= 1) && (Number(key) <= targets.length)) {
+    if (Number(key) >= 1 && Number(key) <= targets.length) {
       return this.select(targets[Number(key) - 1].key);
     }
     if (key === "g") {
@@ -946,14 +988,14 @@ export class EditorEngine {
       return this.setTool(this.#tool === "erase" ? "brush" : "erase");
     }
     //] brings the piece behind to the front, [ sends the front piece back (where two overlap under the cursor)
-    if (((key === "]") || (key === "[")) && (this.#hovered)) {
+    if ((key === "]" || key === "[") && this.#hovered) {
       if (!this.stackAt(this.#hovered)) {
         return ui.toast("Point at a square where two pieces overlap", "info");
       }
       this.reorder(this.#hovered);
       return;
     }
-    if (((key === "delete") || (key === "backspace")) && (this.#selected >= 0)) {
+    if ((key === "delete" || key === "backspace") && this.#selected >= 0) {
       this.deleteNpc();
     }
   };
@@ -984,7 +1026,7 @@ export class EditorEngine {
   /** Select tool: drag to select an area, or click to paste in paste mode */
   #selecting(type: "down" | "move" | "up", tile: { x: number; y: number }) {
     const { x, y } = tile;
-    if ((this.#pasting) && (this.#clip)) {
+    if (this.#pasting && this.#clip) {
       this.#map.cursor(x, y, this.#clip.w, this.#clip.h, 0xf2bf4b);
       this.#ghost.visible = this.#map.inside(tile);
       this.#ghost.position.set(x * size, y * size);
@@ -995,16 +1037,24 @@ export class EditorEngine {
     }
     this.#ghost.visible = false;
     this.#map.cursor(x, y, 1, 1, 0xf2bf4b);
-    const clamp = ({ x, y }: { x: number; y: number }) => ({ x: Math.max(0, Math.min(this.#city.width - 1, x)), y: Math.max(0, Math.min(this.#city.height - 1, y)) });
+    const clamp = ({ x, y }: { x: number; y: number }) => ({
+      x: Math.max(0, Math.min(this.#city.width - 1, x)),
+      y: Math.max(0, Math.min(this.#city.height - 1, y)),
+    });
     if (type === "down") {
       this.#from = clamp(tile);
     }
     if (this.#from) {
       const to = clamp(tile);
-      this.#area = { x: Math.min(this.#from.x, to.x), y: Math.min(this.#from.y, to.y), w: Math.abs(to.x - this.#from.x) + 1, h: Math.abs(to.y - this.#from.y) + 1 };
+      this.#area = {
+        x: Math.min(this.#from.x, to.x),
+        y: Math.min(this.#from.y, to.y),
+        w: Math.abs(to.x - this.#from.x) + 1,
+        h: Math.abs(to.y - this.#from.y) + 1,
+      };
       this.#drawMarquee();
     }
-    if ((type === "up") && (this.#from)) {
+    if (type === "up" && this.#from) {
       this.#from = null;
       this.#notify();
     }
@@ -1015,7 +1065,11 @@ export class EditorEngine {
     this.#marquee.clear();
     if (this.#area) {
       const { x, y, w, h } = this.#area;
-      this.#marquee.beginFill(0xf2bf4b, 0.12).lineStyle({ width: 1, color: 0xf2bf4b, alpha: 1, native: true }).drawRect(x * size, y * size, w * size, h * size).endFill();
+      this.#marquee
+        .beginFill(0xf2bf4b, 0.12)
+        .lineStyle({ width: 1, color: 0xf2bf4b, alpha: 1, native: true })
+        .drawRect(x * size, y * size, w * size, h * size)
+        .endFill();
     }
   }
 
@@ -1099,8 +1153,8 @@ export class EditorEngine {
       }
       clip.grids[grid].forEach((value, i) => {
         //Empty tiles are transparent, collision and encounters are copied as is
-        if ((value) || (grid === "solid") || (grid === "zone")) {
-          this.#set(grid, x + i % clip.w, y + Math.floor(i / clip.w), value);
+        if (value || grid === "solid" || grid === "zone") {
+          this.#set(grid, x + (i % clip.w), y + Math.floor(i / clip.w), value);
         }
       });
     }
@@ -1123,8 +1177,13 @@ export class EditorEngine {
     }
     const { x, y, w, h } = this.#area;
     const { width, height } = this.#city;
-    const spots = [{ x: x + w, y }, { x, y: y + h }, { x: x - w, y }, { x, y: y - h }];
-    const spot = spots.find(({ x, y }) => (x >= 0) && (y >= 0) && (x + w <= width) && (y + h <= height));
+    const spots = [
+      { x: x + w, y },
+      { x, y: y + h },
+      { x: x - w, y },
+      { x, y: y - h },
+    ];
+    const spot = spots.find(({ x, y }) => x >= 0 && y >= 0 && x + w <= width && y + h <= height);
     if (!spot) {
       return ui.toast("No room next to the selection for a copy", "error");
     }
@@ -1142,7 +1201,7 @@ export class EditorEngine {
     }
     const { x, y, w, h } = this.#area;
     const [nx, ny] = [Math.max(0, Math.min(this.#city.width - w, x + dx)), Math.max(0, Math.min(this.#city.height - h, y + dy))];
-    if ((nx === x) && (ny === y)) {
+    if (nx === x && ny === y) {
       return;
     }
     const clip = this.#grab(this.#area);
@@ -1178,10 +1237,16 @@ export class EditorEngine {
     }
     const { x, y, w, h } = this.#area;
     const index = (i: number, j: number) => (y + j) * this.#city.width + x + i;
-    const layer = this.layer ?? ([...layers].reverse().find((layer) => this.#city.layers[layer].some((_, k) => {
-      const i = k % this.#city.width - x, j = Math.floor(k / this.#city.width) - y;
-      return (i >= 0) && (j >= 0) && (i < w) && (j < h) && (this.#city.layers[layer][k]);
-    })) ?? "ground");
+    const layer =
+      this.layer ??
+      [...layers].reverse().find((layer) =>
+        this.#city.layers[layer].some((_, k) => {
+          const i = (k % this.#city.width) - x,
+            j = Math.floor(k / this.#city.width) - y;
+          return i >= 0 && j >= 0 && i < w && j < h && this.#city.layers[layer][k];
+        }),
+      ) ??
+      "ground";
     const tiles = [];
     for (let j = 0; j < h; j++) {
       for (let i = 0; i < w; i++) {
@@ -1212,11 +1277,26 @@ export class EditorEngine {
     map.doors.push({ x: mid, y: map.height - 1, to: "", tx: -1, ty: -1 });
     map.solid[(map.height - 1) * map.width + mid] = 0;
     map.layers.ground[(map.height - 1) * map.width + mid] = floor;
-    const person = (npc: Partial<Npc>) => map.npcs.push({ x: mid, y: 3, sprite: "generic_f1", dir: "down", name: "", dialogue: "", role: "talk", wander: false, ...npc } as Npc);
+    const person = (npc: Partial<Npc>) =>
+      map.npcs.push({ x: mid, y: 3, sprite: "generic_f1", dir: "down", name: "", dialogue: "", role: "talk", wander: false, ...npc } as Npc);
     if (template === "center") {
       person({ sprite: "shopkeeper_f", name: "Nurse", dialogue: "Welcome to the Pokémon Center!", role: "healer" });
     } else if (template === "gym") {
-      person({ sprite: "roxanne", name: "Gym Leader", dialogue: "Welcome, challenger! Show me what you've got!", role: "trainer", trainer: { team: [{ species: 74, level: 12 }, { species: 299, level: 15 }], gym: true, badge: "", defeat: "You've earned this badge!" } });
+      person({
+        sprite: "roxanne",
+        name: "Gym Leader",
+        dialogue: "Welcome, challenger! Show me what you've got!",
+        role: "trainer",
+        trainer: {
+          team: [
+            { species: 74, level: 12 },
+            { species: 299, level: 15 },
+          ],
+          gym: true,
+          badge: "",
+          defeat: "You've earned this badge!",
+        },
+      });
     } else if (template === "house") {
       person({ sprite: "mom", name: "Mom", dialogue: "Make yourself at home!", wander: true });
     }
@@ -1229,16 +1309,28 @@ export class EditorEngine {
   newOutdoor(kind: "route" | "town") {
     const world = this.#world;
     const beside = isOutdoor(world, this.#city) ? this.#city : world;
-    const sizes = kind === "town" ? [{ width: 30, height: 24, sides: ["up", "right", "down", "left"] as Side[] }] : [{ width: 20, height: 40, sides: ["up", "down"] as Side[] }, { width: 40, height: 20, sides: ["right", "left"] as Side[] }];
+    const sizes =
+      kind === "town"
+        ? [{ width: 30, height: 24, sides: ["up", "right", "down", "left"] as Side[] }]
+        : [
+            { width: 20, height: 40, sides: ["up", "down"] as Side[] },
+            { width: 40, height: 20, sides: ["right", "left"] as Side[] },
+          ];
     for (const { width, height, sides } of sizes) {
       const place = spot(world, { width, height }, beside, sides);
       if (!place) {
         continue;
       }
-      const count = world.interiors.filter((map) => (map.outdoor) && (kind === "town" ? !map.name.startsWith("Route") : map.name.startsWith("Route"))).length;
+      const count = world.interiors.filter((map) => map.outdoor && (kind === "town" ? !map.name.startsWith("Route") : map.name.startsWith("Route"))).length;
       let map = null as null | City;
       this.#town(() => {
-        map = outdoor(world, { name: kind === "town" ? (count ? `New Town ${count + 1}` : "New Town") : `Route ${101 + count}`, width, height, x: place.x, y: place.y });
+        map = outdoor(world, {
+          name: kind === "town" ? (count ? `New Town ${count + 1}` : "New Town") : `Route ${101 + count}`,
+          width,
+          height,
+          x: place.x,
+          y: place.y,
+        });
         (kind === "town" ? town : route)(map, place.side);
       });
       this.onmaps?.();
@@ -1251,10 +1343,10 @@ export class EditorEngine {
   /** Move an outdoor map on the region grid (false when it would overlap another map) */
   moveMap(id: string, x: number, y: number) {
     const map = this.#world.interiors.find((map) => map.id === id);
-    if ((!map?.outdoor) || (collides(this.#world, map, x, y))) {
+    if (!map?.outdoor || collides(this.#world, map, x, y)) {
       return false;
     }
-    this.#town(() => map.region = { x, y });
+    this.#town(() => (map.region = { x, y }));
     this.onmaps?.();
     this.#map.drawNeighbors();
     this.#notify();
@@ -1282,7 +1374,7 @@ export class EditorEngine {
   /** Rename the open interior */
   renameInterior(name: string) {
     if (this.mapId) {
-      this.#town(() => this.#city.name = name.trim().slice(0, 30) || "Interior");
+      this.#town(() => (this.#city.name = name.trim().slice(0, 30) || "Interior"));
       this.onmaps?.();
       this.#notify();
     }
@@ -1290,7 +1382,7 @@ export class EditorEngine {
 
   /** Display name of a map id */
   mapName(id: string) {
-    return id === "?" ? "nowhere yet" : id ? this.#world.interiors.find((map) => map.id === id)?.name ?? "missing map" : "Outside";
+    return id === "?" ? "nowhere yet" : id ? (this.#world.interiors.find((map) => map.id === id)?.name ?? "missing map") : "Outside";
   }
 
   //=================================================================================================
@@ -1305,7 +1397,14 @@ export class EditorEngine {
   /** Add an encounter zone */
   addZone() {
     const zones = this.#city.zones;
-    this.mutate(() => zones.push({ name: `Zone ${zones.length + 1}`, rate: 0.1, color: zoneColors[zones.length % zoneColors.length], creatures: [{ species: 129, min: 5, max: 10 }] }));
+    this.mutate(() =>
+      zones.push({
+        name: `Zone ${zones.length + 1}`,
+        rate: 0.1,
+        color: zoneColors[zones.length % zoneColors.length],
+        creatures: [{ species: 129, min: 5, max: 10 }],
+      }),
+    );
     this.#zone = zones.length;
     this.#notify();
   }
@@ -1314,7 +1413,11 @@ export class EditorEngine {
   deleteZone(index: number) {
     const zones = this.#city.zones;
     this.mutate(() => zones.splice(index, 1));
-    this.#batch(() => this.#city.zone.forEach((value, i) => (value >= index + 1) && this.#set("zone", i % this.#city.width, Math.floor(i / this.#city.width), value === index + 1 ? 0 : value - 1)));
+    this.#batch(() =>
+      this.#city.zone.forEach(
+        (value, i) => value >= index + 1 && this.#set("zone", i % this.#city.width, Math.floor(i / this.#city.width), value === index + 1 ? 0 : value - 1),
+      ),
+    );
     this.#zone = Math.max(1, Math.min(this.#zone, zones.length));
     this.#map.drawZones();
     this.#notify();
@@ -1326,10 +1429,10 @@ export class EditorEngine {
   /** Selected story step number (gates are painted with it), defaulting to the first step */
   get currentStep() {
     const story = this.#city.story;
-    if ((this.#step) && (!story.some(({ n }) => n === this.#step))) {
+    if (this.#step && !story.some(({ n }) => n === this.#step)) {
       this.#step = 0;
     }
-    if ((!this.#step) && (story.length)) {
+    if (!this.#step && story.length) {
       this.#step = story[0].n;
     }
     return this.#step;
@@ -1359,7 +1462,7 @@ export class EditorEngine {
     const step = story.find((step) => step.id === id);
     const lane = story.filter((other) => (other.quest ?? "") === (step?.quest ?? ""));
     const other = lane[lane.indexOf(step!) + delta];
-    if ((!step) || (!other)) {
+    if (!step || !other) {
       return;
     }
     const [a, b] = [story.indexOf(step), story.indexOf(other)];
@@ -1379,7 +1482,12 @@ export class EditorEngine {
     for (const step of this.#city.story.filter((step) => step.quest === id)) {
       this.deleteStep(step.id);
     }
-    this.mutate(() => this.#city.quests.splice(this.#city.quests.findIndex((quest) => quest.id === id), 1));
+    this.mutate(() =>
+      this.#city.quests.splice(
+        this.#city.quests.findIndex((quest) => quest.id === id),
+        1,
+      ),
+    );
   }
 
   /** Delete a step: its gates open and people stop using it */
@@ -1399,7 +1507,7 @@ export class EditorEngine {
       }
     });
     for (const map of [this.#world, ...this.#world.interiors]) {
-      map.gate.forEach((value, index) => (value === step.n) && (map === this.#city ? this.#apply("gate", index, 0) : map.gate[index] = 0));
+      map.gate.forEach((value, index) => value === step.n && (map === this.#city ? this.#apply("gate", index, 0) : (map.gate[index] = 0)));
       for (const npc of map.npcs) {
         for (const key of ["after", "until", "requires", "completes"] as const) {
           if (npc.story?.[key] === step.id) {
@@ -1425,7 +1533,7 @@ export class EditorEngine {
 
   /** What blocks the way until a step is done */
   setBlocker(step: Step, blocker: NonNullable<Step["blocker"]>) {
-    this.mutate(() => step.blocker = blocker);
+    this.mutate(() => (step.blocker = blocker));
     this.#map.drawBlockers();
     this.#notify();
   }
@@ -1434,7 +1542,7 @@ export class EditorEngine {
   setObstacle(step: Step, tile: number, message = "") {
     this.mutate(() => {
       step.tile = tile;
-      if ((message) && ((!step.blocked) || (step.blocked.startsWith("The path is blocked")) || (obstacles.some((obstacle) => obstacle.message === step.blocked)))) {
+      if (message && (!step.blocked || step.blocked.startsWith("The path is blocked") || obstacles.some((obstacle) => obstacle.message === step.blocked))) {
         step.blocked = message;
       }
     });
@@ -1468,14 +1576,26 @@ export class EditorEngine {
     this.#ghost.visible = inside;
     this.#ghost.position.set(x * size, y * size);
     this.#map.cursor(x, y, 1, 1, 0xf2bf4b);
-    if ((type !== "down") || (!inside)) {
+    if (type !== "down" || !inside) {
       return;
     }
-    if (this.#city.npcs.some((npc) => (npc.x === x) && (npc.y === y))) {
+    if (this.#city.npcs.some((npc) => npc.x === x && npc.y === y)) {
       return ui.toast("Someone is already standing there", "error");
     }
     const until = this.#blocking;
-    this.mutate(() => this.#city.npcs.push({ x, y, sprite: "hiker", dir: "down", name: "Hiker", dialogue: "Sorry, I can't let anyone through right now.", role: "talk", wander: false, story: { until } }));
+    this.mutate(() =>
+      this.#city.npcs.push({
+        x,
+        y,
+        sprite: "hiker",
+        dir: "down",
+        name: "Hiker",
+        dialogue: "Sorry, I can't let anyone through right now.",
+        role: "talk",
+        wander: false,
+        story: { until },
+      }),
+    );
     this.stopBlocking();
     this.#markersRefresh();
     ui.toast("Placed! Use Edit to change how they look and what they say", "success");
@@ -1485,7 +1605,7 @@ export class EditorEngine {
   blockWith(index: number, id: string) {
     const npc = this.#city.npcs[index];
     if (npc) {
-      this.mutate(() => (npc.story ??= {}).until = id);
+      this.mutate(() => ((npc.story ??= {}).until = id));
       this.#markersRefresh();
       this.#notify();
     }
@@ -1524,9 +1644,9 @@ export class EditorEngine {
     }
     if (value.startsWith("new:")) {
       const map = this.newInterior(value.slice(4) as Template);
-      this.mutate(() => door.to = map.id);
+      this.mutate(() => (door.to = map.id));
     } else {
-      this.mutate(() => door.to = value);
+      this.mutate(() => (door.to = value));
     }
     this.#markersRefresh();
     this.#notify();
@@ -1582,7 +1702,7 @@ export class EditorEngine {
   /** Turn the selected person into another kind */
   convertNpc(kind: Kind) {
     const npc = this.#city.npcs[this.#selected];
-    if ((npc) && (kindOf(npc) !== kind)) {
+    if (npc && kindOf(npc) !== kind) {
       this.mutate(() => convert(npc, kind, this.#city.name));
     }
   }
@@ -1595,7 +1715,7 @@ export class EditorEngine {
     }
     if (this.#target === "spawn") {
       if (type === "down") {
-        this.mutate(() => this.#city.spawn = { x, y });
+        this.mutate(() => (this.#city.spawn = { x, y }));
       }
       return;
     }
@@ -1603,7 +1723,7 @@ export class EditorEngine {
       if (type !== "down") {
         return;
       }
-      const at = this.#city.doors.findIndex((door) => (door.x === x) && (door.y === y));
+      const at = this.#city.doors.findIndex((door) => door.x === x && door.y === y);
       if (at >= 0) {
         this.#door = at;
       } else {
@@ -1617,7 +1737,7 @@ export class EditorEngine {
       this.#notify();
       return;
     }
-    const at = this.#city.npcs.findIndex((npc) => (npc.x === x) && (npc.y === y));
+    const at = this.#city.npcs.findIndex((npc) => npc.x === x && npc.y === y);
     if (type === "down") {
       if (at >= 0) {
         this.#selected = at;
@@ -1630,24 +1750,29 @@ export class EditorEngine {
           this.#city.npcs.push(npc);
         });
         //Signs get a sign post when nothing stands there yet
-        if ((this.#adding === "sign") && (!this.#city.layers.decor[y * this.#city.width + x])) {
+        if (this.#adding === "sign" && !this.#city.layers.decor[y * this.#city.width + x]) {
           this.#batch(() => (this.#set("decor", x, y, 206), this.#set("solid", x, y, 1)));
         }
         this.#selected = this.#city.npcs.length - 1;
       }
       this.#markersRefresh();
       this.#notify();
-    } else if ((type === "move") && (this.#dragging >= 0) && (at < 0)) {
+    } else if (type === "move" && this.#dragging >= 0 && at < 0) {
       const dragged = this.#city.npcs[this.#dragging];
       //Their path moves with them
-      dragged.path?.points.forEach((point) => (point.x += x - dragged.x, point.y += y - dragged.y));
+      dragged.path?.points.forEach((point) => ((point.x += x - dragged.x), (point.y += y - dragged.y)));
       Object.assign(dragged, { x, y });
       this.#markersRefresh();
-    } else if ((type === "up") && (this.#dragging >= 0)) {
+    } else if (type === "up" && this.#dragging >= 0) {
       this.#dragging = -1;
       const after = JSON.stringify(this.#city.npcs);
       if (after !== this.#snapshot) {
-        this.#push({ snapshot: { before: JSON.stringify({ npcs: JSON.parse(this.#snapshot), spawn: this.#city.spawn }), after: JSON.stringify({ npcs: this.#city.npcs, spawn: this.#city.spawn }) } });
+        this.#push({
+          snapshot: {
+            before: JSON.stringify({ npcs: JSON.parse(this.#snapshot), spawn: this.#city.spawn }),
+            after: JSON.stringify({ npcs: this.#city.npcs, spawn: this.#city.spawn }),
+          },
+        });
       }
       this.#notify();
     }
@@ -1679,11 +1804,11 @@ export class EditorEngine {
       return this.stopPath();
     }
     this.#map.cursor(tile.x, tile.y, 1, 1, 0xf2bf4b);
-    if ((type !== "down") || (!this.#map.inside(tile))) {
+    if (type !== "down" || !this.#map.inside(tile)) {
       return;
     }
     const last = npc.path.points.at(-1) ?? npc;
-    if ((last.x === tile.x) && (last.y === tile.y)) {
+    if (last.x === tile.x && last.y === tile.y) {
       return;
     }
     this.mutate(() => npc.path!.points.push({ x: tile.x, y: tile.y }));
@@ -1705,11 +1830,14 @@ export class EditorEngine {
       if (!npc.path?.points.length) {
         return;
       }
-      const active = (i === this.#selected) || (i === this.#pathing);
+      const active = i === this.#selected || i === this.#pathing;
       const stops = [{ x: npc.x, y: npc.y }, ...npc.path.points];
       const color = active ? 0xf2bf4b : 0xfafafa;
       //Across first, then up or down, like they walk in play mode
-      const leg = (from: { x: number; y: number }, to: { x: number; y: number }) => (route.lineTo(...center({ x: to.x, y: from.y })), route.lineTo(...center(to)));
+      const leg = (from: { x: number; y: number }, to: { x: number; y: number }) => (
+        route.lineTo(...center({ x: to.x, y: from.y })),
+        route.lineTo(...center(to))
+      );
       route.lineStyle({ width: active ? 2 : 1, color, alpha: active ? 0.95 : 0.35 });
       route.moveTo(...center(stops[0]));
       stops.slice(1).forEach((stop, n) => leg(stops[n], stop));
@@ -1720,7 +1848,10 @@ export class EditorEngine {
       route.lineStyle(0);
       stops.slice(1).forEach((stop, n) => {
         const [cx, cy] = center(stop);
-        route.beginFill(active ? 0xf2bf4b : 0xfafafa, active ? 1 : 0.4).drawCircle(cx, cy, active ? 3.5 : 2).endFill();
+        route
+          .beginFill(active ? 0xf2bf4b : 0xfafafa, active ? 1 : 0.4)
+          .drawCircle(cx, cy, active ? 3.5 : 2)
+          .endFill();
         if (active) {
           const label = this.#markers.addChild(new PIXI.Text(`${n + 1}`, { fontSize: 8, fontWeight: "bold", fill: 0x171717 }));
           label.anchor.set(0.5);
@@ -1737,7 +1868,15 @@ export class EditorEngine {
 
   /** Apply a snapshot-tracked change (people, spawn, zones, story and doors) as one undo step */
   mutate(fn: () => void) {
-    const snapshot = () => JSON.stringify({ npcs: this.#city.npcs, spawn: this.#city.spawn, zones: this.#city.zones, story: this.#city.story, quests: this.#city.quests, doors: this.#city.doors });
+    const snapshot = () =>
+      JSON.stringify({
+        npcs: this.#city.npcs,
+        spawn: this.#city.spawn,
+        zones: this.#city.zones,
+        story: this.#city.story,
+        quests: this.#city.quests,
+        doors: this.#city.doors,
+      });
     const before = snapshot();
     fn();
     const after = snapshot();
@@ -1758,7 +1897,14 @@ export class EditorEngine {
 
   /** Send people, spawn, zones, story and doors to the live room */
   #emitMeta() {
-    this.onmeta?.({ npcs: this.#city.npcs, spawn: this.#city.spawn, zones: this.#city.zones, story: this.#city.story, quests: this.#city.quests, doors: this.#city.doors });
+    this.onmeta?.({
+      npcs: this.#city.npcs,
+      spawn: this.#city.spawn,
+      zones: this.#city.zones,
+      story: this.#city.story,
+      quests: this.#city.quests,
+      doors: this.#city.doors,
+    });
   }
 
   /** Push a history entry */
@@ -1835,11 +1981,11 @@ export class EditorEngine {
   /** Overlay visibility depends on the target */
   #overlaysRefresh() {
     const { solid, zone, gate } = this.#map.overlays;
-    solid.visible = ((this.#target === "solid") || (this.#target === "decor")) && (!this.#hidden.has("solid"));
-    zone.visible = (this.#target === "zone") && (!this.#hidden.has("zone"));
-    gate.visible = ((this.#target === "story") || (this.#target === "door")) && (!this.#hidden.has("story"));
+    solid.visible = (this.#target === "solid" || this.#target === "decor") && !this.#hidden.has("solid");
+    zone.visible = this.#target === "zone" && !this.#hidden.has("zone");
+    gate.visible = (this.#target === "story" || this.#target === "door") && !this.#hidden.has("story");
     for (const layer of layers) {
-      this.#map.containers[layer].alpha = (this.#target === "ground") && (layer !== "ground") ? 0.7 : 1;
+      this.#map.containers[layer].alpha = this.#target === "ground" && layer !== "ground" ? 0.7 : 1;
       this.#map.containers[layer].visible = !this.#hidden.has(layer);
     }
   }
@@ -1854,7 +2000,7 @@ export class EditorEngine {
           tile.position.set((i % w) * size, Math.floor(i / w) * size);
         }
       });
-    if ((this.#pasting) && (this.#clip)) {
+    if (this.#pasting && this.#clip) {
       for (const layer of layers) {
         draw(this.#clip.w, this.#clip.grids[layer]);
       }
@@ -1886,26 +2032,43 @@ export class EditorEngine {
       }
       marker.zIndex = npc.y;
       const ring = (color: number) => {
-        const graphic = this.#markers.addChild(new PIXI.Graphics().lineStyle({ width: 1, color, native: true }).drawRect(npc.x * size, npc.y * size - 4, size, size + 4));
+        const graphic = this.#markers.addChild(
+          new PIXI.Graphics().lineStyle({ width: 1, color, native: true }).drawRect(npc.x * size, npc.y * size - 4, size, size + 4),
+        );
         graphic.zIndex = 9999;
       };
-      if ((this.#target === "story") && (step) && (npc.story?.until === step.id)) {
+      if (this.#target === "story" && step && npc.story?.until === step.id) {
         ring(0xf2bf4b);
       }
-      if ((this.#target === "npc") && (i === this.#selected)) {
+      if (this.#target === "npc" && i === this.#selected) {
         ring(0xffdc00);
       }
-      if ((npc.role === "trainer") || (npc.role === "wild")) {
-        const badge = this.#markers.addChild(new PIXI.Text(npc.role === "wild" ? "!" : npc.trainer?.gym ? "★" : "!", { fontSize: 10, fontWeight: "bold", fill: npc.trainer?.gym ? 0xffdc00 : 0xff4136, stroke: 0x000000, strokeThickness: 2 }));
+      if (npc.role === "trainer" || npc.role === "wild") {
+        const badge = this.#markers.addChild(
+          new PIXI.Text(npc.role === "wild" ? "!" : npc.trainer?.gym ? "★" : "!", {
+            fontSize: 10,
+            fontWeight: "bold",
+            fill: npc.trainer?.gym ? 0xffdc00 : 0xff4136,
+            stroke: 0x000000,
+            strokeThickness: 2,
+          }),
+        );
         badge.position.set(npc.x * size + 11, npc.y * size - 8);
         badge.zIndex = 9999;
       }
     });
     this.#city.doors.forEach((door, i) => {
-      const selected = (this.#target === "door") && (i === this.#door);
+      const selected = this.#target === "door" && i === this.#door;
       const marker = this.#markers.addChild(new PIXI.Graphics());
-      marker.beginFill(door.to === "?" ? 0xf06a6a : 0x9b6b3f, 0.55).lineStyle({ width: 1, color: selected ? 0xf2bf4b : 0xfafafa, alpha: 1, native: true }).drawRect(door.x * size + 2, door.y * size + 2, size - 4, size - 4).endFill();
-      marker.lineStyle({ width: 1, color: 0xfafafa, alpha: 0.9, native: true }).moveTo(door.x * size + 8, door.y * size + 5).lineTo(door.x * size + 8, door.y * size + 11);
+      marker
+        .beginFill(door.to === "?" ? 0xf06a6a : 0x9b6b3f, 0.55)
+        .lineStyle({ width: 1, color: selected ? 0xf2bf4b : 0xfafafa, alpha: 1, native: true })
+        .drawRect(door.x * size + 2, door.y * size + 2, size - 4, size - 4)
+        .endFill();
+      marker
+        .lineStyle({ width: 1, color: 0xfafafa, alpha: 0.9, native: true })
+        .moveTo(door.x * size + 8, door.y * size + 5)
+        .lineTo(door.x * size + 8, door.y * size + 11);
       marker.zIndex = 9998;
     });
     const { x, y } = this.#city.spawn;

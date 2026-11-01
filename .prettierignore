@@ -1,0 +1,11 @@
+.next/
+.source/
+.cache/
+.claude/
+.kilo/
+out/
+public/
+maps/
+copyrighted/
+node_modules/
+pnpm-lock.yaml

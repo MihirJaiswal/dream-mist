@@ -81,7 +81,7 @@ export class CityMap {
 
   /** Show weather and time of day over the map (nothing when clear and day) */
   sky(weather: Weather = "clear", time: Daytime = "day") {
-    if ((weather === "clear") && (time === "day")) {
+    if (weather === "clear" && time === "day") {
       this.#atmosphere?.destroy();
       this.#atmosphere = null;
       return;
@@ -147,7 +147,10 @@ export class CityMap {
         }
       });
     }
-    const texture = PIXI.RenderTexture.create({ width: Math.max(1, Math.round(city.width * size * k)), height: Math.max(1, Math.round(city.height * size * k)) });
+    const texture = PIXI.RenderTexture.create({
+      width: Math.max(1, Math.round(city.width * size * k)),
+      height: Math.max(1, Math.round(city.height * size * k)),
+    });
     this.app.renderer.render(container, { renderTexture: texture, transform: new PIXI.Matrix().scale(k, k) });
     container.destroy({ children: true });
     return texture;
@@ -185,14 +188,19 @@ export class CityMap {
     this.drawBlockers();
     this.drawGrid();
     const { border } = this.overlays;
-    border.clear().lineStyle({ width: 1, color: 0xffffff, alpha: 0.6, native: true }).drawRect(0, 0, this.city.width * size, this.city.height * size);
+    border
+      .clear()
+      .lineStyle({ width: 1, color: 0xffffff, alpha: 0.6, native: true })
+      .drawRect(0, 0, this.city.width * size, this.city.height * size);
   }
 
   /** Draw collision overlay */
   drawSolid() {
     const { solid } = this.overlays;
     solid.clear().beginFill(0xff4136, 0.45);
-    this.city.solid.forEach((value, index) => value && solid.drawRect((index % this.city.width) * size + 2, Math.floor(index / this.city.width) * size + 2, size - 4, size - 4));
+    this.city.solid.forEach(
+      (value, index) => value && solid.drawRect((index % this.city.width) * size + 2, Math.floor(index / this.city.width) * size + 2, size - 4, size - 4),
+    );
     solid.endFill();
   }
 
@@ -202,7 +210,10 @@ export class CityMap {
     zone.clear();
     this.city.zone.forEach((value, index) => {
       if (value) {
-        zone.beginFill(this.city.zones[value - 1]?.color ?? 0xffffff, 0.4).drawRect((index % this.city.width) * size, Math.floor(index / this.city.width) * size, size, size).endFill();
+        zone
+          .beginFill(this.city.zones[value - 1]?.color ?? 0xffffff, 0.4)
+          .drawRect((index % this.city.width) * size, Math.floor(index / this.city.width) * size, size, size)
+          .endFill();
       }
     });
   }
@@ -217,7 +228,15 @@ export class CityMap {
         const [x, y] = [(index % this.city.width) * size, Math.floor(index / this.city.width) * size];
         const color = colors[(value - 1) % colors.length];
         gate.beginFill(color, 0.3).drawRect(x, y, size, size).endFill();
-        gate.lineStyle({ width: 1, color, alpha: 0.9, native: true }).moveTo(x, y + size).lineTo(x + size, y).moveTo(x, y + size / 2).lineTo(x + size / 2, y).moveTo(x + size / 2, y + size).lineTo(x + size, y + size / 2).lineStyle(0);
+        gate
+          .lineStyle({ width: 1, color, alpha: 0.9, native: true })
+          .moveTo(x, y + size)
+          .lineTo(x + size, y)
+          .moveTo(x, y + size / 2)
+          .lineTo(x + size / 2, y)
+          .moveTo(x + size / 2, y + size)
+          .lineTo(x + size, y + size / 2)
+          .lineStyle(0);
       }
     });
   }
@@ -232,7 +251,7 @@ export class CityMap {
     const story = this.city.story ?? [];
     (this.city.gate ?? []).forEach((value, index) => {
       const step = value ? story.find(({ n }) => n === value) : null;
-      if ((step?.blocker === "object") && (step.tile) && (!this.done(step.id))) {
+      if (step?.blocker === "object" && step.tile && !this.done(step.id)) {
         const tile = sprite(step.tile);
         tile.position.set((index % this.city.width) * size, Math.floor(index / this.city.width) * size);
         container.addChild(tile);
@@ -250,7 +269,7 @@ export class CityMap {
     const start = performance.now();
     const step = () => {
       const t = Math.min(1, (performance.now() - start) / 500);
-      leaving.forEach((child: Display) => (child.alpha = 1 - t, child.y -= 0.15));
+      leaving.forEach((child: Display) => ((child.alpha = 1 - t), (child.y -= 0.15)));
       if (t < 1) {
         requestAnimationFrame(step);
       } else {
@@ -265,7 +284,10 @@ export class CityMap {
     const { grid } = this.overlays;
     const { width, height } = this.city;
     grid.clear();
-    for (const [step, alpha] of [[1, 0.28], [10, 0.55]] as const) {
+    for (const [step, alpha] of [
+      [1, 0.28],
+      [10, 0.55],
+    ] as const) {
       grid.lineStyle({ width: 1, color: 0x000000, alpha, native: true });
       for (let x = step; x < width; x += step) {
         grid.moveTo(x * size, 0).lineTo(x * size, height * size);
@@ -278,7 +300,10 @@ export class CityMap {
 
   /** Draw cursor (tile rectangle) */
   cursor(x: number, y: number, width = 1, height = 1, color = 0xffdc00) {
-    this.overlays.cursor.clear().lineStyle({ width: 1, color, alpha: 1, native: true }).drawRect(x * size, y * size, width * size, height * size);
+    this.overlays.cursor
+      .clear()
+      .lineStyle({ width: 1, color, alpha: 1, native: true })
+      .drawRect(x * size, y * size, width * size, height * size);
   }
 
   /** Convert client coordinates to tile coordinates */
@@ -293,7 +318,7 @@ export class CityMap {
 
   /** Is tile inside city */
   inside({ x, y }: { x: number; y: number }) {
-    return (x >= 0) && (y >= 0) && (x < this.city.width) && (y < this.city.height);
+    return x >= 0 && y >= 0 && x < this.city.width && y < this.city.height;
   }
 
   /** Center camera on tile coordinates */
@@ -339,7 +364,8 @@ export class CityMap {
 
   /** Render the tile layers into a canvas (k = pixels per map pixel) */
   snapshot(k = 1) {
-    const width = Math.max(1, Math.round(this.city.width * size * k)), height = Math.max(1, Math.round(this.city.height * size * k));
+    const width = Math.max(1, Math.round(this.city.width * size * k)),
+      height = Math.max(1, Math.round(this.city.height * size * k));
     const texture = PIXI.RenderTexture.create({ width, height });
     const transform = new PIXI.Matrix().scale(k, k);
     layers.forEach((layer, i) => {
@@ -375,7 +401,8 @@ export class CityMap {
   #touch(view: HTMLCanvasElement) {
     const fingers = new Map<number, { x: number; y: number }>();
     let pending = null as null | { event: PointerEvent; timer: number };
-    let painting = false, gesture = null as null | { distance: number; x: number; y: number };
+    let painting = false,
+      gesture = null as null | { distance: number; x: number; y: number };
     let dragging = null as null | { x: number; y: number; wx: number; wy: number };
     const spread = () => {
       const [a, b] = [...fingers.values()];
@@ -404,9 +431,9 @@ export class CityMap {
           }
           dragging = null;
           gesture = spread();
-        } else if ((fingers.size === 1) && (this.onpointer)) {
+        } else if (fingers.size === 1 && this.onpointer) {
           pending = { event, timer: setTimeout(start, 120) as unknown as number };
-        } else if ((fingers.size === 1) && (this.pannable)) {
+        } else if (fingers.size === 1 && this.pannable) {
           //Nothing to paint (viewing): one finger drags the map
           dragging = { x: event.clientX, y: event.clientY, wx: this.world.x, wy: this.world.y };
         }
@@ -417,7 +444,7 @@ export class CityMap {
           return;
         }
         Object.assign(finger, { x: event.clientX, y: event.clientY });
-        if ((gesture) && (fingers.size >= 2)) {
+        if (gesture && fingers.size >= 2) {
           const now = spread();
           const rect = view.getBoundingClientRect();
           if (this.pannable) {
@@ -432,7 +459,7 @@ export class CityMap {
           this.world.position.set(dragging.wx + event.clientX - dragging.x, dragging.wy + event.clientY - dragging.y);
           return;
         }
-        if ((pending) && (Math.hypot(event.clientX - pending.event.clientX, event.clientY - pending.event.clientY) > 6)) {
+        if (pending && Math.hypot(event.clientX - pending.event.clientX, event.clientY - pending.event.clientY) > 6) {
           start();
         }
         if (painting) {
@@ -470,7 +497,7 @@ export class CityMap {
       if (event.pointerType === "touch") {
         return touch.down(event);
       }
-      if ((this.pannable) && ((event.button === 1) || (event.button === 2) || (this.#space) || (!this.onpointer))) {
+      if (this.pannable && (event.button === 1 || event.button === 2 || this.#space || !this.onpointer)) {
         panning = { x: event.clientX, y: event.clientY, wx: this.world.x, wy: this.world.y, button: event.button };
         view.style.cursor = "grabbing";
         return;
@@ -496,7 +523,7 @@ export class CityMap {
       }
       if (panning) {
         //A right click that barely moved opens the menu instead of panning
-        const click = (panning.button === 2) && (Math.hypot(event.clientX - panning.x, event.clientY - panning.y) < 4);
+        const click = panning.button === 2 && Math.hypot(event.clientX - panning.x, event.clientY - panning.y) < 4;
         panning = null;
         view.style.cursor = "";
         if (click) {
@@ -507,26 +534,31 @@ export class CityMap {
       this.onpointer?.("up", this.tile(event.clientX, event.clientY), event);
     });
     //Trackpad: two-finger swipe pans, pinch (sent as ctrl+wheel) zooms. Mouse: wheel pans, ctrl/cmd+wheel zooms
-    view.addEventListener("wheel", (event) => {
-      event.preventDefault();
-      const rect = view.getBoundingClientRect();
-      const px = event.clientX - rect.left, py = event.clientY - rect.top;
-      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1;
-      const [dx, dy] = [event.deltaX * unit, event.deltaY * unit];
-      if ((event.ctrlKey) || (event.metaKey) || (!this.pannable)) {
-        this.zoom(Math.exp(-Math.max(-100, Math.min(100, dy)) * 0.01), px, py, false);
-        return;
-      }
-      if ((event.shiftKey) && (!dx)) {
-        this.world.x -= dy;
-      } else {
-        this.world.x -= dx;
-        this.world.y -= dy;
-      }
-    }, { passive: false });
+    view.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        const rect = view.getBoundingClientRect();
+        const px = event.clientX - rect.left,
+          py = event.clientY - rect.top;
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1;
+        const [dx, dy] = [event.deltaX * unit, event.deltaY * unit];
+        if (event.ctrlKey || event.metaKey || !this.pannable) {
+          this.zoom(Math.exp(-Math.max(-100, Math.min(100, dy)) * 0.01), px, py, false);
+          return;
+        }
+        if (event.shiftKey && !dx) {
+          this.world.x -= dy;
+        } else {
+          this.world.x -= dx;
+          this.world.y -= dy;
+        }
+      },
+      { passive: false },
+    );
     //Safari pinch gestures (other browsers send touches, handled above)
     let gesture = 1;
-    view.addEventListener("gesturestart", (event) => (event.preventDefault(), gesture = 1));
+    view.addEventListener("gesturestart", (event) => (event.preventDefault(), (gesture = 1)));
     view.addEventListener("gesturechange", (event) => {
       event.preventDefault();
       const { scale, clientX, clientY } = event as unknown as { scale: number; clientX: number; clientY: number };
@@ -540,11 +572,11 @@ export class CityMap {
       }
       if (event.key === " ") {
         this.#space = true;
-      } else if ((event.key === "+") || (event.key === "=")) {
+      } else if (event.key === "+" || event.key === "=") {
         this.zoom(1.25);
-      } else if ((event.key === "-") || (event.key === "_")) {
+      } else if (event.key === "-" || event.key === "_") {
         this.zoom(0.8);
-      } else if ((event.key === "0") && (!event.ctrlKey) && (!event.metaKey) && (this.pannable)) {
+      } else if (event.key === "0" && !event.ctrlKey && !event.metaKey && this.pannable) {
         this.fit();
       }
     });

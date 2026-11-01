@@ -38,20 +38,23 @@ function image(url: string) {
 /** Load (or reload) tilesets of a city */
 export async function load(tilesets: Tileset[] = []) {
   custom.clear();
-  await Promise.all(tilesets.map(async (tileset, index) => {
-    try {
-      custom.set(index, await prepare(tileset));
-    } catch (error) {
-      console.warn(error);
-    }
-  }));
+  await Promise.all(
+    tilesets.map(async (tileset, index) => {
+      try {
+        custom.set(index, await prepare(tileset));
+      } catch (error) {
+        console.warn(error);
+      }
+    }),
+  );
 }
 
 /** Slice a tileset image into textures and a 16px palette */
 export async function prepare(tileset: Tileset): Promise<Loaded> {
   const img = await image(tileset.url);
   const { tile } = tileset;
-  const columns = Math.floor(img.width / tile), rows = Math.floor(img.height / tile);
+  const columns = Math.floor(img.width / tile),
+    rows = Math.floor(img.height / tile);
   const base = PIXI.BaseTexture.from(img, { scaleMode: PIXI.SCALE_MODES.NEAREST });
   const textures = [];
   const palette = document.createElement("canvas");
@@ -61,9 +64,11 @@ export async function prepare(tileset: Tileset): Promise<Loaded> {
   context.imageSmoothingEnabled = false;
   context.drawImage(img, 0, 0, columns * tile, rows * tile, 0, 0, palette.width, palette.height);
   const { data } = context.getImageData(0, 0, palette.width, palette.height);
-  const empty = new Set<number>(), clear = new Set<number>();
+  const empty = new Set<number>(),
+    clear = new Set<number>();
   for (let frame = 0; frame < Math.min(columns * rows, range - 2); frame++) {
-    const x = frame % columns, y = Math.floor(frame / columns);
+    const x = frame % columns,
+      y = Math.floor(frame / columns);
     textures.push(new PIXI.Texture(base, new PIXI.Rectangle(x * tile, y * tile, tile, tile)));
     let visible = 0;
     for (let v = 0; v < size; v++) {

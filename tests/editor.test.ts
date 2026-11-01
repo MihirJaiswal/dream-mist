@@ -11,7 +11,17 @@ describe("people layer", () => {
   });
 
   test("converting keeps the position and changes the kind", () => {
-    const npc = { x: 3, y: 4, sprite: "youngster", name: "Bob", dialogue: "Hi", role: "trainer", trainer: { team: [] }, portrait: "bob.png", hidePortrait: true } as unknown as Npc;
+    const npc = {
+      x: 3,
+      y: 4,
+      sprite: "youngster",
+      name: "Bob",
+      dialogue: "Hi",
+      role: "trainer",
+      trainer: { team: [] },
+      portrait: "bob.png",
+      hidePortrait: true,
+    } as unknown as Npc;
     convert(npc, "pokemon", "Town");
     expect(npc.portrait).toBeUndefined();
     expect(npc.hidePortrait).toBeUndefined();

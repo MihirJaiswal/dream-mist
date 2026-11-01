@@ -16,7 +16,10 @@ export function ScrollbarActivity() {
       const element = event.target instanceof Element ? event.target : document.documentElement;
       clearTimeout(timers.get(element));
       element.setAttribute("data-scrolling", "");
-      timers.set(element, window.setTimeout(() => element.removeAttribute("data-scrolling"), linger));
+      timers.set(
+        element,
+        window.setTimeout(() => element.removeAttribute("data-scrolling"), linger),
+      );
     };
     document.addEventListener("scroll", scrolled, { capture: true, passive: true });
     return () => document.removeEventListener("scroll", scrolled, { capture: true });

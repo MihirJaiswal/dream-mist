@@ -22,12 +22,12 @@ export function fill(city: City) {
     const [x, y] = [i % width, Math.floor(i / width)];
     let found = 0;
     //Look a little further out each time, and take the most common ground there
-    for (let radius = 1; (radius <= 4) && (!found); radius++) {
+    for (let radius = 1; radius <= 4 && !found; radius++) {
       const counts = new Map<number, number>();
       for (let j = -radius; j <= radius; j++) {
         for (let k = -radius; k <= radius; k++) {
           const [cx, cy] = [x + k, y + j];
-          const value = (cx >= 0) && (cy >= 0) && (cx < width) && (cy < height) ? layers.ground[cy * width + cx] : 0;
+          const value = cx >= 0 && cy >= 0 && cx < width && cy < height ? layers.ground[cy * width + cx] : 0;
           if (value) {
             counts.set(value, (counts.get(value) ?? 0) + 1);
           }
@@ -44,15 +44,19 @@ export type Section = { id: string; x: number; y: number; width: number; height:
 
 /** Available Hoenn sections (towns and routes) */
 export async function sections() {
-  const { sections } = await fetch("/game/data/maps/hoenn.json").then((response) => response.json()) as { sections: Section[] };
+  const { sections } = (await fetch("/game/data/maps/hoenn.json").then((response) => response.json())) as { sections: Section[] };
   return sections
-    .filter(({ id, width, height }) => (!/\/fill-|\/anime-/.test(id)) && (width <= 128) && (height <= 128))
+    .filter(({ id, width, height }) => !/\/fill-|\/anime-/.test(id) && width <= 128 && height <= 128)
     .sort((a, b) => label(a.id).localeCompare(label(b.id)));
 }
 
 /** Human readable section name */
 export function label(id: string) {
-  return id.replace(/^hoenn\//, "").replace(/^hoenn-/, "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return id
+    .replace(/^hoenn\//, "")
+    .replace(/^hoenn-/, "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Point in polygon test (tile units, cell centers) */
@@ -60,7 +64,7 @@ function inside(points: number[], x: number, y: number) {
   let result = false;
   for (let i = 0, j = points.length - 2; i < points.length; j = i, i += 2) {
     const [xi, yi, xj, yj] = [points[i], points[i + 1], points[j], points[j + 1]];
-    if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)) {
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
       result = !result;
     }
   }
@@ -68,7 +72,15 @@ function inside(points: number[], x: number, y: number) {
 }
 
 /** Encounter methods names */
-const methods = { walk: "Tall grass", surf: "Water", "old-rod": "Fishing", "good-rod": "Fishing", "super-rod": "Fishing", "rock-smash": "Rocks", "dark-grass": "Dark grass" } as { [key: string]: string };
+const methods = {
+  walk: "Tall grass",
+  surf: "Water",
+  "old-rod": "Fishing",
+  "good-rod": "Fishing",
+  "super-rod": "Fishing",
+  "rock-smash": "Rocks",
+  "dark-grass": "Dark grass",
+} as { [key: string]: string };
 
 /** Zone colors per method */
 const colors = { walk: 0x2ecc40, surf: 0x0074d9, "dark-grass": 0x3d9970 } as { [key: string]: number };
@@ -85,8 +97,9 @@ export async function load(section: Section): Promise<City> {
   const lowest = Math.min(...data.chunks.map(({ layer }: { layer: unknown }) => number(layer)));
   for (const chunk of [...data.chunks].sort((a, b) => number(a.layer) - number(b.layer))) {
     chunk.tiles.forEach((frame: number, i: number) => {
-      const x = chunk.x + i % 16, y = chunk.y + Math.floor(i / 16);
-      if ((!frame) || (frame >= 6215) || (x < 0) || (y < 0) || (x >= width) || (y >= height)) {
+      const x = chunk.x + (i % 16),
+        y = chunk.y + Math.floor(i / 16);
+      if (!frame || frame >= 6215 || x < 0 || y < 0 || x >= width || y >= height) {
         return;
       }
       const index = y * width + x;
@@ -120,7 +133,7 @@ export async function load(section: Section): Promise<City> {
   const creatures = (method: string) => {
     const table = data.encounters?.[method] ?? {};
     return Object.keys(table)
-      .map((name) => assets.pokedex.find(({ key }) => (key === name) || (key.split("-")[0] === name)))
+      .map((name) => assets.pokedex.find(({ key }) => key === name || key.split("-")[0] === name))
       .filter((species) => species)
       .slice(0, 8)
       .map((species) => ({ species: species!.id, min: 3, max: 7 }));
@@ -128,7 +141,8 @@ export async function load(section: Section): Promise<City> {
   //People
   for (const area of data.areas ?? []) {
     const { points, type, name } = area;
-    const xs = points.filter((_: number, i: number) => i % 2 === 0), ys = points.filter((_: number, i: number) => i % 2 === 1);
+    const xs = points.filter((_: number, i: number) => i % 2 === 0),
+      ys = points.filter((_: number, i: number) => i % 2 === 1);
     const cells = [] as [number, number][];
     for (let y = Math.max(0, Math.min(...ys)); y < Math.min(height, Math.max(...ys)); y++) {
       for (let x = Math.max(0, Math.min(...xs)); x < Math.min(width, Math.max(...xs)); x++) {
@@ -152,10 +166,23 @@ export async function load(section: Section): Promise<City> {
           city.solid[y * width + x] = 0;
         }
       }
-    } else if ((type === "people") && (assets.npcs.includes(name))) {
+    } else if (type === "people" && assets.npcs.includes(name)) {
       const free = cells.find(([x, y]) => !city.solid[y * width + x]);
       if (free) {
-        city.npcs.push({ x: free[0], y: free[1], sprite: name, dir: "down", name: name.replace(/_/g, " ").replace(/\d+$/, "").replace(/generic \w$/, "villager").trim(), dialogue: `Welcome to ${city.name}!`, role: "talk", wander: area.properties?.pattern === "wander" });
+        city.npcs.push({
+          x: free[0],
+          y: free[1],
+          sprite: name,
+          dir: "down",
+          name: name
+            .replace(/_/g, " ")
+            .replace(/\d+$/, "")
+            .replace(/generic \w$/, "villager")
+            .trim(),
+          dialogue: `Welcome to ${city.name}!`,
+          role: "talk",
+          wander: area.properties?.pattern === "wander",
+        });
       }
     }
   }
@@ -169,9 +196,9 @@ export async function load(section: Section): Promise<City> {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const index = y * width + x;
-      if ((!city.solid[index]) && (!city.zone[index]) && (!city.npcs.some((npc) => (npc.x === x) && (npc.y === y)))) {
+      if (!city.solid[index] && !city.zone[index] && !city.npcs.some((npc) => npc.x === x && npc.y === y)) {
         const d = Math.abs(x - center.x) + Math.abs(y - center.y);
-        if ((!best) || (d < best.d)) {
+        if (!best || d < best.d) {
           best = { x, y, d };
         }
       }

@@ -116,16 +116,23 @@ export const cloud = {
     /** Cities you own or build on */
     async list() {
       const { data, error } = await supabase().rpc("my_cities");
-      return error ? fail(error) : data as Card[];
+      return error ? fail(error) : (data as Card[]);
     },
     /** Save a new city to your account */
     async create(city: City) {
-      const { data, error } = await supabase().from("cities").insert({ name: city.name.slice(0, 40), author: city.author.slice(0, 40), width: city.width, height: city.height, data: city }).select("id, invite").single();
+      const { data, error } = await supabase()
+        .from("cities")
+        .insert({ name: city.name.slice(0, 40), author: city.author.slice(0, 40), width: city.width, height: city.height, data: city })
+        .select("id, invite")
+        .single();
       if (error) {
         fail(error);
       }
       //The saved copy carries its new id
-      await supabase().from("cities").update({ data: { ...city, id: data.id } }).eq("id", data.id);
+      await supabase()
+        .from("cities")
+        .update({ data: { ...city, id: data.id } })
+        .eq("id", data.id);
       return data as { id: string; invite: string };
     },
     /** Open a city from its id (anyone can play it, builders can edit it) */
@@ -142,7 +149,7 @@ export const cloud = {
     /** Save changes (owners and builders, or anyone holding the invite of a live room) */
     async save(id: string, city: City, invite = "") {
       const { data, error } = await supabase().rpc("save_city", { city_id: id, invite_code: invite, city });
-      return error ? fail(error) : data as Card;
+      return error ? fail(error) : (data as Card);
     },
     async remove(id: string) {
       const { error } = await supabase().from("cities").delete().eq("id", id);
@@ -152,7 +159,10 @@ export const cloud = {
     },
     /** Publish (or update) a city on Explore */
     async publish(id: string, description: string, thumb = "") {
-      const { error } = await supabase().from("cities").update({ published: true, published_at: new Date().toISOString(), description: description.slice(0, 500), ...(thumb ? { thumb } : {}) }).eq("id", id);
+      const { error } = await supabase()
+        .from("cities")
+        .update({ published: true, published_at: new Date().toISOString(), description: description.slice(0, 500), ...(thumb ? { thumb } : {}) })
+        .eq("id", id);
       if (error) {
         fail(error);
       }
@@ -167,18 +177,18 @@ export const cloud = {
     /** Copy a city into your account (credits the original) */
     async fork(id: string) {
       const { data, error } = await supabase().rpc("fork_city", { city_id: id });
-      return error ? fail(error) : data as Card & { invite: string };
+      return error ? fail(error) : (data as Card & { invite: string });
     },
     async like(id: string) {
       const { data, error } = await supabase().rpc("toggle_like", { city_id: id });
-      return error ? fail(error) : data as { liked: boolean; likes: number };
+      return error ? fail(error) : (data as { liked: boolean; likes: number });
     },
     async play(id: string) {
       await supabase().rpc("count_play", { city_id: id });
     },
     async explore() {
       const { data, error } = await supabase().rpc("explore");
-      return error ? fail(error) : data as Card[];
+      return error ? fail(error) : (data as Card[]);
     },
     /** Become a builder of a city with its invite */
     async join(id: string, invite: string) {
@@ -188,7 +198,14 @@ export const cloud = {
     /** Earlier versions of a city you own or build, newest first */
     async versions(id: string) {
       const { data, error } = await supabase().rpc("city_versions", { town: id });
-      return error ? fail(error) : (data as { id: number; name: string; saved_at: string; size: number }[]).map(({ id, name, saved_at, size }) => ({ id, name, saved: Date.parse(saved_at), size }));
+      return error
+        ? fail(error)
+        : (data as { id: number; name: string; saved_at: string; size: number }[]).map(({ id, name, saved_at, size }) => ({
+            id,
+            name,
+            saved: Date.parse(saved_at),
+            size,
+          }));
     },
     /** Bring a city back to an earlier version (the current one is kept as a version too) */
     async restore(version: number) {
@@ -199,10 +216,10 @@ export const cloud = {
     async invite(id: string, regenerate = false) {
       if (regenerate) {
         const { data, error } = await supabase().rpc("reset_invite", { city_id: id });
-        return error ? fail(error) : data as string;
+        return error ? fail(error) : (data as string);
       }
       const { data, error } = await supabase().from("cities").select("invite").eq("id", id).single();
-      return error ? fail(error) : data.invite as string;
+      return error ? fail(error) : (data.invite as string);
     },
   },
 
@@ -214,8 +231,16 @@ export const cloud = {
     if (file.size > uploads[kind]) {
       throw new Error(`This file is too big (${Math.ceil(uploads[kind] / 1024 / 1024)} MB at most)`);
     }
-    const extension = (file.type.split("/")[1] ?? "bin").replace("mpeg", "mp3").replace("x-m4a", "m4a").replace(/[^a-z0-9]/g, "");
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || kind;
+    const extension = (file.type.split("/")[1] ?? "bin")
+      .replace("mpeg", "mp3")
+      .replace("x-m4a", "m4a")
+      .replace(/[^a-z0-9]/g, "");
+    const slug =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 40) || kind;
     const path = `${this.user.id}/${kind}/${Date.now().toString(36)}-${slug}.${extension}`;
     const { error } = await supabase().storage.from("assets").upload(path, file, { contentType: file.type, upsert: false });
     if (error) {

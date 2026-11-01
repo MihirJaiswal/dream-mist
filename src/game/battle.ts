@@ -54,7 +54,7 @@ const immune: Record<Status, string[]> = { poison: ["poison", "steel"], burn: ["
 
 /** Can a creature get a condition */
 export function canGet(creature: Creature, status: Status) {
-  return (!creature.status) && (!species(creature.species).types.some((type) => immune[status].includes(type)));
+  return !creature.status && !species(creature.species).types.some((type) => immune[status].includes(type));
 }
 
 /** Short labels of conditions (battle info box) */
@@ -68,11 +68,12 @@ export const statusLabels: Record<Status, { label: string; color: string }> = {
 /** Compute damage dealt by a move (multipliers come from stat stages and burns) */
 export function damage(attacker: Creature, defender: Creature, move: Move, { attack: attackBoost = 1, defense: defenseBoost = 1 } = {}) {
   const physical = move.class === "physical";
-  const attack = stat(attacker, physical ? 1 : 3) * attackBoost, defense = stat(defender, physical ? 2 : 4) * defenseBoost;
+  const attack = stat(attacker, physical ? 1 : 3) * attackBoost,
+    defense = stat(defender, physical ? 2 : 4) * defenseBoost;
   const critical = Math.random() < 1 / 16;
   const stab = species(attacker.species).types.includes(move.type) ? 1.5 : 1;
   const multiplier = effectiveness(move.type, defender);
-  const base = Math.floor(Math.floor(Math.floor((2 * attacker.level) / 5 + 2) * move.power * attack / defense) / 50) + 2;
+  const base = Math.floor(Math.floor((Math.floor((2 * attacker.level) / 5 + 2) * move.power * attack) / defense) / 50) + 2;
   const value = multiplier === 0 ? 0 : Math.max(1, Math.floor(base * stab * multiplier * (critical ? 2 : 1) * (0.85 + Math.random() * 0.15)));
   return { value, critical, multiplier };
 }
@@ -221,7 +222,7 @@ export class Battle {
   #menu<T>(choices: { label: string; value: T; detail?: string; color?: string; disabled?: boolean }[], { columns = 2 } = {}) {
     return new Promise<T>((solve) => {
       const done = (index: number) => {
-        if ((!choices[index]) || (choices[index].disabled)) {
+        if (!choices[index] || choices[index].disabled) {
           return;
         }
         document.removeEventListener("keydown", keys, true);
@@ -232,7 +233,7 @@ export class Battle {
       };
       const keys = (event: KeyboardEvent) => {
         const index = Number(event.key) - 1;
-        if ((choices[index]) && (!choices[index].disabled)) {
+        if (choices[index] && !choices[index].disabled) {
           event.stopPropagation();
           done(index);
         }
@@ -251,8 +252,11 @@ export class Battle {
       return;
     }
     const lead = trainer.lead;
-    for (const [creature, back] of [[this.#foe, false], [lead, true]] as const) {
-      if ((creature) && (!creature.art)) {
+    for (const [creature, back] of [
+      [this.#foe, false],
+      [lead, true],
+    ] as const) {
+      if (creature && !creature.art) {
         new Image().src = battleSprite(creature.species, { back, shiny: creature.shiny }).src;
       }
     }
@@ -316,7 +320,13 @@ export class Battle {
         const choice = await this.#menu<number>([
           ...this.#ally.moves.map(({ key, pp }, i) => {
             const data = assets.moves[key];
-            return { label: data?.name ?? key, value: i, detail: `${data?.type.toUpperCase()} · PP ${pp}/${data?.pp}`, color: colors[data?.type], disabled: pp <= 0 };
+            return {
+              label: data?.name ?? key,
+              value: i,
+              detail: `${data?.type.toUpperCase()} · PP ${pp}/${data?.pp}`,
+              color: colors[data?.type],
+              disabled: pp <= 0,
+            };
           }),
           { label: "Back", value: -1, detail: "" },
         ]);
@@ -335,7 +345,13 @@ export class Battle {
         };
         const colorOf = { ball: "#f05038", heal: "#a040a0", cure: "#48a8d0" };
         const choice = await this.#menu<ItemId | "back">([
-          ...bag.map(({ id, count }) => ({ label: items[id].name, value: id as ItemId | "back", detail: `x${count} · ${items[id].about}`, color: colorOf[items[id].kind], disabled: !usable(id) })),
+          ...bag.map(({ id, count }) => ({
+            label: items[id].name,
+            value: id as ItemId | "back",
+            detail: `x${count} · ${items[id].about}`,
+            color: colorOf[items[id].kind],
+            disabled: !usable(id),
+          })),
           { label: "Back", value: "back", detail: bag.length ? "" : "Your bag is empty" },
         ]);
         if (choice === "back") {
@@ -381,8 +397,18 @@ export class Battle {
     const foeMove = this.#pick(this.#foe, this.#ally);
     const order = [] as ["ally" | "foe", Move][];
     if (move) {
-      const allyFirst = (move.priority > foeMove.priority) || ((move.priority === foeMove.priority) && (this.#speed(this.#ally) >= this.#speed(this.#foe)));
-      order.push(...(allyFirst ? [["ally", move], ["foe", foeMove]] : [["foe", foeMove], ["ally", move]]) as ["ally" | "foe", Move][]);
+      const allyFirst = move.priority > foeMove.priority || (move.priority === foeMove.priority && this.#speed(this.#ally) >= this.#speed(this.#foe));
+      order.push(
+        ...((allyFirst
+          ? [
+              ["ally", move],
+              ["foe", foeMove],
+            ]
+          : [
+              ["foe", foeMove],
+              ["ally", move],
+            ]) as ["ally" | "foe", Move][]),
+      );
     } else {
       order.push(["foe", foeMove]);
     }
@@ -395,7 +421,7 @@ export class Battle {
     //Poison and burns hurt at the end of the turn
     for (const side of ["ally", "foe"] as const) {
       const creature = side === "ally" ? this.#ally : this.#foe;
-      if ((creature.hp > 0) && ((creature.status === "poison") || (creature.status === "burn"))) {
+      if (creature.hp > 0 && (creature.status === "poison" || creature.status === "burn")) {
         creature.hp = Math.max(0, creature.hp - Math.max(1, Math.floor(hp(creature) / (creature.status === "poison" ? 8 : 16))));
         this.#fx(side, "hurt");
         await this.#say(`${this.#who(creature)} is hurt by ${creature.status === "poison" ? "poison" : "its burn"}!`, 600);
@@ -452,7 +478,7 @@ export class Battle {
       this.#emit();
       await this.#say(`${this.#who(attacker)} woke up!`, 600);
     }
-    if ((attacker.status === "paralysis") && (Math.random() < 0.25)) {
+    if (attacker.status === "paralysis" && Math.random() < 0.25) {
       await this.#say(`${this.#who(attacker)} is paralyzed! It can't move!`);
       return;
     }
@@ -474,7 +500,7 @@ export class Battle {
     }
     const physical = move.class === "physical";
     const { value, critical, multiplier } = damage(attacker, defender, move, {
-      attack: stageMultiplier(this.#stage(attacker, physical ? "attack" : "spatk")) * ((physical) && (attacker.status === "burn") ? 0.5 : 1),
+      attack: stageMultiplier(this.#stage(attacker, physical ? "attack" : "spatk")) * (physical && attacker.status === "burn" ? 0.5 : 1),
       defense: stageMultiplier(this.#stage(defender, physical ? "defense" : "spdef")),
     });
     this.#projectile(side, move.type);
@@ -500,7 +526,7 @@ export class Battle {
       return target === "foe" ? await this.#foeFainted() : await this.#allyFainted();
     }
     //Side effects of damaging moves, by chance (Ember may burn)
-    if ((move.effect) && (multiplier > 0) && (Math.random() * 100 < move.effect.chance)) {
+    if (move.effect && multiplier > 0 && Math.random() * 100 < move.effect.chance) {
       await this.#effect(move, attacker, defender);
     }
     return;
@@ -520,11 +546,17 @@ export class Battle {
           defender.sleep = 1 + Math.ceil(Math.random() * 3);
         }
         this.#emit();
-        const what = { sleep: "fell asleep!", poison: "was poisoned!", paralysis: "is paralyzed! It may be unable to move!", burn: "was burned!" }[effect.ailment];
+        const what = { sleep: "fell asleep!", poison: "was poisoned!", paralysis: "is paralyzed! It may be unable to move!", burn: "was burned!" }[
+          effect.ailment
+        ];
         await this.#say(`${this.#who(defender)} ${what}`);
         worked = true;
       } else if (!move.power) {
-        await this.#say(defender.status ? `${this.#who(defender)} is already ${{ sleep: "asleep", poison: "poisoned", paralysis: "paralyzed", burn: "burned" }[defender.status]}!` : `It doesn't affect ${this.#who(defender)}…`);
+        await this.#say(
+          defender.status
+            ? `${this.#who(defender)} is already ${{ sleep: "asleep", poison: "poisoned", paralysis: "paralyzed", burn: "burned" }[defender.status]}!`
+            : `It doesn't affect ${this.#who(defender)}…`,
+        );
         return true;
       }
     }
@@ -563,7 +595,7 @@ export class Battle {
   /** Opponent fainted: grant experience and send next one */
   async #foeFainted(): Promise<Outcome | null> {
     const base = species(this.#foe.species).xp;
-    const total = Math.floor((base * this.#foe.level / 7) * (this.#opponent ? 1.5 : 1));
+    const total = Math.floor(((base * this.#foe.level) / 7) * (this.#opponent ? 1.5 : 1));
     const participants = [...this.#participants].filter((creature) => creature.hp > 0);
     for (const creature of participants) {
       const amount = Math.max(1, Math.floor(total / participants.length));
@@ -631,16 +663,19 @@ export class Battle {
   /** Switch active creature */
   async #switch(cancellable: boolean) {
     const party = trainer.profile!.party;
-    const choice = await this.#menu<number>([
-      ...party.map((creature, i) => ({
-        label: `${named(creature)} Lv${creature.level}`,
-        value: i,
-        detail: `HP ${creature.hp}/${hp(creature)}`,
-        color: colors[species(creature.species).types[0]],
-        disabled: (creature.hp <= 0) || (creature === this.#ally),
-      })),
-      ...(cancellable ? [{ label: "Back", value: -1, detail: "" }] : []),
-    ], { columns: 2 });
+    const choice = await this.#menu<number>(
+      [
+        ...party.map((creature, i) => ({
+          label: `${named(creature)} Lv${creature.level}`,
+          value: i,
+          detail: `HP ${creature.hp}/${hp(creature)}`,
+          color: colors[species(creature.species).types[0]],
+          disabled: creature.hp <= 0 || creature === this.#ally,
+        })),
+        ...(cancellable ? [{ label: "Back", value: -1, detail: "" }] : []),
+      ],
+      { columns: 2 },
+    );
     if (choice < 0) {
       return false;
     }
@@ -665,7 +700,7 @@ export class Battle {
     this.#fx("foe", "captured");
     const { a, b } = catchOdds(this.#foe, (items[ball] as { rate?: number }).rate ?? 1);
     let shakes = 0;
-    while ((shakes < 4) && ((a >= 255) || (Math.random() * 65536 < b))) {
+    while (shakes < 4 && (a >= 255 || Math.random() * 65536 < b)) {
       shakes++;
       if (shakes < 4) {
         this.view.ball = { state: "shake", key: ++key };
@@ -688,7 +723,9 @@ export class Battle {
     }
     this.view.ball = null;
     this.#fx("foe", "");
-    await this.#say(["Oh no! The Pokémon broke free!", "Aww! It appeared to be caught!", "Aargh! Almost had it!", "Shoot! It was so close, too!"][Math.min(3, shakes)]);
+    await this.#say(
+      ["Oh no! The Pokémon broke free!", "Aww! It appeared to be caught!", "Aargh! Almost had it!", "Shoot! It was so close, too!"][Math.min(3, shakes)],
+    );
     return false;
   }
 }

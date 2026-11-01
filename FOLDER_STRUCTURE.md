@@ -89,18 +89,18 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 
 ## Where to change things
 
-| To change | Look in |
-| --- | --- |
-| A panel, dialog or button in the editor | `src/components/editor/` |
-| What a tool does on the map | `src/game/editor/engine.ts` |
-| Walking, talking, doors, encounters | `src/game/play.ts` |
-| Battle rules | `src/game/battle.ts` and `src/game/trainer.ts` |
-| The city file format | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`) |
-| Saving, accounts, Explore | `src/game/cloud.ts` and `supabase/migrations/` |
-| Live rooms | `src/game/room.ts` |
-| Problems list checks | `src/game/problems.ts` |
-| Command search (⌘K) | `src/components/editor/command-palette.tsx` |
+| To change                                | Look in                                                                                                           |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| A panel, dialog or button in the editor  | `src/components/editor/`                                                                                          |
+| What a tool does on the map              | `src/game/editor/engine.ts`                                                                                       |
+| Walking, talking, doors, encounters      | `src/game/play.ts`                                                                                                |
+| Battle rules                             | `src/game/battle.ts` and `src/game/trainer.ts`                                                                    |
+| The city file format                     | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`)                                          |
+| Saving, accounts, Explore                | `src/game/cloud.ts` and `supabase/migrations/`                                                                    |
+| Live rooms                               | `src/game/room.ts`                                                                                                |
+| Problems list checks                     | `src/game/problems.ts`                                                                                            |
+| Command search (⌘K)                      | `src/components/editor/command-palette.tsx`                                                                       |
 | Keyboard shortcuts and the ? cheat sheet | `src/components/editor/shortcuts.tsx` (app-wide) and the `#keys` handler in `src/game/editor/engine.ts` (editing) |
-| Getting started tour | `src/components/editor/tour.tsx` |
-| Home page or Explore | `src/app/(site)/` and `src/components/site/` |
-| Docs | `content/docs/` |
+| Getting started tour                     | `src/components/editor/tour.tsx`                                                                                  |
+| Home page or Explore                     | `src/app/(site)/` and `src/components/site/`                                                                      |
+| Docs                                     | `content/docs/`                                                                                                   |

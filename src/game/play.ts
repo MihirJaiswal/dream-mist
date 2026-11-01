@@ -19,7 +19,9 @@ const deltas = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 
 const opposite = { up: "down", down: "up", left: "right", right: "left" } as const;
 
 /** Keyboard mapping */
-const keys = { w: "up", arrowup: "up", s: "down", arrowdown: "down", a: "left", arrowleft: "left", d: "right", arrowright: "right" } as { [key: string]: Direction };
+const keys = { w: "up", arrowup: "up", s: "down", arrowdown: "down", a: "left", arrowleft: "left", d: "right", arrowright: "right" } as {
+  [key: string]: Direction;
+};
 
 /** Sight range of trainers */
 const sight = 4;
@@ -36,7 +38,23 @@ class Actor {
   /** Single texture of a Pokémon on the map (people use their walking frames) */
   readonly #still: null | PIXI.Texture;
 
-  constructor({ x, y, dir, name, parent, creature, look }: { x: number; y: number; dir: Direction; name: string; parent: PIXI.Container; creature?: number; look?: string }) {
+  constructor({
+    x,
+    y,
+    dir,
+    name,
+    parent,
+    creature,
+    look,
+  }: {
+    x: number;
+    y: number;
+    dir: Direction;
+    name: string;
+    parent: PIXI.Container;
+    creature?: number;
+    look?: string;
+  }) {
     this.x = this.tx = x;
     this.y = this.ty = y;
     this.dir = dir;
@@ -52,7 +70,7 @@ class Actor {
 
   /** Is moving */
   get moving() {
-    return (this.x !== this.tx) || (this.y !== this.ty);
+    return this.x !== this.tx || this.y !== this.ty;
   }
 
   /** Face a direction */
@@ -60,7 +78,7 @@ class Actor {
     this.dir = dir;
     if (!this.#still) {
       this.sprite.texture = texture(this.name, dir, 0);
-    } else if ((dir === "left") || (dir === "right")) {
+    } else if (dir === "left" || dir === "right") {
       //Box icons face left, flip them to look right
       this.sprite.scale.x = Math.abs(this.sprite.scale.x) * (dir === "right" ? -1 : 1);
     }
@@ -102,7 +120,17 @@ class Actor {
 }
 
 /** Person walking around the city */
-type Person = { actor: Actor; data: Npc; index: number; home: { x: number; y: number }; next: number; bubble: null | PIXI.Text; hidden: boolean; leg: number; way: 1 | -1 };
+type Person = {
+  actor: Actor;
+  data: Npc;
+  index: number;
+  home: { x: number; y: number };
+  next: number;
+  bubble: null | PIXI.Text;
+  hidden: boolean;
+  leg: number;
+  way: 1 | -1;
+};
 
 /** Picture shown beside someone's dialogue: the one picked for them, a Pokémon's artwork, or their map sprite drawn bigger (signs have none) */
 export function portraitOf(data: Npc): Portrait | undefined {
@@ -157,7 +185,16 @@ export class Play {
   /** Next time a gate message may show again */
   #bump = 0;
 
-  constructor(map: CityMap, city: City, { world = city, arrive = null as null | { x: number; y: number; dir: Direction }, onwarp = null as null | ((door: Door) => void), onedge = null as null | ((x: number, y: number, dir: Direction) => boolean) } = {}) {
+  constructor(
+    map: CityMap,
+    city: City,
+    {
+      world = city,
+      arrive = null as null | { x: number; y: number; dir: Direction },
+      onwarp = null as null | ((door: Door) => void),
+      onedge = null as null | ((x: number, y: number, dir: Direction) => boolean),
+    } = {},
+  ) {
     this.#map = map;
     this.#city = city;
     this.#world = world;
@@ -180,8 +217,8 @@ export class Play {
   /** Is a person present at this point of the story (wild Pokémon are gone once beaten or caught) */
   #present(data: Npc) {
     const story = data.story;
-    const gone = (data.role === "wild") && (this.#defeated(this.#city.npcs.indexOf(data)));
-    return (!gone) && (!story?.after || this.#done(story.after)) && (!story?.until || !this.#done(story.until));
+    const gone = data.role === "wild" && this.#defeated(this.#city.npcs.indexOf(data));
+    return !gone && (!story?.after || this.#done(story.after)) && (!story?.until || !this.#done(story.until));
   }
 
   /** Story step locking a gate tile (null when open) */
@@ -227,11 +264,29 @@ export class Play {
     this.#grass = actors.addChild(new PIXI.Sprite(new PIXI.Texture(grass.baseTexture, new PIXI.Rectangle(grass.frame.x, grass.frame.y + 9, size, size - 9))));
     this.#grass.visible = false;
     this.#city.npcs.forEach((data, index) => {
-      if ((!data.sprite) && (!data.creature)) {
+      if (!data.sprite && !data.creature) {
         return;
       }
-      const actor = new Actor({ x: data.x, y: data.y, dir: data.dir, name: data.sprite, parent: actors, creature: data.creature?.species, look: data.creature?.look });
-      this.#npcs.push({ actor, data, index, home: { x: data.x, y: data.y }, next: performance.now() + 600 + Math.random() * 1200, bubble: null, hidden: false, leg: 1, way: 1 });
+      const actor = new Actor({
+        x: data.x,
+        y: data.y,
+        dir: data.dir,
+        name: data.sprite,
+        parent: actors,
+        creature: data.creature?.species,
+        look: data.creature?.look,
+      });
+      this.#npcs.push({
+        actor,
+        data,
+        index,
+        home: { x: data.x, y: data.y },
+        next: performance.now() + 600 + Math.random() * 1200,
+        bubble: null,
+        hidden: false,
+        leg: 1,
+        way: 1,
+      });
     });
     this.#refresh();
     this.#map.done = (step) => this.#done(step);
@@ -285,7 +340,7 @@ export class Play {
     }
     if (down) {
       this.#held.push(dir);
-      if ((!this.#player.moving) && (!this.#busy)) {
+      if (!this.#player.moving && !this.#busy) {
         if (this.#player.dir === dir) {
           this.#tap = dir;
         }
@@ -296,7 +351,7 @@ export class Play {
 
   /** Key pressed */
   #keydown(event: KeyboardEvent) {
-    if (((event.target as HTMLElement)?.closest?.("input, textarea, select")) || (document.querySelector("[role=dialog], [role=alertdialog]"))) {
+    if ((event.target as HTMLElement)?.closest?.("input, textarea, select") || document.querySelector("[role=dialog], [role=alertdialog]")) {
       return;
     }
     const key = event.key.toLowerCase();
@@ -307,7 +362,7 @@ export class Play {
       }
     } else if (key === "shift") {
       this.#running = true;
-    } else if ([" ", "enter", "z", "e"].includes(key) && (!event.repeat)) {
+    } else if ([" ", "enter", "z", "e"].includes(key) && !event.repeat) {
       event.preventDefault();
       this.#interact();
     }
@@ -335,7 +390,7 @@ export class Play {
       return true;
     }
     for (const actor of [this.#player, ...this.#npcs.filter(({ hidden }) => !hidden).map(({ actor }) => actor)]) {
-      if ((actor !== self) && (((Math.round(actor.x) === x) && (Math.round(actor.y) === y)) || ((actor.tx === x) && (actor.ty === y)))) {
+      if (actor !== self && ((Math.round(actor.x) === x && Math.round(actor.y) === y) || (actor.tx === x && actor.ty === y))) {
         return true;
       }
     }
@@ -348,27 +403,27 @@ export class Play {
     const player = this.#player;
 
     //Player movement
-    if ((!this.#busy) && (!player.moving) && ((this.#held.length) || (this.#tap))) {
+    if (!this.#busy && !player.moving && (this.#held.length || this.#tap)) {
       const dir = this.#held[this.#held.length - 1] ?? this.#tap!;
       this.#tap = null;
       player.face(dir);
       const { x: dx, y: dy } = deltas[dir];
       //Off the edge of an outdoor map: onto the map touching it there
-      if ((!this.#map.inside({ x: player.x + dx, y: player.y + dy })) && (this.#onedge?.(player.x + dx, player.y + dy, dir))) {
+      if (!this.#map.inside({ x: player.x + dx, y: player.y + dy }) && this.#onedge?.(player.x + dx, player.y + dy, dir)) {
         this.#busy = true;
         return;
       }
       if (!this.#blocked(player.x + dx, player.y + dy, player)) {
         player.tx = player.x + dx;
         player.ty = player.y + dy;
-      } else if ((now > this.#bump) && (this.#gate(player.x + dx, player.y + dy))) {
+      } else if (now > this.#bump && this.#gate(player.x + dx, player.y + dy)) {
         //Bumping into a story gate explains why the way is closed
         const step = this.#gate(player.x + dx, player.y + dy)!;
         this.#bump = now + 1200;
         this.#busy = true;
         this.#held.length = 0;
         this.#tap = null;
-        ui.say(step.blocked || "The way is blocked for now.").then(() => (this.#busy = false, this.#bump = performance.now() + 600));
+        ui.say(step.blocked || "The way is blocked for now.").then(() => ((this.#busy = false), (this.#bump = performance.now() + 600)));
       }
     }
     if (player.advance((dt / 60) * (this.#running ? 8 : 4))) {
@@ -378,17 +433,17 @@ export class Play {
     //Tall grass covers the player's feet
     const tile = Math.round(player.y) * this.#city.width + Math.round(player.x);
     const tall = frames.tall + 1;
-    this.#grass.visible = (this.#city.layers.ground[tile] === tall) || (this.#city.layers.decor[tile] === tall);
+    this.#grass.visible = this.#city.layers.ground[tile] === tall || this.#city.layers.decor[tile] === tall;
     this.#grass.position.set(player.x * size, player.y * size + 9);
     this.#grass.zIndex = player.y + 0.5;
 
     //NPC wandering and paths
     for (const npc of this.#npcs) {
       const { actor, data, home } = npc;
-      if ((actor.advance((dt / 60) * (data.path?.run ? 6 : 3))) && (!this.#busy)) {
+      if (actor.advance((dt / 60) * (data.path?.run ? 6 : 3)) && !this.#busy) {
         this.#watch(npc);
       }
-      if ((this.#busy) || (actor.moving) || (now < npc.next) || (npc.hidden)) {
+      if (this.#busy || actor.moving || now < npc.next || npc.hidden) {
         continue;
       }
       if (data.path?.points.length) {
@@ -403,7 +458,7 @@ export class Play {
       actor.face(dir);
       const { x: dx, y: dy } = deltas[dir];
       const [x, y] = [actor.x + dx, actor.y + dy];
-      if ((Math.random() < 0.6) && (Math.abs(x - home.x) <= 2) && (Math.abs(y - home.y) <= 2) && (!this.#blocked(x, y, actor))) {
+      if (Math.random() < 0.6 && Math.abs(x - home.x) <= 2 && Math.abs(y - home.y) <= 2 && !this.#blocked(x, y, actor)) {
         actor.tx = x;
         actor.ty = y;
       }
@@ -424,12 +479,12 @@ export class Play {
     const path = data.path!;
     const stops = [npc.home, ...path.points];
     const target = stops[npc.leg];
-    if ((actor.x === target.x) && (actor.y === target.y)) {
+    if (actor.x === target.x && actor.y === target.y) {
       //Next stop: loop to the start, or turn around at either end
       if (path.loop) {
         npc.leg = (npc.leg + 1) % stops.length;
       } else {
-        if ((npc.leg + npc.way < 0) || (npc.leg + npc.way >= stops.length)) {
+        if (npc.leg + npc.way < 0 || npc.leg + npc.way >= stops.length) {
           npc.way = npc.way === 1 ? -1 : 1;
         }
         npc.leg += npc.way;
@@ -438,8 +493,12 @@ export class Play {
       return;
     }
     //Across first, then up or down (the editor draws paths the same way)
-    const dx = Math.sign(target.x - actor.x), dy = Math.sign(target.y - actor.y);
-    const options = [[dx, 0], [0, dy]].filter(([x, y]) => x || y);
+    const dx = Math.sign(target.x - actor.x),
+      dy = Math.sign(target.y - actor.y);
+    const options = [
+      [dx, 0],
+      [0, dy],
+    ].filter(([x, y]) => x || y);
     for (const [x, y] of options) {
       const dir = (x > 0 ? "right" : x < 0 ? "left" : y > 0 ? "down" : "up") as Direction;
       if (!this.#blocked(actor.x + x, actor.y + y, actor)) {
@@ -458,13 +517,13 @@ export class Play {
 
   /** Wants to come to the player: a trainer not beaten yet, or someone who walks up to talk and hasn't yet */
   #eager({ data, index }: Person) {
-    return data.role === "trainer" ? !this.#defeated(index) : (Boolean(data.approach)) && (!trainer.profile?.met?.includes(this.#key(index)));
+    return data.role === "trainer" ? !this.#defeated(index) : Boolean(data.approach) && !trainer.profile?.met?.includes(this.#key(index));
   }
 
   /** A trainer (or someone who walks up to talk) who just moved checks whether they see the player */
   #watch(npc: Person) {
-    const ready = (!npc.hidden) && ((!npc.data.story?.requires) || (this.#done(npc.data.story.requires)));
-    if ((ready) && (!this.#player.moving) && (this.#eager(npc)) && (this.#spots(npc))) {
+    const ready = !npc.hidden && (!npc.data.story?.requires || this.#done(npc.data.story.requires));
+    if (ready && !this.#player.moving && this.#eager(npc) && this.#spots(npc)) {
       this.#challenge(npc);
     }
   }
@@ -472,8 +531,8 @@ export class Play {
   /** Player completed a step */
   async #stepped() {
     //Doors
-    const door = this.#city.doors?.find(({ x, y, to }) => (x === this.#player.x) && (y === this.#player.y) && (to !== "?"));
-    if ((door) && (this.#onwarp)) {
+    const door = this.#city.doors?.find(({ x, y, to }) => x === this.#player.x && y === this.#player.y && to !== "?");
+    if (door && this.#onwarp) {
       this.#busy = true;
       this.#held.length = 0;
       this.#tap = null;
@@ -483,8 +542,8 @@ export class Play {
 
     //Trainers (and people who walk up to talk) line of sight, only those present and ready for the player
     for (const npc of this.#npcs) {
-      const ready = (!npc.hidden) && ((!npc.data.story?.requires) || (this.#done(npc.data.story.requires)));
-      if ((ready) && (this.#eager(npc)) && (this.#spots(npc))) {
+      const ready = !npc.hidden && (!npc.data.story?.requires || this.#done(npc.data.story.requires));
+      if (ready && this.#eager(npc) && this.#spots(npc)) {
         await this.#challenge(npc);
         return;
       }
@@ -493,7 +552,7 @@ export class Play {
     //Wild encounters
     const { x, y } = this.#player;
     const zone = this.#city.zones[this.#city.zone[y * this.#city.width + x] - 1];
-    if ((zone?.creatures.length) && (Math.random() < zone.rate) && (trainer.lead)) {
+    if (zone?.creatures.length && Math.random() < zone.rate && trainer.lead) {
       const total = zone.creatures.length;
       const { species: id, min, max } = zone.creatures[Math.floor(Math.random() * total)];
       if (!species(id)) {
@@ -519,10 +578,10 @@ export class Play {
     const { x: dx, y: dy } = deltas[actor.dir];
     for (let i = 1; i <= sight; i++) {
       const [x, y] = [actor.x + dx * i, actor.y + dy * i];
-      if ((x === this.#player.x) && (y === this.#player.y)) {
+      if (x === this.#player.x && y === this.#player.y) {
         return true;
       }
-      if ((!this.#map.inside({ x, y })) || (this.#city.solid[y * this.#city.width + x])) {
+      if (!this.#map.inside({ x, y }) || this.#city.solid[y * this.#city.width + x]) {
         return false;
       }
     }
@@ -541,7 +600,9 @@ export class Play {
     this.#held.length = 0;
     this.#tap = null;
     const { actor } = npc;
-    const bubble = this.#map.containers.actors.addChild(new PIXI.Text("!", { fontFamily: "monospace", fontSize: 14, fontWeight: "bold", fill: 0xffffff, stroke: 0xe0303a, strokeThickness: 4 }));
+    const bubble = this.#map.containers.actors.addChild(
+      new PIXI.Text("!", { fontFamily: "monospace", fontSize: 14, fontWeight: "bold", fill: 0xffffff, stroke: 0xe0303a, strokeThickness: 4 }),
+    );
     npc.bubble = bubble;
     bubble.anchor.set(0.5, 1);
     bubble.position.set(actor.sprite.x, actor.sprite.y - 20);
@@ -550,11 +611,11 @@ export class Play {
     bubble.destroy();
     npc.bubble = null;
     const { x: dx, y: dy } = deltas[actor.dir];
-    while ((Math.abs(actor.x - this.#player.x) + Math.abs(actor.y - this.#player.y)) > 1) {
+    while (Math.abs(actor.x - this.#player.x) + Math.abs(actor.y - this.#player.y) > 1) {
       actor.tx = actor.x + dx;
       actor.ty = actor.y + dy;
       await new Promise((solve) => {
-        const wait = () => actor.moving ? requestAnimationFrame(wait) : solve(null);
+        const wait = () => (actor.moving ? requestAnimationFrame(wait) : solve(null));
         wait();
       });
     }
@@ -565,7 +626,7 @@ export class Play {
 
   /** Interact with facing tile */
   async #interact() {
-    if ((this.#busy) || (this.#player.moving)) {
+    if (this.#busy || this.#player.moving) {
       return;
     }
     const { x: dx, y: dy } = deltas[this.#player.dir];
@@ -576,7 +637,7 @@ export class Play {
         return false;
       }
       const actor = this.#npcs.find((npc) => npc.index === i)?.actor;
-      return actor ? (Math.round(actor.x) === x) && (Math.round(actor.y) === y) : (data.x === x) && (data.y === y);
+      return actor ? Math.round(actor.x) === x && Math.round(actor.y) === y : data.x === x && data.y === y;
     });
     if (index < 0) {
       return;
@@ -599,21 +660,23 @@ export class Play {
     const story = data.story;
     const step = this.#world.story.find(({ id }) => id === story?.completes);
     //A side quest's steps only happen once it has started
-    if ((!story?.completes) || ((step) && (!open(this.#world, step, (id) => this.#done(id)))) || (!trainer.complete(this.#world.id, story.completes))) {
+    if (!story?.completes || (step && !open(this.#world, step, (id) => this.#done(id))) || !trainer.complete(this.#world.id, story.completes)) {
       return;
     }
     const { species: id, level = 5, balls = 0, potions = 0, money = 0 } = story.reward ?? {};
     const profile = trainer.profile!;
-    if ((id) && (species(id))) {
+    if (id && species(id)) {
       const creature = create(id, level, { shiny: false });
       const where = trainer.catch(creature);
       sound.play("victory");
       await ui.say(`${profile.name} received ${species(id).name}!${where === "box" ? "\n\nIt was sent to the PC box." : ""}`);
     }
-    if ((balls) || (potions)) {
+    if (balls || potions) {
       trainer.give("poke-ball", balls);
       trainer.give("potion", potions);
-      await ui.say(`${profile.name} got ${[balls ? itemCount("poke-ball", balls) : "", potions ? itemCount("potion", potions) : ""].filter(Boolean).join(" and ")}.`);
+      await ui.say(
+        `${profile.name} got ${[balls ? itemCount("poke-ball", balls) : "", potions ? itemCount("potion", potions) : ""].filter(Boolean).join(" and ")}.`,
+      );
     }
     if (money) {
       profile.money += money;
@@ -631,16 +694,16 @@ export class Play {
     const voice = { speaker: data.name, portrait: portraitOf(data) };
     const story = data.story;
     //Not ready yet in the story
-    if ((story?.requires) && (!this.#done(story.requires))) {
+    if (story?.requires && !this.#done(story.requires)) {
       await ui.say(story.locked || "I'm busy right now. Come back later!", voice);
       return;
     }
     //Their part of the story is already done
-    if ((story?.completes) && (this.#done(story.completes)) && (story.done) && (data.role !== "healer")) {
+    if (story?.completes && this.#done(story.completes) && story.done && data.role !== "healer") {
       await ui.say(story.done, voice);
       return;
     }
-    if ((data.role === "wild") && (data.creature) && (species(data.creature.species))) {
+    if (data.role === "wild" && data.creature && species(data.creature.species)) {
       if (data.dialogue) {
         await ui.say(data.dialogue, voice);
       }
@@ -655,11 +718,11 @@ export class Play {
         wild.art = creatureImage(look);
       }
       //A name of its own (like a custom Pokémon) is kept as its nickname
-      if ((data.name) && (data.name !== species(id).name)) {
+      if (data.name && data.name !== species(id).name) {
         wild.nickname = data.name;
       }
       const outcome = await new Battle({ wild }).start();
-      if ((outcome === "win") || (outcome === "caught")) {
+      if (outcome === "win" || outcome === "caught") {
         trainer.profile!.defeated.push(this.#key(index));
         trainer.save();
         await this.#progress(data);
@@ -668,7 +731,7 @@ export class Play {
       await this.#after(outcome);
       return;
     }
-    if ((data.role === "trainer") && (data.trainer?.team.length)) {
+    if (data.role === "trainer" && data.trainer?.team.length) {
       if (this.#defeated(index)) {
         await ui.say(data.trainer.defeat || "You're too strong!", voice);
         return;
@@ -711,10 +774,13 @@ export class Play {
       await ui.say("Your Pokémon are fully healed! We hope to see you again!", voice);
     }
     if (data.role === "shop") {
-      await ui.shop((data.shop?.length ? data.shop : itemIds).filter((id) => id in items), voice);
+      await ui.shop(
+        (data.shop?.length ? data.shop : itemIds).filter((id) => id in items),
+        voice,
+      );
     }
     //A gift, the first time
-    if ((data.gift?.count) && (data.gift.item in items) && (!trainer.profile!.received?.includes(this.#key(index)))) {
+    if (data.gift?.count && data.gift.item in items && !trainer.profile!.received?.includes(this.#key(index))) {
       const profile = trainer.profile!;
       trainer.give(data.gift.item, data.gift.count);
       profile.received = [...(profile.received ?? []), this.#key(index)];

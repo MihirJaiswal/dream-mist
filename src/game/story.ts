@@ -15,7 +15,7 @@ export type Done = (step: string) => boolean;
 
 /** Side quest a step belongs to (null for the main story, and for steps of a deleted quest) */
 export function questOf(city: City, step: Step) {
-  return step.quest ? city.quests.find(({ id }) => id === step.quest) ?? null : null;
+  return step.quest ? (city.quests.find(({ id }) => id === step.quest) ?? null) : null;
 }
 
 /** Main story first, then every side quest */
@@ -46,7 +46,7 @@ export function goal(step: Step) {
 /** Can a step happen yet (a side quest's steps wait until it starts) */
 export function open(city: City, step: Step, done: Done) {
   const after = questOf(city, step)?.after;
-  return (!after) || (done(after));
+  return !after || done(after);
 }
 
 /** Journal entry of a lane */
@@ -61,14 +61,16 @@ export type Entry = {
 
 /** What the Journal shows: the main story, side quests in progress, and completed side quests (not started ones stay secret) */
 export function journal(city: City, done: Done) {
-  const entries = lanes(city).filter(({ steps }) => steps.length).map(({ quest, steps }): Entry => ({
-    quest,
-    name: quest?.name ?? "Main story",
-    next: steps.find(({ id }) => !done(id)) ?? null,
-    done: steps.filter(({ id }) => done(id)).length,
-    total: steps.length,
-  }));
-  const side = entries.filter(({ quest, done }) => (quest) && (done));
+  const entries = lanes(city)
+    .filter(({ steps }) => steps.length)
+    .map(({ quest, steps }): Entry => ({
+      quest,
+      name: quest?.name ?? "Main story",
+      next: steps.find(({ id }) => !done(id)) ?? null,
+      done: steps.filter(({ id }) => done(id)).length,
+      total: steps.length,
+    }));
+  const side = entries.filter(({ quest, done }) => quest && done);
   return {
     main: entries.find(({ quest }) => !quest) ?? null,
     active: side.filter(({ next }) => next),

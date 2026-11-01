@@ -81,7 +81,9 @@ export async function load(progress: (text: string) => void) {
     loader.add(texture, `/game/textures/rse/${texture}.json`);
   }
   loader.onProgress.add((_: unknown, { name = "" }) => progress(`loaded ${name} textures`));
-  const resources = await new Promise<{ [key: string]: { spritesheet: { baseTexture: { resource: { source: HTMLImageElement } }; textures: object } } }>((solve) => loader.load((_, resources) => solve(resources as never)));
+  const resources = await new Promise<{ [key: string]: { spritesheet: { baseTexture: { resource: { source: HTMLImageElement } }; textures: object } } }>(
+    (solve) => loader.load((_, resources) => solve(resources as never)),
+  );
 
   const [tileset, pokedex, tiles] = await Promise.all([
     fetch("/game/data/textures/rse/tileset.json").then((response) => response.json()),
@@ -94,8 +96,15 @@ export async function load(progress: (text: string) => void) {
   assets.ground = new Set(tiles.layers?.ground ?? []);
   assets.above = new Set(tiles.layers?.above ?? []);
   Object.assign(assets, pokedex);
-  assets.npcs = [...new Set(Object.keys(resources.npcs.spritesheet.textures).filter((name) => name.endsWith("_down_0")).map((name) => name.replace(/_down_0$/, "")))]
-    .filter((name) => !["boat", "oups/scientist"].includes(name)).sort();
+  assets.npcs = [
+    ...new Set(
+      Object.keys(resources.npcs.spritesheet.textures)
+        .filter((name) => name.endsWith("_down_0"))
+        .map((name) => name.replace(/_down_0$/, "")),
+    ),
+  ]
+    .filter((name) => !["boat", "oups/scientist"].includes(name))
+    .sort();
 
   //Build palette and detect unused frames
   const image = resources.tileset.spritesheet.baseTexture.resource.source;
@@ -110,17 +119,20 @@ export async function load(progress: (text: string) => void) {
   }
   const { data } = context.getImageData(0, 0, palette.width, palette.height);
   for (let i = 0; i < count; i++) {
-    const px = (i % columns) * size, py = Math.floor(i / columns) * size;
-    let magenta = 0, blue = 0, clear = 0;
+    const px = (i % columns) * size,
+      py = Math.floor(i / columns) * size;
+    let magenta = 0,
+      blue = 0,
+      clear = 0;
     for (let v = 0; v < size; v++) {
       for (let u = 0; u < size; u++) {
         const j = ((py + v) * palette.width + px + u) * 4;
         const [r, g, b, a] = [data[j], data[j + 1], data[j + 2], data[j + 3]];
         if (!a) {
           clear++;
-        } else if ((r > 180) && (g < 90) && (b > 180)) {
+        } else if (r > 180 && g < 90 && b > 180) {
           magenta++;
-        } else if ((a > 200) && (b > r + 60) && (b > g + 15)) {
+        } else if (a > 200 && b > r + 60 && b > g + 15) {
           blue++;
         }
       }
@@ -131,7 +143,7 @@ export async function load(progress: (text: string) => void) {
     } else if (blue > size * size * 0.6) {
       assets.water.add(i);
     }
-    if ((clear) && (!assets.empty.has(i))) {
+    if (clear && !assets.empty.has(i)) {
       assets.clear.add(i);
     }
   }
@@ -142,10 +154,10 @@ export async function load(progress: (text: string) => void) {
 /** Usual layer of built-in tiles (values are frame + 1): ground when all are ground tiles, above when most are, otherwise objects. Null for custom tilesets */
 export function layerOf(values: number[]): Layer | null {
   const frames = values.filter(Boolean).map((value) => value - 1);
-  if ((!frames.length) || (frames.some((frame) => frame + 1 >= range))) {
+  if (!frames.length || frames.some((frame) => frame + 1 >= range)) {
     return null;
   }
-  if (frames.every((frame) => (assets.ground.has(frame)) && (!assets.clear.has(frame)))) {
+  if (frames.every((frame) => assets.ground.has(frame) && !assets.clear.has(frame))) {
     return "ground";
   }
   return frames.filter((frame) => assets.above.has(frame)).length * 2 > frames.length ? "above" : "decor";
@@ -208,7 +220,9 @@ export function artwork(id: number, { back = false, shiny = false } = {}) {
 /** Battle sprite: animated, full-body Gen 5 sprites up to #649, still images after (drawn at whole-pixel sizes by the battle screen) */
 export function battleSprite(id: number, { back = false, shiny = false } = {}) {
   const view = `${back ? "back/" : ""}${shiny ? "shiny/" : ""}`;
-  return id <= 649 ? { src: `${sprites}/versions/generation-v/black-white/animated/${view}${id}.gif`, animated: true } : { src: `${sprites}/${view}${id}.png`, animated: false };
+  return id <= 649
+    ? { src: `${sprites}/versions/generation-v/black-white/animated/${view}${id}.gif`, animated: true }
+    : { src: `${sprites}/${view}${id}.png`, animated: false };
 }
 
 /** Overworld look of a creature placed on the map (custom sprite, packed box icon, or its PokeAPI sprite scaled to the same size) */
@@ -224,7 +238,7 @@ export function creatureSprite(id: number, look?: string) {
 /** Box icon of a creature for DOM previews (creatures without a packed icon use their PokeAPI sprite) */
 export function portrait(id: number, scale = 1, art = "") {
   const texture = icon(id);
-  if ((!art) && (texture !== PIXI.Texture.EMPTY)) {
+  if (!art && texture !== PIXI.Texture.EMPTY) {
     return preview(texture, scale);
   }
   const image = Object.assign(document.createElement("img"), { src: art || `${sprites}/${id}.png`, alt: "", loading: "lazy", draggable: false });

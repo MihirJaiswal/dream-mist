@@ -8,7 +8,21 @@ import { storage } from "@/game/data";
 import { problems } from "@/game/problems";
 import { session as engine } from "@/game/session";
 import { cn } from "@/lib/utils";
-import { ArrowLineDown, ArrowLineUp, CheckCircle, Crosshair, GridFour, MapPin, MapTrifold, Minus, Play, Plus, Sidebar as SidebarIcon, Warning, XCircle } from "@phosphor-icons/react";
+import {
+  ArrowLineDown,
+  ArrowLineUp,
+  CheckCircle,
+  Crosshair,
+  GridFour,
+  MapPin,
+  MapTrifold,
+  Minus,
+  Play,
+  Plus,
+  Sidebar as SidebarIcon,
+  Warning,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 /** Floating map controls: zoom, center, grid, minimap and side panel */
@@ -27,15 +41,55 @@ export function MapControls({ minimap, onMinimap, onPanel }: { minimap: boolean;
   return (
     <div className="absolute bottom-3 right-3 z-20 flex gap-2">
       <div className="flex items-center rounded-lg border border-border bg-card/95 p-0.5 shadow-lg backdrop-blur">
-        <Tip label="Zoom out" shortcut="−" description="Pinch or Ctrl+scroll also zooms"><button aria-label="Zoom out" className={button} onClick={() => session.map.zoom(0.8)}><Minus size={15} /></button></Tip>
-        <Tip label="Reset zoom" description="Back to 300%"><button className="w-14 rounded-md py-1 font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => session.map.scale(3)}>{zoom}%</button></Tip>
-        <Tip label="Zoom in" shortcut="+" description="Pinch or Ctrl+scroll also zooms"><button aria-label="Zoom in" className={button} onClick={() => session.map.zoom(1.25)}><Plus size={15} /></button></Tip>
+        <Tip label="Zoom out" shortcut="−" description="Pinch or Ctrl+scroll also zooms">
+          <button aria-label="Zoom out" className={button} onClick={() => session.map.zoom(0.8)}>
+            <Minus size={15} />
+          </button>
+        </Tip>
+        <Tip label="Reset zoom" description="Back to 300%">
+          <button
+            className="w-14 rounded-md py-1 font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => session.map.scale(3)}
+          >
+            {zoom}%
+          </button>
+        </Tip>
+        <Tip label="Zoom in" shortcut="+" description="Pinch or Ctrl+scroll also zooms">
+          <button aria-label="Zoom in" className={button} onClick={() => session.map.zoom(1.25)}>
+            <Plus size={15} />
+          </button>
+        </Tip>
       </div>
       <div className="flex items-center rounded-lg border border-border bg-card/95 p-0.5 shadow-lg backdrop-blur">
-        <Tip label="Center" shortcut="0" description="Fit the whole map on screen, or snap back to your trainer in Play"><button aria-label="Center" className={button} onClick={() => edit ? session.map.fit() : session.map.scale(3)}><Crosshair size={15} /></button></Tip>
-        {edit ? <Tip label="Grid" shortcut="G" description="Show or hide the tile grid"><button aria-label="Grid" aria-pressed={editor?.grid} className={cn(button, editor?.grid && "text-foreground")} onClick={() => editor?.toggleGrid()}><GridFour size={15} /></button></Tip> : null}
-        <Tip label="Minimap" description="Overview of the whole map, click it to jump around"><button aria-label="Minimap" aria-pressed={minimap} className={cn(button, minimap && "text-foreground")} onClick={onMinimap}><MapTrifold size={15} /></button></Tip>
-        {edit ? <Tip label="Side panel" description="Show or hide the layers and tiles panel"><button aria-label="Side panel" className={button} onClick={onPanel}><SidebarIcon size={15} /></button></Tip> : null}
+        <Tip label="Center" shortcut="0" description="Fit the whole map on screen, or snap back to your trainer in Play">
+          <button aria-label="Center" className={button} onClick={() => (edit ? session.map.fit() : session.map.scale(3))}>
+            <Crosshair size={15} />
+          </button>
+        </Tip>
+        {edit ? (
+          <Tip label="Grid" shortcut="G" description="Show or hide the tile grid">
+            <button
+              aria-label="Grid"
+              aria-pressed={editor?.grid}
+              className={cn(button, editor?.grid && "text-foreground")}
+              onClick={() => editor?.toggleGrid()}
+            >
+              <GridFour size={15} />
+            </button>
+          </Tip>
+        ) : null}
+        <Tip label="Minimap" description="Overview of the whole map, click it to jump around">
+          <button aria-label="Minimap" aria-pressed={minimap} className={cn(button, minimap && "text-foreground")} onClick={onMinimap}>
+            <MapTrifold size={15} />
+          </button>
+        </Tip>
+        {edit ? (
+          <Tip label="Side panel" description="Show or hide the layers and tiles panel">
+            <button aria-label="Side panel" className={button} onClick={onPanel}>
+              <SidebarIcon size={15} />
+            </button>
+          </Tip>
+        ) : null}
       </div>
     </div>
   );
@@ -62,37 +116,52 @@ export function MapMenu() {
       document.removeEventListener("keydown", escape);
     };
   }, [menu]);
-  if ((!menu) || (session.mode !== "edit")) {
+  if (!menu || session.mode !== "edit") {
     return null;
   }
   const { tile } = menu;
   const item = "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent";
   //Two pieces overlap here: either can be brought in front of the other
   const stack = engine.editor.stackAt(tile);
-  const piece = (value: number) => <CanvasView className="ml-auto size-5 shrink-0 overflow-hidden rounded-sm bg-muted [&_canvas]:size-5" make={() => engine.editor.stampCanvas({ w: 1, h: 1, tiles: [value] }, 1)} deps={[value]} />;
+  const piece = (value: number) => (
+    <CanvasView
+      className="ml-auto size-5 shrink-0 overflow-hidden rounded-sm bg-muted [&_canvas]:size-5"
+      make={() => engine.editor.stampCanvas({ w: 1, h: 1, tiles: [value] }, 1)}
+      deps={[value]}
+    />
+  );
   const reorder = () => (engine.editor.reorder(tile), engine.closeMenu());
   return (
-    <div ref={ref} role="menu" style={{ left: Math.min(menu.left, window.innerWidth - 216), top: Math.min(menu.top, window.innerHeight - (stack ? 220 : 140)) }} className="fixed z-50 w-52 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg">
-      <p className="px-2 pb-1 pt-0.5 font-mono text-[11px] text-subtle-fg">Tile {tile.x}, {tile.y}</p>
+    <div
+      ref={ref}
+      role="menu"
+      style={{ left: Math.min(menu.left, window.innerWidth - 216), top: Math.min(menu.top, window.innerHeight - (stack ? 220 : 140)) }}
+      className="fixed z-50 w-52 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg"
+    >
+      <p className="px-2 pb-1 pt-0.5 font-mono text-[11px] text-subtle-fg">
+        Tile {tile.x}, {tile.y}
+      </p>
       <button role="menuitem" className={item} onClick={() => void engine.playFrom(tile)}>
-        <Play size={15} weight="fill" />Play from here<kbd className="ml-auto font-mono text-[11px] text-subtle-fg">P</kbd>
+        <Play size={15} weight="fill" />
+        Play from here<kbd className="ml-auto font-mono text-[11px] text-subtle-fg">P</kbd>
       </button>
-      <button role="menuitem" className={item} onClick={() => (engine.editor.mutate(() => engine.area.spawn = { ...tile }), engine.closeMenu())}>
-        <MapPin size={15} />Visitors arrive here
+      <button role="menuitem" className={item} onClick={() => (engine.editor.mutate(() => (engine.area.spawn = { ...tile })), engine.closeMenu())}>
+        <MapPin size={15} />
+        Visitors arrive here
       </button>
-      {stack
-        ? (
-          <>
-            <div role="separator" className="-mx-1 my-1 h-px bg-border" />
-            <button role="menuitem" title="The piece behind comes in front, wherever the two overlap" className={item} onClick={reorder}>
-              <ArrowLineUp size={15} />Bring to front{piece(stack.back)}
-            </button>
-            <button role="menuitem" title="The piece in front goes behind, wherever the two overlap" className={item} onClick={reorder}>
-              <ArrowLineDown size={15} />Send to back{piece(stack.front)}
-            </button>
-          </>
-        )
-        : null}
+      {stack ? (
+        <>
+          <div role="separator" className="-mx-1 my-1 h-px bg-border" />
+          <button role="menuitem" title="The piece behind comes in front, wherever the two overlap" className={item} onClick={reorder}>
+            <ArrowLineUp size={15} />
+            Bring to front{piece(stack.back)}
+          </button>
+          <button role="menuitem" title="The piece in front goes behind, wherever the two overlap" className={item} onClick={reorder}>
+            <ArrowLineDown size={15} />
+            Send to back{piece(stack.front)}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -111,7 +180,7 @@ export function Minimap() {
     let timer = 0;
     const draw = () => {
       timer = 0;
-      if ((!engine.area) || (!map.city) || (!canvas.current)) {
+      if (!engine.area || !map.city || !canvas.current) {
         return;
       }
       const { width, height } = map.city;
@@ -122,7 +191,7 @@ export function Minimap() {
       canvas.current.getContext("2d")!.drawImage(image, 0, 0);
     };
     //Redraw shortly after tiles change (painting, room edits, loading a map)
-    map.ontiles = () => (!timer) && (timer = setTimeout(draw, 400) as unknown as number);
+    map.ontiles = () => !timer && (timer = setTimeout(draw, 400) as unknown as number);
     draw();
     const tick = () => {
       if (!frame.current) {
@@ -133,7 +202,7 @@ export function Minimap() {
       Object.assign(frame.current.style, { left: `${x * unit}px`, top: `${y * unit}px`, width: `${w * unit}px`, height: `${h * unit}px` });
     };
     map.app.ticker.add(tick);
-    return () => (map.app.ticker.remove(tick), map.ontiles = null, clearTimeout(timer));
+    return () => (map.app.ticker.remove(tick), (map.ontiles = null), clearTimeout(timer));
   }, [session.map, session.area]);
   const jump = (event: React.PointerEvent) => {
     if (session.mode === "play") {
@@ -165,7 +234,7 @@ export function StatusBar() {
       <span className="text-muted-foreground">{session.area && session.area !== session.city ? session.area.name : "Outside"}</span>
       <span className="w-14 font-mono">{tile ? `${tile.x}, ${tile.y}` : ""}</span>
       <span className="truncate">{session.saved}</span>
-      {(session.ready) && (!session.visiting) ? <ProblemsButton /> : null}
+      {session.ready && !session.visiting ? <ProblemsButton /> : null}
       <span className="ml-auto hidden truncate lg:inline">
         {session.mode === "play"
           ? "WASD or arrows to walk · Shift runs · Space talks · Build takes you back where you were"
@@ -181,23 +250,40 @@ export function ProblemsButton() {
   const [open, setOpen] = useState(false);
   const found = problems(session.city, (id) => Boolean(species(id)));
   const errors = found.filter(({ kind }) => kind === "error").length;
-  const mapName = (id: string) => id ? session.city.interiors.find((map) => map.id === id)?.name ?? "" : "Outside";
+  const mapName = (id: string) => (id ? (session.city.interiors.find((map) => map.id === id)?.name ?? "") : "Outside");
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className={cn("flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted", errors ? "text-destructive" : found.length ? "text-select" : "text-subtle-fg")}>
+        <button
+          className={cn(
+            "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted",
+            errors ? "text-destructive" : found.length ? "text-select" : "text-subtle-fg",
+          )}
+        >
           {found.length ? <Warning size={12} weight="fill" /> : <CheckCircle size={12} />}
           {found.length ? `${found.length} problem${found.length > 1 ? "s" : ""}` : "No problems"}
         </button>
       </PopoverTrigger>
       <PopoverContent side="top" align="start" className="w-96 p-1">
-        <p className="px-2 pb-1.5 pt-1 text-xs text-muted-foreground">{found.length ? "Click one to go fix it." : "Doors, people, the spawn, encounter zones and the story all check out."}</p>
+        <p className="px-2 pb-1.5 pt-1 text-xs text-muted-foreground">
+          {found.length ? "Click one to go fix it." : "Doors, people, the spawn, encounter zones and the story all check out."}
+        </p>
         <ul className="grid max-h-80 gap-0.5 overflow-y-auto">
           {found.map((problem, i) => (
             <li key={i}>
-              <button onClick={() => (setOpen(false), void session.fix(problem))} className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent">
-                {problem.kind === "error" ? <XCircle size={15} weight="fill" className="mt-0.5 shrink-0 text-destructive" /> : <Warning size={15} weight="fill" className="mt-0.5 shrink-0 text-select" />}
-                <span className="min-w-0 flex-1">{problem.text}<small className="block text-[11px] text-subtle-fg">{mapName(problem.map)}</small></span>
+              <button
+                onClick={() => (setOpen(false), void session.fix(problem))}
+                className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+              >
+                {problem.kind === "error" ? (
+                  <XCircle size={15} weight="fill" className="mt-0.5 shrink-0 text-destructive" />
+                ) : (
+                  <Warning size={15} weight="fill" className="mt-0.5 shrink-0 text-select" />
+                )}
+                <span className="min-w-0 flex-1">
+                  {problem.text}
+                  <small className="block text-[11px] text-subtle-fg">{mapName(problem.map)}</small>
+                </span>
               </button>
             </li>
           ))}

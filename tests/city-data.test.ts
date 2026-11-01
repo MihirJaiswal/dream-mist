@@ -26,7 +26,10 @@ describe("resize", () => {
 
   test("drops people and doors left outside, and keeps the spawn inside", () => {
     const city = blank({ width: 10, height: 10 });
-    city.npcs = [{ x: 1, y: 1 }, { x: 8, y: 8 }] as typeof city.npcs;
+    city.npcs = [
+      { x: 1, y: 1 },
+      { x: 8, y: 8 },
+    ] as typeof city.npcs;
     city.doors = [{ x: 9, y: 0, to: "", tx: 0, ty: 0 }];
     city.spawn = { x: 9, y: 9 };
     resize(city, 5, 5);
@@ -61,7 +64,10 @@ describe("sanitize", () => {
     const city = sanitize({
       ...blank({ width: 3, height: 3 }),
       name: "x".repeat(80),
-      doors: [{ x: 1, y: 1, to: "", tx: 0, ty: 0 }, { x: Number.NaN, y: 0 }],
+      doors: [
+        { x: 1, y: 1, to: "", tx: 0, ty: 0 },
+        { x: Number.NaN, y: 0 },
+      ],
       story: [{ id: "a" }, {}],
       sprites: [{ id: "s", url: "u" }, { id: "missing url" }],
     } as never);

@@ -24,7 +24,8 @@ describe("game data files", () => {
 
   test("tiles know their usual layer, and the common ones are right", () => {
     const { layers } = json("data/city/tiles.json");
-    const ground = new Set(layers.ground), above = new Set(layers.above);
+    const ground = new Set(layers.ground),
+      above = new Set(layers.above);
     //Grass and sand paths are ground; trees and the house roof are objects
     for (const frame of [113, 4977]) {
       expect(ground.has(frame), `${frame}`).toBe(true);
@@ -40,7 +41,8 @@ describe("game data files", () => {
     const { layers } = json("data/city/tiles.json");
     //The tileset has 113 columns of 16×16 tiles with a 2 px margin and spacing
     const solid = (frame: number) => {
-      const px = 2 + (frame % 113) * 18, py = 2 + Math.floor(frame / 113) * 18;
+      const px = 2 + (frame % 113) * 18,
+        py = 2 + Math.floor(frame / 113) * 18;
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 16; x++) {
           if (!image.data[((py + y) * image.width + px + x) * 4 + 3]) {
@@ -69,7 +71,17 @@ describe("game data files", () => {
   });
 
   test("textures and audio the game loads exist", () => {
-    for (const file of ["textures/rse/tileset.json", "textures/rse/npcs.json", "textures/rse/creatures.json", "data/textures/rse/tileset.json", "audio/town.m4a", "audio/battle.m4a", "audio/hit.m4a", "audio/hit2.m4a", "audio/victory.m4a"]) {
+    for (const file of [
+      "textures/rse/tileset.json",
+      "textures/rse/npcs.json",
+      "textures/rse/creatures.json",
+      "data/textures/rse/tileset.json",
+      "audio/town.m4a",
+      "audio/battle.m4a",
+      "audio/hit.m4a",
+      "audio/hit2.m4a",
+      "audio/victory.m4a",
+    ]) {
       expect(existsSync(`public/game/${file}`), file).toBe(true);
     }
   });

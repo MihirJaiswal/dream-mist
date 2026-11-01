@@ -55,7 +55,8 @@ export function image(url: string) {
 /** Frame size of a sheet in a layout (null when the image doesn't split evenly) */
 export function frameOf(img: { width: number; height: number }, layout: keyof typeof layouts) {
   const { columns, rows } = layouts[layout];
-  const w = img.width / columns, h = img.height / rows.length;
+  const w = img.width / columns,
+    h = img.height / rows.length;
   return Number.isInteger(w) && Number.isInteger(h) ? { w, h } : null;
 }
 
@@ -107,10 +108,10 @@ export function scaleOf(name: string) {
 /** Overworld look of a custom Pokémon (null when not loaded) */
 export function creatureLook(id?: string) {
   const name = id ? key(id) : "";
-  return (name) && (name in PIXI.utils.TextureCache) ? { texture: PIXI.Texture.from(name), scale: scaleOf(name) } : null;
+  return name && name in PIXI.utils.TextureCache ? { texture: PIXI.Texture.from(name), scale: scaleOf(name) } : null;
 }
 
 /** Image url of a custom Pokémon (battles and previews) */
 export function creatureImage(id?: string) {
-  return id ? images.get(id) ?? "" : "";
+  return id ? (images.get(id) ?? "") : "";
 }

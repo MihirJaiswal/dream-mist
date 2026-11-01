@@ -13,7 +13,7 @@ import type { Sprite } from "./sprites";
 
 /** Drawable tile layers (bottom to top, player walks between decor and above) */
 export const layers = ["ground", "decor", "above"] as const;
-export type Layer = typeof layers[number];
+export type Layer = (typeof layers)[number];
 
 /** Directions */
 export type Direction = "up" | "down" | "left" | "right";
@@ -191,7 +191,19 @@ export function blank({ width = 40, height = 30, ground = 0, name = "New Town", 
     story: [],
     quests: [],
     interiors: [],
-    zones: [{ name: "Tall grass", rate: 0.12, color: 0x2ecc40, creatures: [{ species: 263, min: 2, max: 4 }, { species: 265, min: 2, max: 4 }, { species: 261, min: 3, max: 4 }, { species: 280, min: 3, max: 5 }] }],
+    zones: [
+      {
+        name: "Tall grass",
+        rate: 0.12,
+        color: 0x2ecc40,
+        creatures: [
+          { species: 263, min: 2, max: 4 },
+          { species: 265, min: 2, max: 4 },
+          { species: 261, min: 3, max: 4 },
+          { species: 280, min: 3, max: 5 },
+        ],
+      },
+    ],
     npcs: [],
     spawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
     updated: Date.now(),
@@ -215,8 +227,8 @@ export function resize(city: City, width: number, height: number) {
   city.solid = grid(city.solid);
   city.zone = grid(city.zone);
   city.gate = grid(city.gate);
-  city.npcs = city.npcs.filter(({ x, y }) => (x < width) && (y < height));
-  city.doors = city.doors.filter(({ x, y }) => (x < width) && (y < height));
+  city.npcs = city.npcs.filter(({ x, y }) => x < width && y < height);
+  city.doors = city.doors.filter(({ x, y }) => x < width && y < height);
   city.width = width;
   city.height = height;
   city.spawn.x = Math.min(city.spawn.x, width - 1);
@@ -225,12 +237,12 @@ export function resize(city: City, width: number, height: number) {
 
 /** Validate and fill missing fields of an imported city (interiors get the root shared fields) */
 export function sanitize(raw: Partial<City>, root?: City): City {
-  if ((!raw) || (typeof raw !== "object") || (!raw.width) || (!raw.height) || (!raw.layers)) {
+  if (!raw || typeof raw !== "object" || !raw.width || !raw.height || !raw.layers) {
     throw new TypeError("not a valid city");
   }
   const city = blank({ width: raw.width, height: raw.height });
   const size = city.width * city.height;
-  const grid = (values: unknown) => Array.isArray(values) && values.length === size ? values.map((n) => Number(n) || 0) : new Array(size).fill(0);
+  const grid = (values: unknown) => (Array.isArray(values) && values.length === size ? values.map((n) => Number(n) || 0) : new Array(size).fill(0));
   for (const layer of layers) {
     city.layers[layer] = grid(raw.layers[layer]);
   }
@@ -239,7 +251,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.gate = grid(raw.gate);
   //Tall grass used to be painted on the ground, where its see-through edges showed black: it now stands on grass as an object
   city.layers.ground.forEach((value, i) => {
-    if ((value === frames.tall + 1) && (!city.layers.decor[i])) {
+    if (value === frames.tall + 1 && !city.layers.decor[i]) {
       city.layers.decor[i] = value;
       city.layers.ground[i] = frames.grass + 1;
     }
@@ -249,16 +261,16 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.spawn = raw.spawn ?? city.spawn;
   city.doors = Array.isArray(raw.doors) ? raw.doors.filter((door) => door && Number.isFinite(door.x) && Number.isFinite(door.y)) : [];
   city.story = Array.isArray(raw.story) ? raw.story.filter((step) => step && step.id) : [];
-  if (weathers.some(({ key }) => key === raw.weather) && (raw.weather !== "clear")) {
+  if (weathers.some(({ key }) => key === raw.weather) && raw.weather !== "clear") {
     city.weather = raw.weather;
   }
-  if (daytimes.some(({ key }) => key === raw.time) && (raw.time !== "day")) {
+  if (daytimes.some(({ key }) => key === raw.time) && raw.time !== "day") {
     city.time = raw.time;
   }
-  if ((raw.battle) && (typeof raw.battle.image === "string") && (raw.battle.image)) {
+  if (raw.battle && typeof raw.battle.image === "string" && raw.battle.image) {
     city.battle = { image: raw.battle.image, platforms: raw.battle.platforms !== false };
   }
-  if ((root) && (raw.outdoor)) {
+  if (root && raw.outdoor) {
     city.outdoor = true;
     city.region = { x: Math.round(Number(raw.region?.x) || 0), y: Math.round(Number(raw.region?.y) || 0) };
   }
@@ -268,11 +280,15 @@ export function sanitize(raw: Partial<City>, root?: City): City {
     city.name = `${raw.name ?? "Interior"}`.slice(0, 40);
     return attach(city, root);
   }
-  city.quests = Array.isArray(raw.quests) ? raw.quests.filter((quest) => quest && quest.id).map(({ id, name, after }) => ({ id: `${id}`, name: `${name ?? "Side quest"}`.slice(0, 40), ...(after ? { after: `${after}` } : {}) })) : [];
+  city.quests = Array.isArray(raw.quests)
+    ? raw.quests
+        .filter((quest) => quest && quest.id)
+        .map(({ id, name, after }) => ({ id: `${id}`, name: `${name ?? "Side quest"}`.slice(0, 40), ...(after ? { after: `${after}` } : {}) }))
+    : [];
   city.interiors = Array.isArray(raw.interiors) ? raw.interiors.slice(0, 40).map((interior) => sanitize(interior, city)) : [];
   city.tilesets = Array.isArray(raw.tilesets) ? raw.tilesets : [];
   city.sprites = Array.isArray(raw.sprites) ? raw.sprites.filter((sprite) => sprite && sprite.id && sprite.url) : [];
-  city.music = (raw.music && typeof raw.music === "object") ? raw.music : {};
+  city.music = raw.music && typeof raw.music === "object" ? raw.music : {};
   city.id = `${raw.id ?? city.id}`;
   city.name = `${raw.name ?? city.name}`.slice(0, 40);
   city.author = `${raw.author ?? ""}`.slice(0, 40);
@@ -283,7 +299,12 @@ export function sanitize(raw: Partial<City>, root?: City): City {
 /** Make an interior share the root zones, story, tilesets and music (not serialized twice) */
 function attach(interior: City, root: City) {
   for (const key of ["zones", "story", "quests", "tilesets", "sprites", "music", "author"] as const) {
-    Object.defineProperty(interior, key, { enumerable: false, configurable: true, get: () => root[key], set: (value) => (root as Record<string, unknown>)[key] = value });
+    Object.defineProperty(interior, key, {
+      enumerable: false,
+      configurable: true,
+      get: () => root[key],
+      set: (value) => ((root as Record<string, unknown>)[key] = value),
+    });
   }
   delete (interior as Partial<City>).interiors;
   Object.defineProperty(interior, "interiors", { enumerable: false, configurable: true, value: [] });
@@ -326,7 +347,7 @@ export function outdoor(root: City, { name = "Route", width = 20, height = 40, x
 
 /** Find a map of a city ("" = outside) */
 export function area(root: City, id: string) {
-  return id ? root.interiors.find((map) => map.id === id) ?? null : root;
+  return id ? (root.interiors.find((map) => map.id === id) ?? null) : root;
 }
 
 /** Base64url helpers */
@@ -357,7 +378,7 @@ export async function encode(city: City) {
 /** Decode a share code into a city */
 export async function decode(code: string) {
   const [version, payload] = code.split(".");
-  if ((version !== "c1") || (!payload)) {
+  if (version !== "c1" || !payload) {
     throw new TypeError("unsupported city code");
   }
   const bytes = await stream(fromBase64(payload), new DecompressionStream("deflate-raw"));

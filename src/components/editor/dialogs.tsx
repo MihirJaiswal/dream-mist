@@ -33,6 +33,16 @@ export function openDialog<T = void>(render: (close: (value?: T) => void) => Rea
 
 /** Renders every open dialog (mounted once in the editor) */
 export function DialogHost() {
-  const current = useSyncExternalStore(subscribe, () => entries, () => entries);
-  return <>{current.map((entry) => <Fragment key={entry.id}>{entry.node()}</Fragment>)}</>;
+  const current = useSyncExternalStore(
+    subscribe,
+    () => entries,
+    () => entries,
+  );
+  return (
+    <>
+      {current.map((entry) => (
+        <Fragment key={entry.id}>{entry.node()}</Fragment>
+      ))}
+    </>
+  );
 }

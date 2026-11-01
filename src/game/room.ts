@@ -80,7 +80,7 @@ export class Room {
           await this.#channel.track({ name: this.you.name, color: this.you.color, joined: this.you.joined });
           handlers.status("online");
           this.#send("hello", {});
-        } else if ((status === "CLOSED") || (status === "CHANNEL_ERROR") || (status === "TIMED_OUT")) {
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           handlers.status("offline");
         }
       });
@@ -103,10 +103,17 @@ export class Room {
       }
       everyone.push({ id, joined: presence.joined });
       if (id !== this.you.id) {
-        this.peers.set(id, { id, name: presence.name, color: presence.color, joined: presence.joined, x: previous.get(id)?.x ?? -1, y: previous.get(id)?.y ?? -1 });
+        this.peers.set(id, {
+          id,
+          name: presence.name,
+          color: presence.color,
+          joined: presence.joined,
+          x: previous.get(id)?.x ?? -1,
+          y: previous.get(id)?.y ?? -1,
+        });
       }
     }
-    everyone.sort((a, b) => (a.joined - b.joined) || a.id.localeCompare(b.id));
+    everyone.sort((a, b) => a.joined - b.joined || a.id.localeCompare(b.id));
     const host = (everyone[0]?.id ?? this.you.id) === this.you.id;
     if (host !== this.host) {
       this.host = host;

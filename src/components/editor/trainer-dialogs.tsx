@@ -29,7 +29,24 @@ export function onboarding() {
 }
 
 function Onboarding({ close }: { close: () => void }) {
-  const looks = ["may", "wally", "youngster", "lass", "ace_trainer", "hiker", "psychic", "rich_boy", "schoolkid_f", "schoolkid_m", "triathlete_f", "triathlete_m", "ranger", "sailor", "twin", "aroma"].filter((name) => assets.npcs.includes(name));
+  const looks = [
+    "may",
+    "wally",
+    "youngster",
+    "lass",
+    "ace_trainer",
+    "hiker",
+    "psychic",
+    "rich_boy",
+    "schoolkid_f",
+    "schoolkid_m",
+    "triathlete_f",
+    "triathlete_m",
+    "ranger",
+    "sailor",
+    "twin",
+    "aroma",
+  ].filter((name) => assets.npcs.includes(name));
   const [name, setName] = useState(cloud.user?.username ?? "");
   const [sprite, setSprite] = useState("may");
   const [starter, setStarter] = useState(starters[0]);
@@ -38,18 +55,43 @@ function Onboarding({ close }: { close: () => void }) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Welcome, new trainer!</DialogTitle>
-          <DialogDescription>{cloud.user ? "Your trainer travels with you through every city. Progress is saved to your account." : "Your trainer travels with you through every city. Progress is saved in this browser (log in to keep it online)."}</DialogDescription>
+          <DialogDescription>
+            {cloud.user
+              ? "Your trainer travels with you through every city. Progress is saved to your account."
+              : "Your trainer travels with you through every city. Progress is saved in this browser (log in to keep it online)."}
+          </DialogDescription>
         </DialogHeader>
-        <Field label="Name"><Input autoFocus value={name} placeholder="Your trainer name" maxLength={16} onChange={(event) => setName(event.target.value)} /></Field>
+        <Field label="Name">
+          <Input autoFocus value={name} placeholder="Your trainer name" maxLength={16} onChange={(event) => setName(event.target.value)} />
+        </Field>
         <Field label="Looks">
           <div className="flex flex-wrap gap-1">
-            {looks.map((look) => <button key={look} onClick={() => setSprite(look)} className={cn("grid h-14 w-11 place-items-center rounded-md border bg-card", sprite === look ? "border-select" : "border-border hover:border-ring")}><CanvasView make={() => preview(texture(look, "down"), 2)} deps={[look]} /></button>)}
+            {looks.map((look) => (
+              <button
+                key={look}
+                onClick={() => setSprite(look)}
+                className={cn(
+                  "grid h-14 w-11 place-items-center rounded-md border bg-card",
+                  sprite === look ? "border-select" : "border-border hover:border-ring",
+                )}
+              >
+                <CanvasView make={() => preview(texture(look, "down"), 2)} deps={[look]} />
+              </button>
+            ))}
           </div>
         </Field>
         <Field label="Choose your partner">
           <div className="grid grid-cols-3 gap-2">
             {starters.map((id) => (
-              <button key={id} onClick={() => setStarter(id)} className={cn("grid justify-items-center gap-1 rounded-lg border bg-card p-2", starter === id ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-border hover:border-ring")} style={{ ["--accent" as string]: colors[species(id).types[0]] }}>
+              <button
+                key={id}
+                onClick={() => setStarter(id)}
+                className={cn(
+                  "grid justify-items-center gap-1 rounded-lg border bg-card p-2",
+                  starter === id ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-border hover:border-ring",
+                )}
+                style={{ ["--accent" as string]: colors[species(id).types[0]] }}
+              >
                 <CanvasView make={() => portrait(id, 2)} deps={[id]} />
                 <b className="text-sm">{species(id).name}</b>
                 <TypeBadge type={species(id).types[0]} />
@@ -57,11 +99,15 @@ function Onboarding({ close }: { close: () => void }) {
             ))}
           </div>
         </Field>
-        <Button onClick={() => {
-          session.startTrainer(name, sprite, starter);
-          close();
-          toast.success(`${species(starter).name} joined your party!`);
-        }}>Start adventure</Button>
+        <Button
+          onClick={() => {
+            session.startTrainer(name, sprite, starter);
+            close();
+            toast.success(`${species(starter).name} joined your party!`);
+          }}
+        >
+          Start adventure
+        </Button>
       </DialogContent>
     </Dialog>
   );
@@ -77,23 +123,36 @@ export function party() {
 /** Condition badge (SLP, PSN, PAR, BRN) */
 export function StatusBadge({ status }: { status: Status }) {
   const { label, color } = statusLabels[status];
-  return <span className="rounded px-1.5 font-mono text-[10px] font-bold text-white" style={{ background: color }}>{label}</span>;
+  return (
+    <span className="rounded px-1.5 font-mono text-[10px] font-bold text-white" style={{ background: color }}>
+      {label}
+    </span>
+  );
 }
 
 /** Use a Potion or a cure from the bag on a Pokémon */
 function UseItem({ creature }: { creature: Creature }) {
   const usable = trainer.bag.filter(({ id }) => {
     const item = items[id];
-    return item.kind === "heal" ? (creature.hp > 0) && (creature.hp < hp(creature)) : item.kind === "cure" ? Boolean(creature.status) : false;
+    return item.kind === "heal" ? creature.hp > 0 && creature.hp < hp(creature) : item.kind === "cure" ? Boolean(creature.status) : false;
   });
   if (!usable.length) {
     return null;
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button size="sm" variant="outline">Use item</Button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline">
+          Use item
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {usable.map(({ id, count }) => <DropdownMenuItem key={id} onSelect={() => session.useItem(id, creature) && toast.success(`${items[id].name} used on ${named(creature)}`)}>{items[id].name}<span className="ml-auto pl-4 text-xs text-muted-foreground">x{count}</span></DropdownMenuItem>)}
+        {usable.map(({ id, count }) => (
+          <DropdownMenuItem key={id} onSelect={() => session.useItem(id, creature) && toast.success(`${items[id].name} used on ${named(creature)}`)}>
+            {items[id].name}
+            <span className="ml-auto pl-4 text-xs text-muted-foreground">x{count}</span>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -103,11 +162,32 @@ function CreatureRow({ creature, children }: { creature: Creature; children: Rea
   const ratio = creature.hp / hp(creature);
   return (
     <div className={cn("flex items-center gap-3 rounded-md border border-border p-2", creature.hp <= 0 && "opacity-60")}>
-      <CanvasView className="h-[60px] w-[68px] overflow-hidden" make={() => portrait(creature.species, 1, creature.art)} deps={[creature.species, creature.art]} />
+      <CanvasView
+        className="h-[60px] w-[68px] overflow-hidden"
+        make={() => portrait(creature.species, 1, creature.art)}
+        deps={[creature.species, creature.art]}
+      />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5"><b className="text-sm">{named(creature)}{creature.shiny ? " ✨" : ""}</b><span className="rounded bg-muted px-1.5 text-[11px]">Lv {creature.level}</span>{species(creature.species).types.map((type) => <TypeBadge key={type} type={type} />)}{creature.status ? <StatusBadge status={creature.status} /> : null}</div>
-        <div className="my-1 h-1.5 rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }} /></div>
-        <small className="block truncate text-[11px] text-subtle-fg">HP {creature.hp}/{hp(creature)} · {creature.moves.map(({ key }) => assets.moves[key]?.name ?? key).join(", ")}</small>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <b className="text-sm">
+            {named(creature)}
+            {creature.shiny ? " ✨" : ""}
+          </b>
+          <span className="rounded bg-muted px-1.5 text-[11px]">Lv {creature.level}</span>
+          {species(creature.species).types.map((type) => (
+            <TypeBadge key={type} type={type} />
+          ))}
+          {creature.status ? <StatusBadge status={creature.status} /> : null}
+        </div>
+        <div className="my-1 h-1.5 rounded-full bg-muted">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }}
+          />
+        </div>
+        <small className="block truncate text-[11px] text-subtle-fg">
+          HP {creature.hp}/{hp(creature)} · {creature.moves.map(({ key }) => assets.moves[key]?.name ?? key).join(", ")}
+        </small>
       </div>
       {children}
     </div>
@@ -123,24 +203,46 @@ function Party({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>Your Pokémon</DialogTitle><DialogDescription>₽{profile.money.toLocaleString()} · {trainer.bag.length ? trainer.bag.map(({ id, count }) => `${count} ${items[id].name}`).join(" · ") : "Your bag is empty"}</DialogDescription></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Your Pokémon</DialogTitle>
+          <DialogDescription>
+            ₽{profile.money.toLocaleString()} ·{" "}
+            {trainer.bag.length ? trainer.bag.map(({ id, count }) => `${count} ${items[id].name}`).join(" · ") : "Your bag is empty"}
+          </DialogDescription>
+        </DialogHeader>
         <div className="grid gap-1.5">
           {profile.party.map((creature, i) => (
             <CreatureRow key={i} creature={creature}>
               <UseItem creature={creature} />
-              {i ? <Button size="sm" variant="outline" title="Send first in battle" onClick={() => session.moveCreature("lead", i)}>Lead</Button> : <span className="rounded bg-muted px-2 py-1 text-xs">Lead</span>}
-              {profile.party.length > 1 ? <Button size="sm" variant="ghost" onClick={() => session.moveCreature("box", i)}>To box</Button> : null}
+              {i ? (
+                <Button size="sm" variant="outline" title="Send first in battle" onClick={() => session.moveCreature("lead", i)}>
+                  Lead
+                </Button>
+              ) : (
+                <span className="rounded bg-muted px-2 py-1 text-xs">Lead</span>
+              )}
+              {profile.party.length > 1 ? (
+                <Button size="sm" variant="ghost" onClick={() => session.moveCreature("box", i)}>
+                  To box
+                </Button>
+              ) : null}
             </CreatureRow>
           ))}
         </div>
-        {profile.box.length
-          ? (
-            <div className="grid gap-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">PC Box ({profile.box.length})</p>
-              {profile.box.map((creature, i) => <CreatureRow key={i} creature={creature}>{profile.party.length < 6 ? <Button size="sm" variant="outline" onClick={() => session.moveCreature("party", i)}>To party</Button> : null}</CreatureRow>)}
-            </div>
-          )
-          : null}
+        {profile.box.length ? (
+          <div className="grid gap-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">PC Box ({profile.box.length})</p>
+            {profile.box.map((creature, i) => (
+              <CreatureRow key={i} creature={creature}>
+                {profile.party.length < 6 ? (
+                  <Button size="sm" variant="outline" onClick={() => session.moveCreature("party", i)}>
+                    To party
+                  </Button>
+                ) : null}
+              </CreatureRow>
+            ))}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -161,24 +263,66 @@ function TrainerCard({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>Trainer card</DialogTitle><DialogDescription className="sr-only">Badges, Pokédex and progress</DialogDescription></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Trainer card</DialogTitle>
+          <DialogDescription className="sr-only">Badges, Pokédex and progress</DialogDescription>
+        </DialogHeader>
         <div className="flex items-center gap-4 rounded-lg border border-border bg-card p-3">
           <CanvasView make={() => preview(texture(profile.sprite, "down"), 4)} deps={[profile.sprite]} />
-          <div><h3 className="text-lg font-semibold">{profile.name}</h3><p className="text-sm text-muted-foreground">Pokédex: {profile.seen.length} seen · {profile.caught.length} caught</p><p className="text-sm text-muted-foreground">Trainers defeated: {profile.defeated.length} · Money: ₽{profile.money.toLocaleString()}</p></div>
+          <div>
+            <h3 className="text-lg font-semibold">{profile.name}</h3>
+            <p className="text-sm text-muted-foreground">
+              Pokédex: {profile.seen.length} seen · {profile.caught.length} caught
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Trainers defeated: {profile.defeated.length} · Money: ₽{profile.money.toLocaleString()}
+            </p>
+          </div>
         </div>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Badges ({profile.badges.length})</p>
-        {profile.badges.length
-          ? <div className="grid gap-1">{profile.badges.map(({ badge, city, name }, i) => <div key={i} className="flex items-center gap-2 rounded-md border border-border p-2"><Medal size={18} className="text-select" /><div><b className="block text-sm">{badge}</b><small className="text-xs text-subtle-fg">Beat {name} in {city}</small></div></div>)}</div>
-          : <Hint>Beat gym leaders in your friends&apos; cities to earn badges.</Hint>}
+        {profile.badges.length ? (
+          <div className="grid gap-1">
+            {profile.badges.map(({ badge, city, name }, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-md border border-border p-2">
+                <Medal size={18} className="text-select" />
+                <div>
+                  <b className="block text-sm">{badge}</b>
+                  <small className="text-xs text-subtle-fg">
+                    Beat {name} in {city}
+                  </small>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Hint>Beat gym leaders in your friends&apos; cities to earn badges.</Hint>
+        )}
         <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Caught Pokémon</p>
-        <div className="flex flex-wrap gap-1">{profile.caught.slice().sort((a, b) => a - b).map((id) => <span key={id} title={species(id)?.name}><CanvasView className="h-[46px] w-[56px] overflow-hidden" make={() => portrait(id, 0.8)} deps={[id]} /></span>)}</div>
+        <div className="flex flex-wrap gap-1">
+          {profile.caught
+            .slice()
+            .sort((a, b) => a - b)
+            .map((id) => (
+              <span key={id} title={species(id)?.name}>
+                <CanvasView className="h-[46px] w-[56px] overflow-hidden" make={() => portrait(id, 0.8)} deps={[id]} />
+              </span>
+            ))}
+        </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" className="text-destructive" onClick={async () => {
-            if (await confirm("Start over?", { text: "This erases your trainer, party, badges and story progress.", action: "Start over", danger: true })) {
-              close();
-              await session.startOver();
-            }
-          }}><Trash />Start over</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive"
+            onClick={async () => {
+              if (await confirm("Start over?", { text: "This erases your trainer, party, badges and story progress.", action: "Start over", danger: true })) {
+                close();
+                await session.startOver();
+              }
+            }}
+          >
+            <Trash />
+            Start over
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -201,23 +345,38 @@ function Journal({ close }: { close: () => void }) {
       <div className="flex items-center gap-2">
         {quest ? <Scroll size={16} className="shrink-0 text-select" /> : <Flag size={16} className="shrink-0" />}
         <b className="min-w-0 flex-1 truncate text-sm">{name}</b>
-        <span className="font-mono text-xs text-subtle-fg">{done}/{total}</span>
+        <span className="font-mono text-xs text-subtle-fg">
+          {done}/{total}
+        </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-select" style={{ width: `${(done / total) * 100}%` }} /></div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-select" style={{ width: `${(done / total) * 100}%` }} />
+      </div>
       <p className="text-sm text-muted-foreground">{next ? goal(next) : quest ? "Complete!" : "The main story is complete!"}</p>
     </div>
   );
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader><DialogTitle>Journal</DialogTitle><DialogDescription>{city.name}</DialogDescription></DialogHeader>
-        {(!page.main) && (!page.active.length) && (!page.complete.length)
-          ? <Hint>This town has no story yet. Explore, battle and catch Pokémon!</Hint>
-          : null}
+        <DialogHeader>
+          <DialogTitle>Journal</DialogTitle>
+          <DialogDescription>{city.name}</DialogDescription>
+        </DialogHeader>
+        {!page.main && !page.active.length && !page.complete.length ? <Hint>This town has no story yet. Explore, battle and catch Pokémon!</Hint> : null}
         {page.main ? entry(page.main) : null}
-        {page.active.length ? <><p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Side quests</p><div className="grid gap-2">{page.active.map(entry)}</div></> : null}
-        {page.complete.length ? <><p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Completed</p><div className="grid gap-2">{page.complete.map(entry)}</div></> : null}
-        {(page.main) || (page.active.length) ? null : <Hint>Talk to people around town: some of them need your help.</Hint>}
+        {page.active.length ? (
+          <>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Side quests</p>
+            <div className="grid gap-2">{page.active.map(entry)}</div>
+          </>
+        ) : null}
+        {page.complete.length ? (
+          <>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Completed</p>
+            <div className="grid gap-2">{page.complete.map(entry)}</div>
+          </>
+        ) : null}
+        {page.main || page.active.length ? null : <Hint>Talk to people around town: some of them need your help.</Hint>}
       </DialogContent>
     </Dialog>
   );
@@ -244,7 +403,9 @@ function Shop({ stock, speaker, close }: { stock: ItemId[]; speaker: string; clo
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between gap-3">Poké Mart<span className="rounded-md bg-muted px-2.5 py-1 font-mono text-sm">₽{profile.money.toLocaleString()}</span></DialogTitle>
+          <DialogTitle className="flex items-center justify-between gap-3">
+            Poké Mart<span className="rounded-md bg-muted px-2.5 py-1 font-mono text-sm">₽{profile.money.toLocaleString()}</span>
+          </DialogTitle>
           <DialogDescription>{speaker ? `${speaker}: ` : ""}What would you like?</DialogDescription>
         </DialogHeader>
         <ul className="grid gap-1.5">
@@ -254,20 +415,47 @@ function Shop({ stock, speaker, close }: { stock: ItemId[]; speaker: string; clo
             return (
               <li key={id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
                 <div className="min-w-0 flex-1">
-                  <b className="block text-sm">{item.name} <span className="font-mono text-xs font-normal text-muted-foreground">₽{item.price}</span></b>
-                  <small className="block text-xs text-subtle-fg">{item.about} · In bag: {trainer.count(id)}</small>
+                  <b className="block text-sm">
+                    {item.name} <span className="font-mono text-xs font-normal text-muted-foreground">₽{item.price}</span>
+                  </b>
+                  <small className="block text-xs text-subtle-fg">
+                    {item.about} · In bag: {trainer.count(id)}
+                  </small>
                 </div>
                 <div className="flex items-center rounded-md border border-border">
-                  <button aria-label={`Fewer ${item.name}s`} onClick={() => set(id, count(id) - 1)} className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"><Minus size={12} /></button>
+                  <button
+                    aria-label={`Fewer ${item.name}s`}
+                    onClick={() => set(id, count(id) - 1)}
+                    className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"
+                  >
+                    <Minus size={12} />
+                  </button>
                   <span className="w-7 text-center font-mono text-sm tabular-nums">{count(id)}</span>
-                  <button aria-label={`More ${item.name}s`} onClick={() => set(id, count(id) + 1)} className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"><Plus size={12} /></button>
+                  <button
+                    aria-label={`More ${item.name}s`}
+                    onClick={() => set(id, count(id) + 1)}
+                    className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus size={12} />
+                  </button>
                 </div>
-                <Button size="sm" disabled={profile.money < cost} title={profile.money < cost ? "Not enough money" : undefined} onClick={() => session.buy(id, count(id)) && toast.success(`Bought ${itemCount(id, count(id))}`)}>₽{cost.toLocaleString()}</Button>
+                <Button
+                  size="sm"
+                  disabled={profile.money < cost}
+                  title={profile.money < cost ? "Not enough money" : undefined}
+                  onClick={() => session.buy(id, count(id)) && toast.success(`Bought ${itemCount(id, count(id))}`)}
+                >
+                  ₽{cost.toLocaleString()}
+                </Button>
               </li>
             );
           })}
         </ul>
-        <DialogFooter><Button variant="outline" onClick={close}>Come again!</Button></DialogFooter>
+        <DialogFooter>
+          <Button variant="outline" onClick={close}>
+            Come again!
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -60,27 +60,31 @@ export function EditorApp() {
 
   //⌘\ hides the panels to show just the map
   const [panels, setPanels] = useState(true);
-  const togglePanels = useCallback(() => setPanels((shown) => {
-    if (shown) {
-      toast("Panels hidden", { id: "panels", description: "Press ⌘\\ to bring them back" });
-    } else {
-      toast.dismiss("panels");
-    }
-    return !shown;
-  }), []);
+  const togglePanels = useCallback(
+    () =>
+      setPanels((shown) => {
+        if (shown) {
+          toast("Panels hidden", { id: "panels", description: "Press ⌘\\ to bring them back" });
+        } else {
+          toast.dismiss("panels");
+        }
+        return !shown;
+      }),
+    [],
+  );
   useAppShortcuts({ onPanels: togglePanels });
 
-  const edit = (session.ready) && (session.mode === "edit");
+  const edit = session.ready && session.mode === "edit";
   return (
     <TooltipProvider delayDuration={350}>
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
         {session.ready ? <Topbar /> : null}
         <main className="flex min-h-0 flex-1">
-          {(edit) && (panels) ? <ToolRail /> : null}
-          {(edit) && (panels) && (!collapsed) ? <Sidebar onImportTileset={() => importTileset()} onSprite={importSprite} /> : null}
+          {edit && panels ? <ToolRail /> : null}
+          {edit && panels && !collapsed ? <Sidebar onImportTileset={() => importTileset()} onSprite={importSprite} /> : null}
           <div className="relative min-w-0 flex-1 overflow-hidden">
             <div ref={viewport} className="absolute inset-0 [&_canvas]:block" />
-            {(session.ready) && (minimap) && (panels) ? <Minimap /> : null}
+            {session.ready && minimap && panels ? <Minimap /> : null}
             {session.ready ? <MapControls minimap={minimap} onMinimap={() => setMinimap(!minimap)} onPanel={() => setCollapsed(!collapsed)} /> : null}
             {session.ready ? <MapMenu /> : null}
             {session.ready ? <Tour /> : null}

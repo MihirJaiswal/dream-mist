@@ -25,7 +25,19 @@ const api = `${cache}/data/api/v2`;
 const creatures = 1025;
 
 /** Learnset source: Emerald for the Hoenn era, otherwise the most recent main series game the creature appears in */
-const learnsets = ["emerald", "scarlet-violet", "sword-shield", "ultra-sun-ultra-moon", "sun-moon", "omega-ruby-alpha-sapphire", "x-y", "black-2-white-2", "black-white", "heartgold-soulsilver", "platinum"];
+const learnsets = [
+  "emerald",
+  "scarlet-violet",
+  "sword-shield",
+  "ultra-sun-ultra-moon",
+  "sun-moon",
+  "omega-ruby-alpha-sapphire",
+  "x-y",
+  "black-2-white-2",
+  "black-white",
+  "heartgold-soulsilver",
+  "platinum",
+];
 
 /** Spawn marker tile in Tiled maps */
 const spawnTile = 6324;
@@ -81,7 +93,7 @@ function inside(points: number[], x: number, y: number) {
   let result = false;
   for (let i = 0, j = points.length - 2; i < points.length; j = i, i += 2) {
     const [xi, yi, xj, yj] = [points[i], points[i + 1], points[j], points[j + 1]];
-    if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)) {
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
       result = !result;
     }
   }
@@ -90,7 +102,9 @@ function inside(points: number[], x: number, y: number) {
 
 /** Entries of a PokeAPI collection (one folder each) */
 function entries(collection: string) {
-  return readdirSync(`${api}/${collection}`, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map(({ name }) => name);
+  return readdirSync(`${api}/${collection}`, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map(({ name }) => name);
 }
 
 /** Download the PokeAPI folders used here (once) */
@@ -100,7 +114,21 @@ function pokeapi() {
   }
   step("downloading PokeAPI data (first run only)");
   execFileSync("git", ["clone", "--depth", "1", "--filter=blob:none", "--sparse", "https://github.com/PokeAPI/api-data.git", cache], { stdio: "inherit" });
-  execFileSync("git", ["sparse-checkout", "set", "data/api/v2/pokemon", "data/api/v2/pokemon-species", "data/api/v2/move", "data/api/v2/type", "data/api/v2/location", "data/api/v2/location-area", "data/api/v2/evolution-chain"], { cwd: cache, stdio: "inherit" });
+  execFileSync(
+    "git",
+    [
+      "sparse-checkout",
+      "set",
+      "data/api/v2/pokemon",
+      "data/api/v2/pokemon-species",
+      "data/api/v2/move",
+      "data/api/v2/type",
+      "data/api/v2/location",
+      "data/api/v2/location-area",
+      "data/api/v2/evolution-chain",
+    ],
+    { cwd: cache, stdio: "inherit" },
+  );
 }
 
 //=================================================================================================
@@ -123,7 +151,7 @@ function tilesets({ force = false }) {
   for (const style of readdirSync("copyrighted/textures")) {
     for (const file of readdirSync(`copyrighted/textures/${style}`).filter((file) => file.endsWith(".tsx"))) {
       const id = `${style}/${file.replace(".tsx", "")}`;
-      if ((!force) && (built(`data/textures/${id}.json`))) {
+      if (!force && built(`data/textures/${id}.json`)) {
         continue;
       }
       const { tileset } = read(`copyrighted/textures/${id}.tsx`);
@@ -131,7 +159,7 @@ function tilesets({ force = false }) {
       const zindex = {} as { [id: string]: number };
       for (const tile of list<Json>(tileset.tile)) {
         const properties = Object.fromEntries(list<Json>(tile.properties?.property).map((property) => [property["@name"], property["@value"]]));
-        if ((properties.frames) && (properties.speed)) {
+        if (properties.frames && properties.speed) {
           animated[`${tile["@id"]}`] = { frames: Array.from({ length: properties.frames }, (_, i) => `${tile["@id"] + i}`), speed: properties.speed };
         }
         if (properties.zindex) {
@@ -150,9 +178,15 @@ function locations() {
   for (const folder of entries("location-area")) {
     const { name, pokemon_encounters: details } = read(`${api}/location-area/${folder}/index.json`);
     const rates = {} as { [method: string]: { [name: string]: number } };
-    for (const { pokemon: { name: creature }, version_details: versions } of details) {
+    for (const {
+      pokemon: { name: creature },
+      version_details: versions,
+    } of details) {
       for (const { encounter_details: details } of versions) {
-        for (const { chance, method: { name: method } } of details) {
+        for (const {
+          chance,
+          method: { name: method },
+        } of details) {
           rates[method] ??= {};
           rates[method][creature] = Math.max(rates[method][creature] ?? 0, chance);
         }
@@ -169,7 +203,11 @@ function locations() {
   const result = {} as { [id: string]: { region: string; i18n: { [lang: string]: string }; encounters: unknown } };
   for (const folder of entries("location")) {
     const { name: id, names, region } = read(`${api}/location/${folder}/index.json`);
-    result[id] = { region: region?.name ?? "other", i18n: Object.fromEntries(names.map(({ language, name }: Json) => [language.name, name])), encounters: encounters[`${id}-area`] ?? null };
+    result[id] = {
+      region: region?.name ?? "other",
+      i18n: Object.fromEntries(names.map(({ language, name }: Json) => [language.name, name])),
+      encounters: encounters[`${id}-area`] ?? null,
+    };
   }
   return result;
 }
@@ -178,15 +216,24 @@ function locations() {
 function maps({ force = false }) {
   step("converting Hoenn maps");
   const { maps: world } = read("maps/hoenn.world") as { maps: { fileName: string; x: number; y: number }[] };
-  const sections = world.filter(({ fileName }) => fileName.startsWith("hoenn/")).map(({ fileName, x, y }) => {
-    const { map } = read(`maps/${fileName}`);
-    const layer = list<Json>(map.layer)[0] ?? {};
-    return { id: fileName.replace(".tmx", ""), x: x / 16, y: y / 16, height: layer["@height"] ?? 0, width: layer["@width"] ?? 0, spawn: null as null | { x: number; y: number } };
-  });
+  const sections = world
+    .filter(({ fileName }) => fileName.startsWith("hoenn/"))
+    .map(({ fileName, x, y }) => {
+      const { map } = read(`maps/${fileName}`);
+      const layer = list<Json>(map.layer)[0] ?? {};
+      return {
+        id: fileName.replace(".tmx", ""),
+        x: x / 16,
+        y: y / 16,
+        height: layer["@height"] ?? 0,
+        width: layer["@width"] ?? 0,
+        spawn: null as null | { x: number; y: number },
+      };
+    });
   const places = sections.some(({ id }) => force || !built(`data/maps/${id}.json`)) ? locations() : {};
   for (const bounds of sections) {
     const file = `data/maps/${bounds.id}.json`;
-    if ((!force) && (built(file))) {
+    if (!force && built(file)) {
       bounds.spawn = read(join(out, file)).spawn;
       continue;
     }
@@ -200,7 +247,15 @@ function maps({ force = false }) {
       const data = layer.data ?? {};
       const chunked = [...list<Json>(data.chunk)];
       if (typeof data["#text"] === "string") {
-        const rows = (data["#text"] as string).split("\n").map((row) => row.split(",").map((value) => value.trim()).filter(Boolean)).filter((row) => row.length);
+        const rows = (data["#text"] as string)
+          .split("\n")
+          .map((row) =>
+            row
+              .split(",")
+              .map((value) => value.trim())
+              .filter(Boolean),
+          )
+          .filter((row) => row.length);
         const width = rows[0].length;
         while (rows.length % 16) {
           rows.push(new Array(width).fill("0"));
@@ -212,12 +267,23 @@ function maps({ force = false }) {
         }
         for (let x = 0; x < layer["@width"]; x += 16) {
           for (let y = 0; y < layer["@height"]; y += 16) {
-            chunked.push({ "@x": x, "@y": y, "#text": rows.slice(y, y + 16).map((row) => row.slice(x, x + 16).join(",")).join(",\n") });
+            chunked.push({
+              "@x": x,
+              "@y": y,
+              "#text": rows
+                .slice(y, y + 16)
+                .map((row) => row.slice(x, x + 16).join(","))
+                .join(",\n"),
+            });
           }
         }
       }
       for (const chunk of chunked) {
-        const tiles = `${chunk["#text"]}`.split(",").map((value) => value.trim()).filter(Boolean).map((value) => Math.max(Number(value) - 1, 0));
+        const tiles = `${chunk["#text"]}`
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .map((value) => Math.max(Number(value) - 1, 0));
         if (tiles.some(Boolean)) {
           chunks.push({ id: `${name}/${X + chunk["@x"] / 16};${Y + chunk["@y"] / 16}`, layer: name, x: chunk["@x"], y: chunk["@y"], tiles });
         }
@@ -227,7 +293,7 @@ function maps({ force = false }) {
     //Spawn point
     let spawn = null as null | { x: number; y: number };
     for (const { x, y, tiles } of chunks) {
-      tiles.forEach((tile, i) => tile === spawnTile && (spawn = { x: X + x + i % 16, y: Y + y + Math.floor(i / 16) }));
+      tiles.forEach((tile, i) => tile === spawnTile && (spawn = { x: X + x + (i % 16), y: Y + y + Math.floor(i / 16) }));
     }
     bounds.spawn = spawn;
 
@@ -238,11 +304,15 @@ function maps({ force = false }) {
       for (const object of list<Json>(group.object)) {
         const { "@id": id, "@name": name = "", "@type": mode, "@x": x, "@y": y, "@width": width, "@height": height } = object;
         const properties = Object.fromEntries(list<Json>(object.properties?.property).map((property) => [property["@name"], property["@value"]]));
-        const points = (`${object.polygon?.["@points"] ?? ""}`.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, width, 0, width, height, 0, height])
-          .map((delta, index) => (delta + (index % 2 ? y : x)) / 16);
+        const points = (`${object.polygon?.["@points"] ?? ""}`.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, width, 0, width, height, 0, height]).map(
+          (delta, index) => (delta + (index % 2 ? y : x)) / 16,
+        );
         const entry = { id, type, name: `${name}`, points, properties };
         if (type === "creatures") {
-          entry.properties.size = area(points.filter((_, i) => !(i % 2)), points.filter((_, i) => i % 2));
+          entry.properties.size = area(
+            points.filter((_, i) => !(i % 2)),
+            points.filter((_, i) => i % 2),
+          );
         } else if (type === "people") {
           entry.properties = { pattern: mode, directions: ["left", "right", "up", "down"].filter((key) => properties[key]) };
         } else if (type === "map") {
@@ -260,19 +330,24 @@ function maps({ force = false }) {
 
 /** Pokédex, moves and type chart used by battles */
 function pokedex({ force = false }) {
-  if ((!force) && (built("data/city/pokedex.json"))) {
+  if (!force && built("data/city/pokedex.json")) {
     return;
   }
   pokeapi();
   step("building the Pokédex");
-  const english = (names: { name: string; language: { name: string } }[], fallback: string) => names.find(({ language }) => language.name === "en")?.name ?? fallback;
+  const english = (names: { name: string; language: { name: string } }[], fallback: string) =>
+    names.find(({ language }) => language.name === "en")?.name ?? fallback;
 
   //Type chart
   const types = {} as { [attacker: string]: { [defender: string]: number } };
   for (let id = 1; id <= 18; id++) {
     const { name, damage_relations: relations } = read(`${api}/type/${id}/index.json`);
     types[name] = {};
-    for (const [key, value] of [["no_damage_to", 0], ["half_damage_to", 0.5], ["double_damage_to", 2]] as const) {
+    for (const [key, value] of [
+      ["no_damage_to", 0],
+      ["half_damage_to", 0.5],
+      ["double_damage_to", 2],
+    ] as const) {
       for (const { name: defender } of relations[key]) {
         types[name][defender] = value;
       }
@@ -280,29 +355,46 @@ function pokedex({ force = false }) {
   }
 
   //What moves can do besides damage: raise or lower stats, or cause one of the conditions battles know
-  const stages = { attack: "attack", defense: "defense", "special-attack": "spatk", "special-defense": "spdef", speed: "speed", accuracy: "accuracy", evasion: "evasion" } as { [stat: string]: string };
+  const stages = {
+    attack: "attack",
+    defense: "defense",
+    "special-attack": "spatk",
+    "special-defense": "spdef",
+    speed: "speed",
+    accuracy: "accuracy",
+    evasion: "evasion",
+  } as { [stat: string]: string };
   const ailments = ["sleep", "poison", "paralysis", "burn"];
   const effectOf = (data: Json) => {
     const meta = data.meta ?? {};
     const ailment = ailments.includes(meta.ailment?.name) ? meta.ailment.name : undefined;
     const stats = data.stat_changes.filter(({ stat }: Json) => stat.name in stages).map(({ change, stat }: Json) => [stages[stat.name], change]);
-    if ((!ailment) && (!stats.length)) {
+    if (!ailment && !stats.length) {
       return undefined;
     }
     //Stat changes hit the user for self-targeting moves, and for damaging moves of the "damage-raise" kind (Metal Claw, Overheat)
-    const self = (["user", "user-or-ally", "users-field", "user-and-allies"].includes(data.target?.name)) || (meta.category?.name === "damage-raise");
+    const self = ["user", "user-or-ally", "users-field", "user-and-allies"].includes(data.target?.name) || meta.category?.name === "damage-raise";
     //Status moves always work when they hit; damaging moves have a chance (0 means always, like Overheat lowering the user's Sp. Atk)
-    const chance = data.damage_class.name === "status" ? 100 : ((ailment ? meta.ailment_chance : meta.stat_chance) || data.effect_chance || 100);
+    const chance = data.damage_class.name === "status" ? 100 : (ailment ? meta.ailment_chance : meta.stat_chance) || data.effect_chance || 100;
     return { ...(ailment ? { ailment } : {}), ...(stats.length ? { stats } : {}), ...(self ? { self: true } : {}), chance };
   };
 
   //Level-up evolutions (the first one with a plain level, like Treecko into Grovyle at 16)
   const evolutionOf = (name: string, chain: Json) => {
-    const find = (node: Json): Json => node.species.name === name ? node : node.evolves_to.map(find).find(Boolean);
+    const find = (node: Json): Json => (node.species.name === name ? node : node.evolves_to.map(find).find(Boolean));
     for (const next of find(chain.chain)?.evolves_to ?? []) {
-      const detail = next.evolution_details.find((detail: Json) => (detail.trigger.name === "level-up") && (detail.min_level) && (!detail.held_item) && (!detail.time_of_day) && (detail.gender === null) && (!detail.known_move) && (!detail.location));
+      const detail = next.evolution_details.find(
+        (detail: Json) =>
+          detail.trigger.name === "level-up" &&
+          detail.min_level &&
+          !detail.held_item &&
+          !detail.time_of_day &&
+          detail.gender === null &&
+          !detail.known_move &&
+          !detail.location,
+      );
       const id = Number(next.species.url.match(/\/(\d+)\/?$/)?.[1]);
-      if ((detail) && (id <= creatures)) {
+      if (detail && id <= creatures) {
         return [detail.min_level, id];
       }
     }
@@ -310,31 +402,58 @@ function pokedex({ force = false }) {
   };
 
   //Creatures and their level-up moves (damaging moves, and status moves battles know how to play)
-  const moves = {} as { [name: string]: { name: string; type: string; power: number; accuracy: number; pp: number; class: string; priority: number; effect?: Json } };
+  const moves = {} as {
+    [name: string]: { name: string; type: string; power: number; accuracy: number; pp: number; class: string; priority: number; effect?: Json };
+  };
   const dex = [];
   for (let id = 1; id <= creatures; id++) {
     const pokemon = read(`${api}/pokemon/${id}/index.json`);
     const species = read(`${api}/pokemon-species/${id}/index.json`);
-    const levelup = (group: string) => pokemon.moves.some(({ version_group_details: details }: Json) => details.some(({ version_group, move_learn_method }: Json) => (version_group.name === group) && (move_learn_method.name === "level-up")));
+    const levelup = (group: string) =>
+      pokemon.moves.some(({ version_group_details: details }: Json) =>
+        details.some(({ version_group, move_learn_method }: Json) => version_group.name === group && move_learn_method.name === "level-up"),
+      );
     const group = learnsets.find(levelup) ?? "emerald";
     const learnset = [] as [number, string][];
-    for (const { move: { name, url }, version_group_details: details } of pokemon.moves) {
-      const detail = details.find(({ version_group, move_learn_method }: Json) => (version_group.name === group) && (move_learn_method.name === "level-up"));
+    for (const {
+      move: { name, url },
+      version_group_details: details,
+    } of pokemon.moves) {
+      const detail = details.find(({ version_group, move_learn_method }: Json) => version_group.name === group && move_learn_method.name === "level-up");
       if (!detail) {
         continue;
       }
       if (!(name in moves)) {
         const data = read(`${cache}/data${url.replace(/\/$/, "")}/index.json`);
         const effect = effectOf(data);
-        moves[name] = { name: english(data.names, name), type: data.type.name, power: data.power ?? 0, accuracy: data.accuracy ?? 100, pp: data.pp ?? 10, class: data.damage_class.name, priority: data.priority ?? 0, ...(effect ? { effect } : {}) };
+        moves[name] = {
+          name: english(data.names, name),
+          type: data.type.name,
+          power: data.power ?? 0,
+          accuracy: data.accuracy ?? 100,
+          pp: data.pp ?? 10,
+          class: data.damage_class.name,
+          priority: data.priority ?? 0,
+          ...(effect ? { effect } : {}),
+        };
       }
-      if ((moves[name].power > 0) || (moves[name].effect)) {
+      if (moves[name].power > 0 || moves[name].effect) {
         learnset.push([detail.level_learned_at, name]);
       }
     }
     learnset.sort(([a], [b]) => a - b);
     const evolves = evolutionOf(species.name, read(`${cache}/data${species.evolution_chain.url.replace(/\/$/, "")}/index.json`));
-    dex.push({ id, key: pokemon.name, name: english(species.names, pokemon.name), types: pokemon.types.map(({ type }: Json) => type.name), stats: pokemon.stats.map(({ base_stat }: Json) => base_stat), xp: pokemon.base_experience ?? 64, capture: species.capture_rate, learnset, ...(evolves ? { evolves } : {}) });
+    dex.push({
+      id,
+      key: pokemon.name,
+      name: english(species.names, pokemon.name),
+      types: pokemon.types.map(({ type }: Json) => type.name),
+      stats: pokemon.stats.map(({ base_stat }: Json) => base_stat),
+      xp: pokemon.base_experience ?? 64,
+      capture: species.capture_rate,
+      learnset,
+      ...(evolves ? { evolves } : {}),
+    });
     if (!(id % 100)) {
       step(`  ${id}/${creatures} Pokémon`);
     }
@@ -356,14 +475,15 @@ function pokedex({ force = false }) {
  * - frames used on upper layers inside wild encounter areas are tall grass
  */
 function tiles({ force = false }) {
-  if ((!force) && (built("data/city/tiles.json"))) {
+  if (!force && built("data/city/tiles.json")) {
     return;
   }
   step("learning which tiles are walkable");
   const columns = 113;
   const image = PNG.sync.read(readFileSync("copyrighted/textures/rse/tileset.png"));
   const opaque = (frame: number, ratio: number) => {
-    const px = 2 + (frame % columns) * 18, py = 2 + Math.floor(frame / columns) * 18;
+    const px = 2 + (frame % columns) * 18,
+      py = 2 + Math.floor(frame / columns) * 18;
     let count = 0;
     for (let y = 0; y < 16; y++) {
       for (let x = 0; x < 16; x++) {
@@ -376,17 +496,23 @@ function tiles({ force = false }) {
   };
 
   const stacked = [new Map<number, number>(), new Map<number, number>(), new Map<number, number>()];
-  const lower = new Map<number, number>(), upper = new Map<number, number>(), repeated = new Map<number, number>(), grass = new Map<number, number>();
+  const lower = new Map<number, number>(),
+    upper = new Map<number, number>(),
+    repeated = new Map<number, number>(),
+    grass = new Map<number, number>();
   const increment = (map: Map<number, number>, frame: number) => map.set(frame, (map.get(frame) ?? 0) + 1);
   const number = (layer: unknown) => Number(`${layer ?? 1}`.match(/\d+/)?.[0] ?? 1);
   for (const { id } of read(join(out, "data/maps/hoenn.json")).sections) {
-    const data = read(join(out, `data/maps/${id}.json`)) as { chunks: { layer: string; x: number; y: number; tiles: number[] }[]; areas: { type: string; name: string; points: number[] }[] };
+    const data = read(join(out, `data/maps/${id}.json`)) as {
+      chunks: { layer: string; x: number; y: number; tiles: number[] }[];
+      areas: { type: string; name: string; points: number[] }[];
+    };
     const lowest = Math.min(...data.chunks.map(({ layer }) => number(layer)));
-    const areas = data.areas.filter(({ type, name }) => (type === "creatures") && (name === "walk"));
+    const areas = data.areas.filter(({ type, name }) => type === "creatures" && name === "walk");
     const grids = new Map<number, Map<string, number>>();
     for (const { layer, x: X, y: Y, tiles } of data.chunks) {
       const grid = grids.get(number(layer)) ?? grids.set(number(layer), new Map()).get(number(layer))!;
-      tiles.forEach((frame, i) => (frame) && (frame < 6215) && grid.set(`${X + i % 16};${Y + Math.floor(i / 16)}`, frame));
+      tiles.forEach((frame, i) => frame && frame < 6215 && grid.set(`${X + (i % 16)};${Y + Math.floor(i / 16)}`, frame));
     }
     //Where each tile usually sits: its place in the stack of tiles on a spot (ground, then objects, then above)
     const order = [...grids.keys()].sort((a, b) => a - b);
@@ -407,7 +533,7 @@ function tiles({ force = false }) {
         }
         increment(upper, frame);
         const [x, y] = key.split(";").map(Number);
-        if ((grid.get(`${x + 1};${y}`) === frame) && (grid.get(`${x};${y + 1}`) === frame)) {
+        if (grid.get(`${x + 1};${y}`) === frame && grid.get(`${x};${y + 1}`) === frame) {
           increment(repeated, frame);
         }
         if (areas.some(({ points }) => inside(points, x + 0.5, y + 0.5))) {
@@ -417,14 +543,19 @@ function tiles({ force = false }) {
     }
   }
 
-  const ground = [...lower].filter(([frame, n]) => (n >= 12) && (n * 3 >= (upper.get(frame) ?? 0))).map(([frame]) => frame);
-  const floors = [...upper].filter(([frame, n]) => (n >= 30) && ((repeated.get(frame) ?? 0) / n >= 0.25) && (opaque(frame, 0.97))).map(([frame]) => frame);
+  const ground = [...lower].filter(([frame, n]) => n >= 12 && n * 3 >= (upper.get(frame) ?? 0)).map(([frame]) => frame);
+  const floors = [...upper].filter(([frame, n]) => n >= 30 && (repeated.get(frame) ?? 0) / n >= 0.25 && opaque(frame, 0.97)).map(([frame]) => frame);
   //Edges have rounded corners, while trees and signs are much more transparent
-  const edges = [...ground, ...floors].flatMap((frame) => [-114, -113, -112, -1, 1, 112, 113, 114].map((delta) => frame + delta)).filter((frame) => (upper.has(frame) || lower.has(frame)) && (opaque(frame, 0.84)));
+  const edges = [...ground, ...floors]
+    .flatMap((frame) => [-114, -113, -112, -1, 1, 112, 113, 114].map((delta) => frame + delta))
+    .filter((frame) => (upper.has(frame) || lower.has(frame)) && opaque(frame, 0.84));
   const tall = [...grass].filter(([, n]) => n >= 8).map(([frame]) => frame);
   const walkable = [...new Set([...ground, ...floors, ...edges, ...tall, 206, 93, 658, 659, 660])].sort((a, b) => a - b);
   //Usual layer of each tile, so picking tiles in the palette can switch to it (objects when not listed)
-  const usual = (rank: number) => [...stacked[rank].keys()].filter((frame) => stacked.every((counts, other) => (other === rank) || ((counts.get(frame) ?? 0) < stacked[rank].get(frame)!))).sort((a, b) => a - b);
+  const usual = (rank: number) =>
+    [...stacked[rank].keys()]
+      .filter((frame) => stacked.every((counts, other) => other === rank || (counts.get(frame) ?? 0) < stacked[rank].get(frame)!))
+      .sort((a, b) => a - b);
   //Ground tiles must be fully solid: nothing is drawn under the ground, so see-through corners would show black (rocks, boulders)
   save("data/city/tiles.json", { walkable, layers: { ground: usual(0).filter((frame) => opaque(frame, 1)), above: usual(2) } });
 }

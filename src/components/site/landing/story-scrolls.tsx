@@ -54,16 +54,45 @@ type Story = (typeof stories)[number];
 
 /** Animated Gen 5 sprite of a starter */
 function Starter({ starter, scale, className }: { starter: Story["starter"]; scale?: number; className?: string }) {
-  return <img src={`/site/sprites/anim-${starter.id}.gif`} alt="" width={starter.w * (scale ?? 1)} height={starter.h * (scale ?? 1)} className={cn("pixelated", className)} style={scale ? { width: starter.w * scale } : undefined} />;
+  return (
+    <img
+      src={`/site/sprites/anim-${starter.id}.gif`}
+      alt=""
+      width={starter.w * (scale ?? 1)}
+      height={starter.h * (scale ?? 1)}
+      className={cn("pixelated", className)}
+      style={scale ? { width: starter.w * scale } : undefined}
+    />
+  );
 }
 
 /** Smaller scroll beside the story, rolled on its outer edge: click it to read its story */
 function Side({ story, side, moved, onPick }: { story: Story; side: "left" | "right"; moved: boolean; onPick: () => void }) {
   const left = side === "left";
   return (
-    <button onClick={onPick} aria-label={`Read ${story.starter.name}'s story: ${story.title}`} className="group relative hidden h-[270px] w-[200px] shrink-0 cursor-pointer transition-[translate] duration-150 ease-[steps(3)] hover:-translate-y-1.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-dashed focus-visible:outline-white xl:block 2xl:w-[270px]">
-      <span className={cn("absolute -bottom-4 -top-4 w-10 stepped bg-[#7d62c9]", left ? "left-0 shadow-[inset_-6px_0_0_#4a3590]" : "right-0 shadow-[inset_6px_0_0_#4a3590]")} aria-hidden="true" />
-      <span key={story.starter.id} className={cn(moved && "hop", "stepped absolute inset-y-0 flex flex-col items-center justify-center gap-3 bg-[#1d1038] shadow-[inset_0_0_0_4px_#3f2c74] transition-colors group-hover:bg-[#24153f]", left ? "left-10 right-0" : "left-0 right-10")}>
+    <button
+      onClick={onPick}
+      aria-label={`Read ${story.starter.name}'s story: ${story.title}`}
+      className={cn(
+        "group relative hidden h-[270px] w-[200px] shrink-0 cursor-pointer transition-[translate] duration-150 ease-[steps(3)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-dashed focus-visible:outline-white xl:block 2xl:w-[270px]",
+        left ? "hover:-translate-x-1.5" : "hover:translate-x-1.5",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute -bottom-4 -top-4 w-10 stepped bg-[#7d62c9]",
+          left ? "left-0 shadow-[inset_-6px_0_0_#4a3590]" : "right-0 shadow-[inset_6px_0_0_#4a3590]",
+        )}
+        aria-hidden="true"
+      />
+      <span
+        key={story.starter.id}
+        className={cn(
+          moved && "hop",
+          "stepped absolute inset-y-0 flex flex-col items-center justify-center gap-3 bg-[#1d1038] shadow-[inset_0_0_0_4px_#3f2c74] transition-colors group-hover:bg-[#24153f]",
+          left ? "left-10 right-0" : "left-0 right-10",
+        )}
+      >
         <Starter starter={story.starter} scale={story.starter.big} />
         <span className="font-game text-[13px] text-[#c9b8f5]">{story.kind}</span>
         <span className="blink font-pixel text-[10px] text-[#f06aa6] opacity-0 group-hover:opacity-100">▶ Read</span>
@@ -120,7 +149,7 @@ export function StoryScrolls() {
       return;
     }
     setMoved(true);
-    setOrder((order) => order.map((story, i) => i === 1 ? order[index] : i === index ? order[1] : story));
+    setOrder((order) => order.map((story, i) => (i === 1 ? order[index] : i === index ? order[1] : story)));
   };
   const [left, middle, right] = order.map((i) => stories[i]);
   return (
@@ -130,7 +159,16 @@ export function StoryScrolls() {
         {stories.map((story) => {
           const active = story === middle;
           return (
-            <button key={story.starter.id} role="tab" aria-selected={active} onClick={() => pick(order.indexOf(stories.indexOf(story)))} className={cn("stepped flex flex-col items-center gap-1 px-3 pb-2 pt-1 font-pixel text-[11px] transition-colors", active ? "bg-[#f06aa6] text-[#2a0a1e]" : "bg-[#1d1038] text-[#c9b8f5] shadow-[inset_0_0_0_3px_#3f2c74]")}>
+            <button
+              key={story.starter.id}
+              role="tab"
+              aria-selected={active}
+              onClick={() => pick(order.indexOf(stories.indexOf(story)))}
+              className={cn(
+                "stepped flex flex-col items-center gap-1 px-3 pb-2 pt-1 font-pixel text-[11px] transition-colors",
+                active ? "bg-[#f06aa6] text-[#2a0a1e]" : "bg-[#1d1038] text-[#c9b8f5] shadow-[inset_0_0_0_3px_#3f2c74]",
+              )}
+            >
               <Starter starter={story.starter} className="h-12 w-auto" />
               {story.starter.name}
             </button>

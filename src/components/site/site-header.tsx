@@ -31,19 +31,38 @@ export function SiteHeader() {
           {links.map(({ href, label }) => {
             const active = path.startsWith(href);
             return (
-              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("relative px-2.5 py-2 font-pixel text-[12px] uppercase tracking-wide transition-colors", active ? "text-white" : "text-[#c9b8f5] hover:text-white")}>
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative px-2.5 py-2 font-pixel text-[12px] uppercase tracking-wide transition-colors",
+                  active ? "text-white" : "text-[#c9b8f5] hover:text-white",
+                )}
+              >
                 {label}
                 {active ? <span className="absolute inset-x-2.5 -bottom-[3px] h-[3px] bg-[#f06aa6]" aria-hidden="true" /> : null}
               </Link>
             );
           })}
         </nav>
-        {user
-          ? <a href={edit()} title={`Signed in as ${user.username}`} className="stepped grid size-9 shrink-0 place-items-center bg-[#b9a6ff] font-pixel text-[13px] text-[#1c1240]">{user.username[0].toUpperCase()}</a>
-          : user === null
-          ? <a href={edit()} className="hidden shrink-0 font-pixel text-[12px] uppercase tracking-wide text-[#c9b8f5] hover:text-white sm:inline">Log in</a>
-          : null}
-        <PixelButton href={edit()} small className="shrink-0"><span className="sm:hidden">Editor</span><span className="hidden sm:inline">Open editor</span></PixelButton>
+        {user ? (
+          <a
+            href={edit()}
+            title={`Signed in as ${user.username}`}
+            className="stepped grid size-9 shrink-0 place-items-center bg-[#b9a6ff] font-pixel text-[13px] text-[#1c1240]"
+          >
+            {user.username[0].toUpperCase()}
+          </a>
+        ) : user === null ? (
+          <a href={edit()} className="hidden shrink-0 font-pixel text-[12px] uppercase tracking-wide text-[#c9b8f5] hover:text-white sm:inline">
+            Log in
+          </a>
+        ) : null}
+        <PixelButton href={edit()} small className="shrink-0">
+          <span className="sm:hidden">Editor</span>
+          <span className="hidden sm:inline">Open editor</span>
+        </PixelButton>
       </div>
     </header>
   );

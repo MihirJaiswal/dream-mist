@@ -35,7 +35,7 @@ export function addOutdoor(kind: "route" | "town") {
 /** Tiles of `a` and `b` on their shared edge that can be walked across */
 function open(a: Placed, b: Placed) {
   const shared = edge(a, b);
-  return shared ? shared.tiles.some(({ x, y }) => (walkable(a.map, x, y)) && (walkable(b.map, x + a.x - b.x + shared.dx, y + a.y - b.y + shared.dy))) : false;
+  return shared ? shared.tiles.some(({ x, y }) => walkable(a.map, x, y) && walkable(b.map, x + a.x - b.x + shared.dx, y + a.y - b.y + shared.dy)) : false;
 }
 
 /** Snap a position so the map touches a neighbor's edge when dropped close to it */
@@ -46,16 +46,16 @@ function magnet(placed: Placed[], map: City, x: number, y: number) {
       continue;
     }
     const [ow, oh] = [other.map.width, other.map.height];
-    const rows = (y < other.y + oh) && (other.y < y + map.height);
-    const columns = (x < other.x + ow) && (other.x < x + map.width);
-    if ((rows) && (Math.abs(x - (other.x + ow)) <= reach)) {
+    const rows = y < other.y + oh && other.y < y + map.height;
+    const columns = x < other.x + ow && other.x < x + map.width;
+    if (rows && Math.abs(x - (other.x + ow)) <= reach) {
       x = other.x + ow;
-    } else if ((rows) && (Math.abs(x + map.width - other.x) <= reach)) {
+    } else if (rows && Math.abs(x + map.width - other.x) <= reach) {
       x = other.x - map.width;
     }
-    if ((columns) && (Math.abs(y - (other.y + oh)) <= reach)) {
+    if (columns && Math.abs(y - (other.y + oh)) <= reach) {
       y = other.y + oh;
-    } else if ((columns) && (Math.abs(y + map.height - other.y) <= reach)) {
+    } else if (columns && Math.abs(y + map.height - other.y) <= reach) {
       y = other.y - map.height;
     }
   }
@@ -72,14 +72,16 @@ function RegionMap({ close }: { close: () => void }) {
 
   //Fit the whole region with some room around it
   const pad = 12;
-  const minX = Math.min(...placed.map(({ x }) => x)) - pad, minY = Math.min(...placed.map(({ y }) => y)) - pad;
-  const maxX = Math.max(...placed.map(({ x, map }) => x + map.width)) + pad, maxY = Math.max(...placed.map(({ y, map }) => y + map.height)) + pad;
+  const minX = Math.min(...placed.map(({ x }) => x)) - pad,
+    minY = Math.min(...placed.map(({ y }) => y)) - pad;
+  const maxX = Math.max(...placed.map(({ x, map }) => x + map.width)) + pad,
+    maxY = Math.max(...placed.map(({ y, map }) => y + map.height)) + pad;
   const scale = Math.max(2, Math.min(10, 860 / (maxX - minX), 480 / (maxY - minY)));
   const key = placed.map(({ map }) => `${map.id}:${map.width}x${map.height}`).join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pictures = useMemo(() => new Map(placed.map(({ map }) => [map, session.map.picture(map, Math.min(1, scale / size)).toDataURL()])), [key, scale]);
 
-  const at = (item: Placed) => drag?.id === item.map.id ? { ...item, x: drag.x, y: drag.y } : item;
+  const at = (item: Placed) => (drag?.id === item.map.id ? { ...item, x: drag.x, y: drag.y } : item);
   const shown = placed.map(at);
   const blocked = drag ? collides(world, placed.find(({ map }) => map.id === drag.id)!.map, drag.x, drag.y) : false;
 
@@ -90,11 +92,11 @@ function RegionMap({ close }: { close: () => void }) {
   };
   const move = (event: React.PointerEvent) => {
     const from = start.current;
-    if ((!from) || (from.id === "")) {
+    if (!from || from.id === "") {
       return;
     }
     const [dx, dy] = [Math.round((event.clientX - from.px) / scale), Math.round((event.clientY - from.py) / scale)];
-    if ((dx) || (dy)) {
+    if (dx || dy) {
       from.moved = true;
     }
     const map = placed.find((item) => item.map.id === from.id)!.map;
@@ -108,7 +110,7 @@ function RegionMap({ close }: { close: () => void }) {
       close();
       return session.openArea(item.map === world ? "" : item.map.id);
     }
-    if ((drag) && (!editor.moveMap(drag.id, drag.x, drag.y))) {
+    if (drag && !editor.moveMap(drag.id, drag.x, drag.y)) {
       ui.toast("Maps can't overlap", "error");
     }
     setDrag(null);
@@ -116,26 +118,48 @@ function RegionMap({ close }: { close: () => void }) {
 
   //Edges between maps that touch: amber when the player can walk across, red when it's closed everywhere
   const edges = [] as { key: string; left: number; top: number; width: number; height: number; open: boolean }[];
-  shown.forEach((a, i) => shown.slice(i + 1).forEach((b) => {
-    const shared = edge(a, b);
-    if (!shared) {
-      return;
-    }
-    const xs = shared.tiles.map(({ x }) => a.x + x + (shared.dx > 0 ? 1 : 0)), ys = shared.tiles.map(({ y }) => a.y + y + (shared.dy > 0 ? 1 : 0));
-    const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
-    const [w, h] = shared.dx ? [0, shared.tiles.length] : [shared.tiles.length, 0];
-    edges.push({ key: `${a.map.id}-${b.map.id}`, left: (x0 - minX) * scale - 2, top: (y0 - minY) * scale - 2, width: w * scale + 4, height: h * scale + 4, open: open(a, b) });
-  }));
+  shown.forEach((a, i) =>
+    shown.slice(i + 1).forEach((b) => {
+      const shared = edge(a, b);
+      if (!shared) {
+        return;
+      }
+      const xs = shared.tiles.map(({ x }) => a.x + x + (shared.dx > 0 ? 1 : 0)),
+        ys = shared.tiles.map(({ y }) => a.y + y + (shared.dy > 0 ? 1 : 0));
+      const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
+      const [w, h] = shared.dx ? [0, shared.tiles.length] : [shared.tiles.length, 0];
+      edges.push({
+        key: `${a.map.id}-${b.map.id}`,
+        left: (x0 - minX) * scale - 2,
+        top: (y0 - minY) * scale - 2,
+        width: w * scale + 4,
+        height: h * scale + 4,
+        open: open(a, b),
+      });
+    }),
+  );
 
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Region map</DialogTitle>
-          <DialogDescription>The outside map, routes and other towns. Drag a map next to another to join them: the player walks from one to the other across the edge they share. Click a map to open it.</DialogDescription>
+          <DialogDescription>
+            The outside map, routes and other towns. Drag a map next to another to join them: the player walks from one to the other across the edge they share.
+            Click a map to open it.
+          </DialogDescription>
         </DialogHeader>
         <div className="overflow-auto rounded-lg border border-border bg-[#0a0a0a]">
-          <div className="relative" style={{ width: (maxX - minX) * scale, height: (maxY - minY) * scale, backgroundImage: "linear-gradient(to right, rgb(255 255 255 / 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.04) 1px, transparent 1px)", backgroundSize: `${scale * 8}px ${scale * 8}px` }}>
+          <div
+            className="relative"
+            style={{
+              width: (maxX - minX) * scale,
+              height: (maxY - minY) * scale,
+              backgroundImage:
+                "linear-gradient(to right, rgb(255 255 255 / 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.04) 1px, transparent 1px)",
+              backgroundSize: `${scale * 8}px ${scale * 8}px`,
+            }}
+          >
             {shown.map((item) => {
               const root = item.map === world;
               const current = item.map === session.area;
@@ -150,24 +174,55 @@ function RegionMap({ close }: { close: () => void }) {
                   onPointerMove={move}
                   onPointerUp={() => up(placed.find(({ map }) => map === item.map)!)}
                   onKeyDown={(event) => event.key === "Enter" && (close(), session.openArea(root ? "" : item.map.id))}
-                  className={cn("absolute select-none overflow-hidden rounded-sm border-2 bg-cover bg-no-repeat [image-rendering:pixelated]", root ? "cursor-pointer" : "cursor-grab active:cursor-grabbing", current ? "border-select" : "border-white/30 hover:border-white/70", dragging && (blocked ? "border-destructive opacity-70" : "z-10 opacity-90 shadow-xl"))}
-                  style={{ left: (item.x - minX) * scale, top: (item.y - minY) * scale, width: item.map.width * scale, height: item.map.height * scale, backgroundImage: `url(${pictures.get(item.map)})`, backgroundSize: "100% 100%" }}
+                  className={cn(
+                    "absolute select-none overflow-hidden rounded-sm border-2 bg-cover bg-no-repeat [image-rendering:pixelated]",
+                    root ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
+                    current ? "border-select" : "border-white/30 hover:border-white/70",
+                    dragging && (blocked ? "border-destructive opacity-70" : "z-10 opacity-90 shadow-xl"),
+                  )}
+                  style={{
+                    left: (item.x - minX) * scale,
+                    top: (item.y - minY) * scale,
+                    width: item.map.width * scale,
+                    height: item.map.height * scale,
+                    backgroundImage: `url(${pictures.get(item.map)})`,
+                    backgroundSize: "100% 100%",
+                  }}
                 >
-                  <span className="pointer-events-none absolute left-1 top-1 inline-flex max-w-[calc(100%-8px)] items-center gap-1 truncate rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-white">{root ? <House size={11} /> : <Path size={11} />}{root ? `${world.name} (outside)` : item.map.name}</span>
+                  <span className="pointer-events-none absolute left-1 top-1 inline-flex max-w-[calc(100%-8px)] items-center gap-1 truncate rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-white">
+                    {root ? <House size={11} /> : <Path size={11} />}
+                    {root ? `${world.name} (outside)` : item.map.name}
+                  </span>
                 </div>
               );
             })}
-            {edges.map(({ key, open, ...box }) => <span key={key} aria-hidden className={cn("pointer-events-none absolute z-20 rounded-full", open ? "bg-select" : "bg-destructive")} style={box} />)}
+            {edges.map(({ key, open, ...box }) => (
+              <span key={key} aria-hidden className={cn("pointer-events-none absolute z-20 rounded-full", open ? "bg-select" : "bg-destructive")} style={box} />
+            ))}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-subtle-fg">
-          <span className="inline-flex items-center gap-1.5"><span className="h-1 w-5 rounded-full bg-select" />The player can walk across</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-1 w-5 rounded-full bg-destructive" />Closed: trees or walls along the whole edge</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-5 rounded-full bg-select" />
+            The player can walk across
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-5 rounded-full bg-destructive" />
+            Closed: trees or walls along the whole edge
+          </span>
         </div>
-        <Hint>Maps snap together when you drop them close to each other. To walk across, both maps need open tiles facing each other on their shared edge.</Hint>
+        <Hint>
+          Maps snap together when you drop them close to each other. To walk across, both maps need open tiles facing each other on their shared edge.
+        </Hint>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => (close(), addOutdoor("route"))}><Plus />New route</Button>
-          <Button variant="outline" size="sm" onClick={() => (close(), addOutdoor("town"))}><Plus />New town</Button>
+          <Button variant="outline" size="sm" onClick={() => (close(), addOutdoor("route"))}>
+            <Plus />
+            New route
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => (close(), addOutdoor("town"))}>
+            <Plus />
+            New town
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

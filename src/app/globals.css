@@ -180,7 +180,9 @@ kbd {
   color: #303040;
   border: 4px solid #2a2540;
   border-radius: 10px;
-  box-shadow: inset 0 0 0 3px #b9c6f2, 6px 6px 0 rgb(0 0 0 / 0.45);
+  box-shadow:
+    inset 0 0 0 3px #b9c6f2,
+    6px 6px 0 rgb(0 0 0 / 0.45);
   font-family: var(--font-game);
 }
 
@@ -192,12 +194,34 @@ kbd {
 .stepped,
 .sticker > span,
 .pixel-button > span {
-  clip-path: polygon(0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px));
+  clip-path: polygon(
+    0 6px,
+    3px 6px,
+    3px 3px,
+    6px 3px,
+    6px 0,
+    calc(100% - 6px) 0,
+    calc(100% - 6px) 3px,
+    calc(100% - 3px) 3px,
+    calc(100% - 3px) 6px,
+    100% 6px,
+    100% calc(100% - 6px),
+    calc(100% - 3px) calc(100% - 6px),
+    calc(100% - 3px) calc(100% - 3px),
+    calc(100% - 6px) calc(100% - 3px),
+    calc(100% - 6px) 100%,
+    6px 100%,
+    6px calc(100% - 3px),
+    3px calc(100% - 3px),
+    3px calc(100% - 6px),
+    0 calc(100% - 6px)
+  );
 }
 .sticker {
   display: inline-block;
   /* Outline and drop shadow sit outside the clipped label */
-  filter: drop-shadow(3px 0 0 #0b0616) drop-shadow(-3px 0 0 #0b0616) drop-shadow(0 3px 0 #0b0616) drop-shadow(0 -3px 0 #0b0616) drop-shadow(0 6px 0 rgb(0 0 0 / 0.45));
+  filter: drop-shadow(3px 0 0 #0b0616) drop-shadow(-3px 0 0 #0b0616) drop-shadow(0 3px 0 #0b0616) drop-shadow(0 -3px 0 #0b0616)
+    drop-shadow(0 6px 0 rgb(0 0 0 / 0.45));
 }
 .sticker > span {
   display: block;
@@ -210,7 +234,9 @@ kbd {
 .pixel-button {
   display: inline-block;
   filter: drop-shadow(0 4px 0 rgb(11 6 22 / 0.9));
-  transition: translate 0.12s steps(2), filter 0.12s steps(2);
+  transition:
+    translate 0.12s steps(2),
+    filter 0.12s steps(2);
 }
 .pixel-button > span {
   display: block;
@@ -219,7 +245,9 @@ kbd {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  box-shadow: inset 0 -4px 0 rgb(0 0 0 / 0.22), inset 0 4px 0 rgb(255 255 255 / 0.35);
+  box-shadow:
+    inset 0 -4px 0 rgb(0 0 0 / 0.22),
+    inset 0 4px 0 rgb(255 255 255 / 0.35);
 }
 .pixel-button-small > span {
   padding: 0.6em 1.1em 0.7em;
@@ -265,14 +293,22 @@ kbd {
   }
 }
 @keyframes roller-left {
-  from { left: calc(50% - 1.25rem); }
+  from {
+    left: calc(50% - 1.25rem);
+  }
 }
 @keyframes roller-right {
-  from { right: calc(50% - 1.25rem); }
+  from {
+    right: calc(50% - 1.25rem);
+  }
 }
 @keyframes unroll {
-  from { clip-path: inset(0 50% 0 50%); }
-  to { clip-path: inset(0 0 0 0); }
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 .unrolling .roller-left {
   animation: roller-left 0.55s steps(10) both;
@@ -285,8 +321,13 @@ kbd {
 }
 /* A side scroll's starter hops in when it changes */
 @keyframes hop {
-  0%, 100% { translate: 0 0; }
-  40% { translate: 0 -14px; }
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  40% {
+    translate: 0 -14px;
+  }
 }
 .hop {
   animation: hop 0.4s steps(4);
@@ -296,19 +337,23 @@ kbd {
 .pixel-ledge {
   height: 40px;
   background:
-    linear-gradient(#8f7fc0 0 4px, #5c4c93 4px 8px, transparent 8px),
-    repeating-linear-gradient(90deg, transparent 0 46px, #2a1d4f 46px 48px),
-    linear-gradient(transparent 0 22px, #2a1d4f 22px 24px, transparent 24px),
-    #3d2f6e;
+    linear-gradient(#8f7fc0 0 4px, #5c4c93 4px 8px, transparent 8px), repeating-linear-gradient(90deg, transparent 0 46px, #2a1d4f 46px 48px),
+    linear-gradient(transparent 0 22px, #2a1d4f 22px 24px, transparent 24px), #3d2f6e;
   box-shadow: 0 6px 0 #1a1033;
 }
 /* Rows of Pokémon sliding past each other */
 @keyframes slide-left {
-  to { transform: translateX(-50%); }
+  to {
+    transform: translateX(-50%);
+  }
 }
 @keyframes slide-right {
-  from { transform: translateX(-50%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 .slide-left {
   animation: slide-left 50s linear infinite;
@@ -319,21 +364,33 @@ kbd {
 
 /* Stepped (choppy, retro) motion */
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 .float {
   animation: float 3.2s steps(8) infinite;
 }
 @keyframes twinkle {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .twinkle {
   animation: twinkle 2.4s steps(4) infinite;
 }
 @keyframes blink {
-  50% { opacity: 0; }
+  50% {
+    opacity: 0;
+  }
 }
 .blink {
   animation: blink 1s steps(1) infinite;
@@ -358,7 +415,8 @@ kbd {
 
 /* Explore cards: hovering a town flies the camera around its map */
 @keyframes flyover {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1.03);
   }
   12% {

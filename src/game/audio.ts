@@ -38,7 +38,9 @@ export const sound = {
   /** Play a sound effect */
   play(name: keyof typeof effects) {
     if (!this.muted) {
-      Object.assign(new Audio(effects[name]), { volume: 0.5 }).play().catch(() => null);
+      Object.assign(new Audio(effects[name]), { volume: 0.5 })
+        .play()
+        .catch(() => null);
     }
   },
 

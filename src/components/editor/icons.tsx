@@ -1,5 +1,22 @@
 import type { Target, Tool } from "@/game/editor/constants";
-import { CloudSun, DoorOpen, Eraser, Eyedropper, FlagBanner, type Icon, MapPin, PaintBrush, PaintBucket, Plant, Prohibit, SelectionPlus, Square, Stack, TreeEvergreen, Users } from "@phosphor-icons/react";
+import {
+  CloudSun,
+  DoorOpen,
+  Eraser,
+  Eyedropper,
+  FlagBanner,
+  type Icon,
+  MapPin,
+  PaintBrush,
+  PaintBucket,
+  Plant,
+  Prohibit,
+  SelectionPlus,
+  Square,
+  Stack,
+  TreeEvergreen,
+  Users,
+} from "@phosphor-icons/react";
 
 /** Icon of each painting tool */
 export const toolIcons: Record<Tool, Icon> = {

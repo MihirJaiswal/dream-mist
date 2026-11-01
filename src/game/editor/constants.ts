@@ -14,7 +14,7 @@ export const targets = [
   { key: "npc", label: "People", hint: "Click to add or select people, Pokémon and signs" },
   { key: "spawn", label: "Spawn", hint: "Click to set where visitors arrive" },
 ] as const;
-export type Target = typeof targets[number]["key"];
+export type Target = (typeof targets)[number]["key"];
 
 /** Targets that place things instead of painting (only the brush and select tools apply) */
 export const placing = ["npc", "spawn", "door"] as readonly Target[];
@@ -28,7 +28,7 @@ export const tools = [
   { key: "pick", label: "Picker", shortcut: "I", tip: "Click a tile on the map to use it as the brush" },
   { key: "select", label: "Select", shortcut: "S", tip: "Select an area to copy, cut, paste or delete" },
 ] as const;
-export type Tool = typeof tools[number]["key"];
+export type Tool = (typeof tools)[number]["key"];
 
 /** Stamp (tile values, 0 = transparent), quick brushes carry extra behaviours */
 export type Stamp = { w: number; h: number; tiles: number[] } & Partial<Brush>;
@@ -38,7 +38,7 @@ export const grids = ["ground", "decor", "above", "solid", "zone", "gate"] as co
 export type Grid = Layer | "solid" | "zone" | "gate";
 
 /** Clipboard (every layer of a rectangular area) */
-export type Clip = { w: number; h: number; grids: Record<typeof grids[number], number[]> };
+export type Clip = { w: number; h: number; grids: Record<(typeof grids)[number], number[]> };
 
 /** Objects that can stand in the way until a story step is done (tile values) */
 export const obstacles = [
@@ -58,7 +58,7 @@ export const templates = [
   { key: "gym", label: "Gym" },
   { key: "empty", label: "Empty room" },
 ] as const;
-export type Template = typeof templates[number]["key"];
+export type Template = (typeof templates)[number]["key"];
 
 /** What can be placed on the People layer */
 export type Kind = "person" | "pokemon" | "sign";

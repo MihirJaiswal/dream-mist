@@ -16,7 +16,23 @@ import { label, type Section, sections } from "@/game/hoenn";
 import { imageTypes, message, session } from "@/game/session";
 import { frameOf, image as loadImage, layouts } from "@/game/sprites";
 import { cn } from "@/lib/utils";
-import { CaretDown, CheckCircle, ClockCounterClockwise, Copy, Image as ImageIcon, MusicNotes, Plus, Sparkle, Stack, Trash, TreeEvergreen, Upload, User, Warning, X } from "@phosphor-icons/react";
+import {
+  CaretDown,
+  CheckCircle,
+  ClockCounterClockwise,
+  Copy,
+  Image as ImageIcon,
+  MusicNotes,
+  Plus,
+  Sparkle,
+  Stack,
+  Trash,
+  TreeEvergreen,
+  Upload,
+  User,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -44,26 +60,65 @@ function NewCity({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="sm:max-w-2xl">
-        <DialogHeader><DialogTitle>New city</DialogTitle><DialogDescription className="sr-only">Start a new town</DialogDescription></DialogHeader>
-        {(!cloud.user) && (cloud.available)
-          ? (
-            <div className="flex items-start gap-3 rounded-lg border border-select/45 bg-select/10 p-3">
-              <Warning size={18} className="mt-0.5 shrink-0 text-select" />
-              <div className="flex-1"><b className="block text-sm">You&apos;re not logged in</b><small className="text-xs text-muted-foreground">{previous ? `${previous} and your new town are` : "Your new town is"} only saved in this browser. Clearing browser data or switching devices would lose them.</small></div>
-              <Button size="sm" variant="secondary" onClick={async () => (await signIn("new"), refresh((n) => n + 1))}>Log in</Button>
+        <DialogHeader>
+          <DialogTitle>New city</DialogTitle>
+          <DialogDescription className="sr-only">Start a new town</DialogDescription>
+        </DialogHeader>
+        {!cloud.user && cloud.available ? (
+          <div className="flex items-start gap-3 rounded-lg border border-select/45 bg-select/10 p-3">
+            <Warning size={18} className="mt-0.5 shrink-0 text-select" />
+            <div className="flex-1">
+              <b className="block text-sm">You&apos;re not logged in</b>
+              <small className="text-xs text-muted-foreground">
+                {previous ? `${previous} and your new town are` : "Your new town is"} only saved in this browser. Clearing browser data or switching devices
+                would lose them.
+              </small>
             </div>
-          )
-          : previous ? <p className="flex items-center gap-1.5 text-xs text-success"><CheckCircle size={14} />{previous} is saved{cloud.user ? " to your account" : ""}. Reopen it anytime from Your cities.</p> : null}
-        <Field label="Name"><Input value={name} placeholder="Littleroot Heights" maxLength={40} onChange={(event) => setName(event.target.value)} /></Field>
+            <Button size="sm" variant="secondary" onClick={async () => (await signIn("new"), refresh((n) => n + 1))}>
+              Log in
+            </Button>
+          </div>
+        ) : previous ? (
+          <p className="flex items-center gap-1.5 text-xs text-success">
+            <CheckCircle size={14} />
+            {previous} is saved{cloud.user ? " to your account" : ""}. Reopen it anytime from Your cities.
+          </p>
+        ) : null}
+        <Field label="Name">
+          <Input value={name} placeholder="Littleroot Heights" maxLength={40} onChange={(event) => setName(event.target.value)} />
+        </Field>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => start({ kind: "starter" })} className="grid gap-1 rounded-lg border border-border bg-card p-3 text-left hover:border-ring"><TreeEvergreen size={20} /><b className="text-sm">Starter town</b><small className="text-xs text-muted-foreground">Trees, paths, a Pokémon Center, a house and tall grass</small></button>
-          <button onClick={() => start({ kind: "empty" })} className="grid gap-1 rounded-lg border border-border bg-card p-3 text-left hover:border-ring"><Stack size={20} /><b className="text-sm">Empty field</b><small className="text-xs text-muted-foreground">A blank 40×30 grass map</small></button>
+          <button onClick={() => start({ kind: "starter" })} className="grid gap-1 rounded-lg border border-border bg-card p-3 text-left hover:border-ring">
+            <TreeEvergreen size={20} />
+            <b className="text-sm">Starter town</b>
+            <small className="text-xs text-muted-foreground">Trees, paths, a Pokémon Center, a house and tall grass</small>
+          </button>
+          <button onClick={() => start({ kind: "empty" })} className="grid gap-1 rounded-lg border border-border bg-card p-3 text-left hover:border-ring">
+            <Stack size={20} />
+            <b className="text-sm">Empty field</b>
+            <small className="text-xs text-muted-foreground">A blank 40×30 grass map</small>
+          </button>
         </div>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Or start from a real Hoenn location</p>
         <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
-          {list
-            ? list.map((section) => <button key={section.id} title={`${section.width}×${section.height}`} onClick={() => start({ kind: "hoenn", section }).then(() => toast.info(`Loaded ${label(section.id)}`, { description: "Check collisions before sharing it." }))} className="h-7 rounded-full border border-border px-3 text-xs text-muted-foreground hover:border-ring hover:text-foreground">{label(section.id)}</button>)
-            : <Hint>Loading Hoenn maps…</Hint>}
+          {list ? (
+            list.map((section) => (
+              <button
+                key={section.id}
+                title={`${section.width}×${section.height}`}
+                onClick={() =>
+                  start({ kind: "hoenn", section }).then(() =>
+                    toast.info(`Loaded ${label(section.id)}`, { description: "Check collisions before sharing it." }),
+                  )
+                }
+                className="h-7 rounded-full border border-border px-3 text-xs text-muted-foreground hover:border-ring hover:text-foreground"
+              >
+                {label(section.id)}
+              </button>
+            ))
+          ) : (
+            <Hint>Loading Hoenn maps…</Hint>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -88,7 +143,10 @@ function Cities({ close }: { close: () => void }) {
   const local = session.localCities();
   const row = (key: string, title: string, detail: string, current: boolean, actions: React.ReactNode) => (
     <div key={key} className={cn("flex items-center gap-2 rounded-md border p-2.5", current ? "border-ring bg-muted/40" : "border-border")}>
-      <div className="min-w-0 flex-1"><b className="block truncate text-sm">{title}</b><small className="text-xs text-subtle-fg">{detail}</small></div>
+      <div className="min-w-0 flex-1">
+        <b className="block truncate text-sm">{title}</b>
+        <small className="text-xs text-subtle-fg">{detail}</small>
+      </div>
       {actions}
     </div>
   );
@@ -103,55 +161,141 @@ function Cities({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="sm:max-w-2xl">
-        <DialogHeader><DialogTitle>Your cities</DialogTitle><DialogDescription className="sr-only">Cities in your account and in this browser</DialogDescription></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Your cities</DialogTitle>
+          <DialogDescription className="sr-only">Cities in your account and in this browser</DialogDescription>
+        </DialogHeader>
         <div className="flex gap-2">
-          <Button onClick={() => (close(), newCity())}><Plus />New city</Button>
-          <Button variant="outline" onClick={() => {
-            const input = Object.assign(document.createElement("input"), { type: "file", accept: ".json,.txt" });
-            input.onchange = async () => {
-              const file = input.files?.[0];
-              if (file) {
-                const text = (await file.text()).trim();
-                await run(() => session.importText(text))();
-              }
-            };
-            input.click();
-          }}><Upload />Import file</Button>
+          <Button onClick={() => (close(), newCity())}>
+            <Plus />
+            New city
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const input = Object.assign(document.createElement("input"), { type: "file", accept: ".json,.txt" });
+              input.onchange = async () => {
+                const file = input.files?.[0];
+                if (file) {
+                  const text = (await file.text()).trim();
+                  await run(() => session.importText(text))();
+                }
+              };
+              input.click();
+            }}
+          >
+            <Upload />
+            Import file
+          </Button>
         </div>
         <div className="grid max-h-[60vh] gap-4 overflow-y-auto">
           <section className="grid gap-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Online</p>
-            {!cloud.user
-              ? <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground"><span className="flex-1">{cloud.available ? "Log in to keep your cities online and open them from any device." : "Online saves aren't set up on this site."}</span>{cloud.available ? <Button size="sm" variant="secondary" onClick={async () => (close(), await signIn(), cities())}>Log in</Button> : null}</div>
-              : online instanceof Error ? <Hint>Your online cities couldn&apos;t be loaded. Reopen this window to try again.</Hint>
-              : online === null ? <Hint>Loading…</Hint>
-              : online.length ? online.map((card) => row(card.id, card.name, `${card.width}×${card.height} · ${card.mine ? "yours" : `by ${card.owner}, you're a builder`}${card.published ? " · on Explore" : ""} · ${new Date(card.updated).toLocaleDateString()}`, card.id === session.online?.id, (
-                <>
-                  <Button size="sm" variant="outline" onClick={run(() => session.openOnline(card.id))}>Open</Button>
-                  {card.mine ? <Button size="icon" variant="ghost" aria-label="Delete" title="Delete" onClick={async () => {
-                    if (await confirm(`Delete ${card.name}?`, { text: "It is removed from your account and its share links stop working.", action: "Delete", danger: true })) {
-                      await session.deleteOnline(card.id).catch((error) => toast.error(message(error)));
-                      setOnline((list) => Array.isArray(list) ? list.filter(({ id }) => id !== card.id) : list);
-                    }
-                  }}><Trash className="text-destructive" /></Button> : null}
-                </>
-              )))
-              : <Hint>No cities online yet. Use Share → Save online, or bring one from this browser.</Hint>}
+            {!cloud.user ? (
+              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                <span className="flex-1">
+                  {cloud.available ? "Log in to keep your cities online and open them from any device." : "Online saves aren't set up on this site."}
+                </span>
+                {cloud.available ? (
+                  <Button size="sm" variant="secondary" onClick={async () => (close(), await signIn(), cities())}>
+                    Log in
+                  </Button>
+                ) : null}
+              </div>
+            ) : online instanceof Error ? (
+              <Hint>Your online cities couldn&apos;t be loaded. Reopen this window to try again.</Hint>
+            ) : online === null ? (
+              <Hint>Loading…</Hint>
+            ) : online.length ? (
+              online.map((card) =>
+                row(
+                  card.id,
+                  card.name,
+                  `${card.width}×${card.height} · ${card.mine ? "yours" : `by ${card.owner}, you're a builder`}${card.published ? " · on Explore" : ""} · ${new Date(card.updated).toLocaleDateString()}`,
+                  card.id === session.online?.id,
+                  <>
+                    <Button size="sm" variant="outline" onClick={run(() => session.openOnline(card.id))}>
+                      Open
+                    </Button>
+                    {card.mine ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Delete"
+                        title="Delete"
+                        onClick={async () => {
+                          if (
+                            await confirm(`Delete ${card.name}?`, {
+                              text: "It is removed from your account and its share links stop working.",
+                              action: "Delete",
+                              danger: true,
+                            })
+                          ) {
+                            await session.deleteOnline(card.id).catch((error) => toast.error(message(error)));
+                            setOnline((list) => (Array.isArray(list) ? list.filter(({ id }) => id !== card.id) : list));
+                          }
+                        }}
+                      >
+                        <Trash className="text-destructive" />
+                      </Button>
+                    ) : null}
+                  </>,
+                ),
+              )
+            ) : (
+              <Hint>No cities online yet. Use Share → Save online, or bring one from this browser.</Hint>
+            )}
           </section>
           <section className="grid gap-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">On this device</p>
-            {local.length ? local.map((city) => row(city.id, city.name, `${city.width}×${city.height} · ${city.npcs.length} on the map · ${new Date(city.updated).toLocaleDateString()}`, (city.id === session.city?.id) && (!session.visiting), (
-              <>
-                <Button size="sm" variant="outline" onClick={run(() => session.openLocal(city.id))}>Open</Button>
-                {cloud.user ? <Button size="icon" variant="ghost" aria-label="Save to your account" title="Save to your account" onClick={run(async () => (await session.openLocal(city.id), await session.upload()))}><Upload /></Button> : null}
-                <Button size="icon" variant="ghost" aria-label="Delete" title="Delete" onClick={async () => {
-                  if (await confirm(`Delete ${city.name}?`, { text: "This removes it from this device and can't be undone.", action: "Delete", danger: true })) {
-                    session.deleteLocal(city.id);
-                    refresh((n) => n + 1);
-                  }
-                }}><Trash className="text-destructive" /></Button>
-              </>
-            ))) : <Hint>No cities saved on this device.</Hint>}
+            {local.length ? (
+              local.map((city) =>
+                row(
+                  city.id,
+                  city.name,
+                  `${city.width}×${city.height} · ${city.npcs.length} on the map · ${new Date(city.updated).toLocaleDateString()}`,
+                  city.id === session.city?.id && !session.visiting,
+                  <>
+                    <Button size="sm" variant="outline" onClick={run(() => session.openLocal(city.id))}>
+                      Open
+                    </Button>
+                    {cloud.user ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Save to your account"
+                        title="Save to your account"
+                        onClick={run(async () => (await session.openLocal(city.id), await session.upload()))}
+                      >
+                        <Upload />
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Delete"
+                      title="Delete"
+                      onClick={async () => {
+                        if (
+                          await confirm(`Delete ${city.name}?`, {
+                            text: "This removes it from this device and can't be undone.",
+                            action: "Delete",
+                            danger: true,
+                          })
+                        ) {
+                          session.deleteLocal(city.id);
+                          refresh((n) => n + 1);
+                        }
+                      }}
+                    >
+                      <Trash className="text-destructive" />
+                    </Button>
+                  </>,
+                ),
+              )
+            ) : (
+              <Hint>No cities saved on this device.</Hint>
+            )}
           </section>
         </div>
       </DialogContent>
@@ -179,9 +323,15 @@ function History({ close }: { close: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(0);
   useEffect(() => void session.versions().then(setVersions, (error) => (setError(message(error)), setVersions([]))), []);
-  const when = (time: number) => new Date(time).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const when = (time: number) =>
+    new Date(time).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   const restore = async (version: { id: number; saved: number }) => {
-    if (!(await confirm(`Go back to ${when(version.saved)}?`, { text: "Your town goes back to how it was then. What's there now is kept in this list too, so you can come back to it.", action: "Restore" }))) {
+    if (
+      !(await confirm(`Go back to ${when(version.saved)}?`, {
+        text: "Your town goes back to how it was then. What's there now is kept in this list too, so you can come back to it.",
+        action: "Restore",
+      }))
+    ) {
       return;
     }
     setBusy(version.id);
@@ -201,21 +351,30 @@ function History({ close }: { close: () => void }) {
           <DialogTitle>Version history</DialogTitle>
           <DialogDescription>A copy of your town is kept as you build, at most every 30 minutes. The last 20 are kept.</DialogDescription>
         </DialogHeader>
-        {versions === null
-          ? <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
-          : versions.length
-          ? (
-            <ul className="grid max-h-96 gap-1 overflow-y-auto">
-              {versions.map((version) => (
-                <li key={version.id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
-                  <ClockCounterClockwise size={16} className="shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1"><b className="block truncate text-sm">{when(version.saved)}</b><small className="text-xs text-subtle-fg">{version.name} · {Math.max(1, Math.round(version.size / 1024))} KB</small></div>
-                  <Button size="sm" variant="outline" disabled={busy > 0} onClick={() => restore(version)}>{busy === version.id ? "Restoring…" : "Restore"}</Button>
-                </li>
-              ))}
-            </ul>
-          )
-          : <Hint className="py-4 text-center">{error || "No earlier versions yet. Keep building: the first copy is kept the next time you save after a while."}</Hint>}
+        {versions === null ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+        ) : versions.length ? (
+          <ul className="grid max-h-96 gap-1 overflow-y-auto">
+            {versions.map((version) => (
+              <li key={version.id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
+                <ClockCounterClockwise size={16} className="shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <b className="block truncate text-sm">{when(version.saved)}</b>
+                  <small className="text-xs text-subtle-fg">
+                    {version.name} · {Math.max(1, Math.round(version.size / 1024))} KB
+                  </small>
+                </div>
+                <Button size="sm" variant="outline" disabled={busy > 0} onClick={() => restore(version)}>
+                  {busy === version.id ? "Restoring…" : "Restore"}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Hint className="py-4 text-center">
+            {error || "No earlier versions yet. Keep building: the first copy is kept the next time you save after a while."}
+          </Hint>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -223,7 +382,8 @@ function History({ close }: { close: () => void }) {
 
 /** Battle background of the open map: the built-in scene, the town's picture, or its own uploaded picture */
 function BattleBackground({ update }: { update: () => void }) {
-  const area = session.area, city = session.city;
+  const area = session.area,
+    city = session.city;
   const own = area.battle;
   const inherited = area === city ? undefined : city.battle;
   const shown = own ?? inherited;
@@ -234,32 +394,62 @@ function BattleBackground({ update }: { update: () => void }) {
       return;
     }
     setBusy(true);
-    await session.uploadBattle(file).then(() => (toast.success("Battle background uploaded"), update()), (error) => toast.error(message(error)));
+    await session.uploadBattle(file).then(
+      () => (toast.success("Battle background uploaded"), update()),
+      (error) => toast.error(message(error)),
+    );
     setBusy(false);
   };
   return (
     <section className="grid grid-cols-1 gap-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "Battle background" : `${area.name} battle background`}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">
+        {area === city ? "Battle background" : `${area.name} battle background`}
+      </p>
       <div className="flex items-center gap-3 rounded-md border border-border p-2.5">
         <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-sm border border-border bg-[linear-gradient(#70c0f0,#b8e4f8_52%,#a8d878_52%,#84bc60)]">
           {shown ? <img src={shown.image} alt="" className="pixelated h-full w-full object-cover" /> : null}
         </div>
         <div className="min-w-0 flex-1">
           <b className="block text-sm">{own ? "Uploaded picture" : inherited ? "The town's picture" : "Built-in scene"}</b>
-          <small className="text-xs text-subtle-fg">{own ? (area === city ? "Used by every map without its own" : "Only on this map") : inherited ? "Set on the outside map. Upload one to use another here" : "Sky and grass outdoors, wall and floor indoors"}</small>
+          <small className="text-xs text-subtle-fg">
+            {own
+              ? area === city
+                ? "Used by every map without its own"
+                : "Only on this map"
+              : inherited
+                ? "Set on the outside map. Upload one to use another here"
+                : "Sky and grass outdoors, wall and floor indoors"}
+          </small>
         </div>
-        <Button variant="secondary" size="sm" disabled={busy} onClick={upload}><Upload />{own ? "Replace" : "Upload"}</Button>
-        {own ? <Button size="icon" variant="ghost" aria-label="Use the default background" title="Use the default background" onClick={() => (session.setBattle(null), update())}><X /></Button> : null}
+        <Button variant="secondary" size="sm" disabled={busy} onClick={upload}>
+          <Upload />
+          {own ? "Replace" : "Upload"}
+        </Button>
+        {own ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Use the default background"
+            title="Use the default background"
+            onClick={() => (session.setBattle(null), update())}
+          >
+            <X />
+          </Button>
+        ) : null}
       </div>
-      {own
-        ? (
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span>Shadows under the Pokémon<small className="block text-xs text-subtle-fg">Turn off when the picture already has platforms drawn in</small></span>
-            <Switch checked={own.platforms} onCheckedChange={(platforms) => (session.setBattle({ platforms }), update())} />
-          </label>
-        )
-        : null}
-      <Hint>{area === city ? "A wide picture (16:9) works best. Interiors and routes can each have their own: open them and upload one here." : "A wide picture (16:9) works best. Time of day and weather still tint it."}</Hint>
+      {own ? (
+        <label className="flex items-center justify-between gap-3 text-sm">
+          <span>
+            Shadows under the Pokémon<small className="block text-xs text-subtle-fg">Turn off when the picture already has platforms drawn in</small>
+          </span>
+          <Switch checked={own.platforms} onCheckedChange={(platforms) => (session.setBattle({ platforms }), update())} />
+        </label>
+      ) : null}
+      <Hint>
+        {area === city
+          ? "A wide picture (16:9) works best. Interiors and routes can each have their own: open them and upload one here."
+          : "A wide picture (16:9) works best. Time of day and weather still tint it."}
+      </Hint>
     </section>
   );
 }
@@ -280,7 +470,10 @@ function allowUpload(file: File, limit: number) {
   }
   const action = cloud.available ? { label: "Log in", onClick: () => void signIn("upload") } : undefined;
   if (file.size > limit) {
-    toast.error(`This image is too big without an account (${Math.ceil(file.size / 1024)} KB)`, { description: `Images up to ${limit / 1024} KB can be stored inside the city.${cloud.available ? " Log in to upload bigger ones." : ""}`, action });
+    toast.error(`This image is too big without an account (${Math.ceil(file.size / 1024)} KB)`, {
+      description: `Images up to ${limit / 1024} KB can be stored inside the city.${cloud.available ? " Log in to upload bigger ones." : ""}`,
+      action,
+    });
     return false;
   }
   toast.warning("You're not logged in", { description: "The image is stored inside the city, which makes share links bigger.", action });
@@ -302,9 +495,25 @@ function AiPrompt({ prompt, children }: { prompt: string; children?: React.React
   return (
     <div className="grid gap-2 border-t border-border p-3">
       {children}
-      <Hint>Paste this into an image generator and replace the part in brackets. Most tools draw bigger than asked: generate it large, then shrink it to the exact size with nearest-neighbor scaling (Aseprite, Piskel, LibreSprite, or GIMP with interpolation set to None) so the pixels stay sharp.</Hint>
+      <Hint>
+        Paste this into an image generator and replace the part in brackets. Most tools draw bigger than asked: generate it large, then shrink it to the exact
+        size with nearest-neighbor scaling (Aseprite, Piskel, LibreSprite, or GIMP with interpolation set to None) so the pixels stay sharp.
+      </Hint>
       <Textarea readOnly rows={9} value={prompt} className="max-h-56 font-mono text-xs" />
-      <Button variant="outline" size="sm" className="justify-self-end" onClick={() => navigator.clipboard.writeText(prompt).then(() => toast.success("Prompt copied"), () => toast.warning("Couldn't copy: select the text and copy it"))}><Copy />Copy prompt</Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="justify-self-end"
+        onClick={() =>
+          navigator.clipboard.writeText(prompt).then(
+            () => toast.success("Prompt copied"),
+            () => toast.warning("Couldn't copy: select the text and copy it"),
+          )
+        }
+      >
+        <Copy />
+        Copy prompt
+      </Button>
     </div>
   );
 }
@@ -320,30 +529,53 @@ function Settings({ close }: { close: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>City settings</DialogTitle><DialogDescription className="sr-only">Map size, weather, music, tilesets and sprites</DialogDescription></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>City settings</DialogTitle>
+          <DialogDescription className="sr-only">Map size, weather, music, tilesets and sprites</DialogDescription>
+        </DialogHeader>
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "Map size" : `${area.name} size`}</p>
           <div className="flex items-center gap-2">
             <Input type="number" min={6} max={128} value={width} onChange={(event) => setWidth(event.target.value)} className="w-24" aria-label="Width" />
             <span className="text-muted-foreground">×</span>
             <Input type="number" min={6} max={128} value={height} onChange={(event) => setHeight(event.target.value)} className="w-24" aria-label="Height" />
-            <Button variant="secondary" size="sm" onClick={() => (session.resizeArea(Number(width) || area.width, Number(height) || area.height), update())}>Resize</Button>
+            <Button variant="secondary" size="sm" onClick={() => (session.resizeArea(Number(width) || area.width, Number(height) || area.height), update())}>
+              Resize
+            </Button>
           </div>
           <Hint>Content stays anchored to the top-left corner. Undo puts the old size back.</Hint>
         </section>
         <section className="grid grid-cols-1 gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "Weather and time of day" : `${area.name} weather and time`}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">
+            {area === city ? "Weather and time of day" : `${area.name} weather and time`}
+          </p>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Weather">
               <Select value={area.weather ?? "clear"} onValueChange={(weather) => (session.setSky({ weather: weather as Weather }), update())}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{weathers.map(({ key, label }) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {weathers.map(({ key, label }) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </Field>
             <Field label="Time of day">
               <Select value={area.time ?? "day"} onValueChange={(time) => (session.setSky({ time: time as Daytime }), update())}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{daytimes.map(({ key, label }) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {daytimes.map(({ key, label }) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </Field>
           </div>
@@ -357,46 +589,111 @@ function Settings({ close }: { close: () => void }) {
             return (
               <div key={track} className={row}>
                 <MusicNotes size={16} />
-                <div className="min-w-0 flex-1"><b className="block text-sm">{track === "town" ? "Town music" : "Battle music"}</b><small className="text-xs text-subtle-fg">{custom ? "Custom upload" : "DreamMist default"}</small></div>
-                <Button size="sm" variant="outline" onClick={async () => {
-                  if (!cloud.user) {
-                    return cloud.available ? toast.warning("Log in to upload music", { description: "Music files are stored in your account.", action: { label: "Log in", onClick: () => void signIn("upload") } }) : toast.error("Music uploads need online features to be set up");
-                  }
-                  const file = await pick("audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/wav,audio/webm,audio/aac,.mp3,.m4a,.ogg,.wav");
-                  if (file) {
-                    await session.uploadMusic(track, file).then(() => (toast.success("Music uploaded"), update()), (error) => toast.error(message(error)));
-                  }
-                }}><Upload />{custom ? "Replace" : "Upload"}</Button>
-                {custom ? <Button size="icon" variant="ghost" aria-label="Use default music" title="Use default music" onClick={() => (session.resetMusic(track), update())}><X /></Button> : null}
+                <div className="min-w-0 flex-1">
+                  <b className="block text-sm">{track === "town" ? "Town music" : "Battle music"}</b>
+                  <small className="text-xs text-subtle-fg">{custom ? "Custom upload" : "DreamMist default"}</small>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!cloud.user) {
+                      return cloud.available
+                        ? toast.warning("Log in to upload music", {
+                            description: "Music files are stored in your account.",
+                            action: { label: "Log in", onClick: () => void signIn("upload") },
+                          })
+                        : toast.error("Music uploads need online features to be set up");
+                    }
+                    const file = await pick("audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/wav,audio/webm,audio/aac,.mp3,.m4a,.ogg,.wav");
+                    if (file) {
+                      await session.uploadMusic(track, file).then(
+                        () => (toast.success("Music uploaded"), update()),
+                        (error) => toast.error(message(error)),
+                      );
+                    }
+                  }}
+                >
+                  <Upload />
+                  {custom ? "Replace" : "Upload"}
+                </Button>
+                {custom ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Use default music"
+                    title="Use default music"
+                    onClick={() => (session.resetMusic(track), update())}
+                  >
+                    <X />
+                  </Button>
+                ) : null}
               </div>
             );
           })}
         </section>
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Tilesets</p>
-          {(city.tilesets ?? []).map((sheet, index) => sheet.url ? (
-            <div key={sheet.id} className={row}>
-              <ImageIcon size={16} />
-              <div className="min-w-0 flex-1"><b className="block truncate text-sm">{sheet.name}</b><small className="text-xs text-subtle-fg">{sheet.columns}×{sheet.rows} tiles of {sheet.tile}px</small></div>
-              <Button size="icon" variant="ghost" aria-label="Remove tileset" title="Remove tileset" onClick={async () => (await removeTileset(index), update())}><Trash className="text-destructive" /></Button>
-            </div>
-          ) : null)}
+          {(city.tilesets ?? []).map((sheet, index) =>
+            sheet.url ? (
+              <div key={sheet.id} className={row}>
+                <ImageIcon size={16} />
+                <div className="min-w-0 flex-1">
+                  <b className="block truncate text-sm">{sheet.name}</b>
+                  <small className="text-xs text-subtle-fg">
+                    {sheet.columns}×{sheet.rows} tiles of {sheet.tile}px
+                  </small>
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Remove tileset"
+                  title="Remove tileset"
+                  onClick={async () => (await removeTileset(index), update())}
+                >
+                  <Trash className="text-destructive" />
+                </Button>
+              </div>
+            ) : null,
+          )}
           {(city.tilesets ?? []).every(({ url }) => !url) ? <Hint>Only the built-in Hoenn tileset is used.</Hint> : null}
-          <Button variant="outline" size="sm" className="justify-self-start" onClick={async () => (await importTileset(), update())}><Plus />Import tileset</Button>
+          <Button variant="outline" size="sm" className="justify-self-start" onClick={async () => (await importTileset(), update())}>
+            <Plus />
+            Import tileset
+          </Button>
         </section>
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Sprites for people and Pokémon</p>
           {(city.sprites ?? []).map((sprite) => (
             <div key={sprite.id} className={row}>
               {sprite.kind === "person" ? <User size={16} /> : <Sparkle size={16} />}
-              <div className="min-w-0 flex-1"><b className="block truncate text-sm">{sprite.name}</b><small className="text-xs text-subtle-fg">{sprite.kind === "person" ? `Person · ${layouts[sprite.layout ?? "dreammist"].label}` : "Pokémon"} · {sprite.w}×{sprite.h} px frames</small></div>
-              <Button size="icon" variant="ghost" aria-label="Remove sprite" title="Remove sprite" onClick={async () => (await removeSprite(sprite.id), update())}><Trash className="text-destructive" /></Button>
+              <div className="min-w-0 flex-1">
+                <b className="block truncate text-sm">{sprite.name}</b>
+                <small className="text-xs text-subtle-fg">
+                  {sprite.kind === "person" ? `Person · ${layouts[sprite.layout ?? "dreammist"].label}` : "Pokémon"} · {sprite.w}×{sprite.h} px frames
+                </small>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Remove sprite"
+                title="Remove sprite"
+                onClick={async () => (await removeSprite(sprite.id), update())}
+              >
+                <Trash className="text-destructive" />
+              </Button>
             </div>
           ))}
           {(city.sprites ?? []).length ? null : <Hint>No custom sprites yet.</Hint>}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={async () => (await importSprite("person"), update())}><Plus />Person sprite</Button>
-            <Button variant="outline" size="sm" onClick={async () => (await importSprite("pokemon"), update())}><Plus />Pokémon sprite</Button>
+            <Button variant="outline" size="sm" onClick={async () => (await importSprite("person"), update())}>
+              <Plus />
+              Person sprite
+            </Button>
+            <Button variant="outline" size="sm" onClick={async () => (await importSprite("pokemon"), update())}>
+              <Plus />
+              Pokémon sprite
+            </Button>
           </div>
         </section>
       </DialogContent>
@@ -458,7 +755,9 @@ Every tile is fully opaque. No text, no grid lines, no labels, no border.`,
   objects: {
     label: "Buildings and nature",
     hint: "Things placed on the Objects and Above layers: houses, trees, fences, signs. The background is transparent.",
-    prompt: (tile: number) => `Pixel art top-down tileset of objects for a Pokémon-style game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+    prompt: (
+      tile: number,
+    ) => `Pixel art top-down tileset of objects for a Pokémon-style game, in the style of Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
 Theme: [describe the place, for example a seaside fishing town].
 Contents: [list what you need, for example two small houses, a shop, trees, bushes, rocks, a fence, a mailbox, a sign post, flower pots].
 Layout: everything lined up on a grid of ${tile}×${tile} pixel tiles, 8 tiles wide (${tile * 8} pixels wide), with no spacing or margins. Big objects like houses and trees span several whole tiles and start exactly on a tile edge. Leave empty tiles fully transparent.
@@ -468,7 +767,9 @@ Background: fully transparent. No ground under the objects, no shadows on the gr
   indoor: {
     label: "Inside",
     hint: "Interiors: floors, walls, doors, windows and furniture for houses, shops and gyms.",
-    prompt: (tile: number) => `Pixel art top-down interior tileset for a Pokémon-style game, in the style of the house and Pokémon Center interiors in Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
+    prompt: (
+      tile: number,
+    ) => `Pixel art top-down interior tileset for a Pokémon-style game, in the style of the house and Pokémon Center interiors in Pokémon Ruby, Sapphire and Emerald (Game Boy Advance).
 Theme: [describe the room, for example a cozy wooden cabin or a modern gym].
 Contents: floor tiles that repeat seamlessly, a back wall with a top edge, a doorway and a door mat, windows, a bed, a table and chairs, a bookshelf, a TV, plants, a rug, stairs.
 Layout: everything lined up on a grid of ${tile}×${tile} pixel tiles, 8 tiles wide (${tile * 8} pixels wide), with no spacing or margins. Furniture spans whole tiles and starts exactly on a tile edge.
@@ -487,26 +788,54 @@ function ImportTileset({ close }: { close: () => void }) {
   const [tile, setTile] = useState("16");
   const [kind, setKind] = useState<keyof typeof tilesetKinds>("ground");
   const [busy, setBusy] = useState(false);
-  const preview = useMemo(() => file ? URL.createObjectURL(file) : "", [file]);
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader><DialogTitle>Import tileset</DialogTitle><DialogDescription>PNG, WebP, AVIF or GIF tileset laid out on a grid, no spacing.</DialogDescription></DialogHeader>
-        <button onClick={async () => {
-          const chosen = await pick(imageTypes.join(","));
-          if ((chosen) && (allowUpload(chosen, 512 * 1024))) {
-            setFile(chosen);
-            setName((current) => current || chosen.name.replace(/\.\w+$/, "").slice(0, 30));
-          }
-        }} className="grid min-h-36 place-items-center gap-1 rounded-md border border-dashed border-border p-4 text-center text-muted-foreground hover:border-ring">
-          {file ? <><img src={preview} alt="" className="max-h-48 max-w-full [image-rendering:pixelated]" /><small>{file.name} · {(file.size / 1024).toFixed(0)} KB</small></> : <><ImageIcon size={24} /><b className="text-sm text-foreground">Choose an image</b></>}
+        <DialogHeader>
+          <DialogTitle>Import tileset</DialogTitle>
+          <DialogDescription>PNG, WebP, AVIF or GIF tileset laid out on a grid, no spacing.</DialogDescription>
+        </DialogHeader>
+        <button
+          onClick={async () => {
+            const chosen = await pick(imageTypes.join(","));
+            if (chosen && allowUpload(chosen, 512 * 1024)) {
+              setFile(chosen);
+              setName((current) => current || chosen.name.replace(/\.\w+$/, "").slice(0, 30));
+            }
+          }}
+          className="grid min-h-36 place-items-center gap-1 rounded-md border border-dashed border-border p-4 text-center text-muted-foreground hover:border-ring"
+        >
+          {file ? (
+            <>
+              <img src={preview} alt="" className="max-h-48 max-w-full [image-rendering:pixelated]" />
+              <small>
+                {file.name} · {(file.size / 1024).toFixed(0)} KB
+              </small>
+            </>
+          ) : (
+            <>
+              <ImageIcon size={24} />
+              <b className="text-sm text-foreground">Choose an image</b>
+            </>
+          )}
         </button>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Name"><Input value={name} placeholder="My tileset" maxLength={30} onChange={(event) => setName(event.target.value)} /></Field>
+          <Field label="Name">
+            <Input value={name} placeholder="My tileset" maxLength={30} onChange={(event) => setName(event.target.value)} />
+          </Field>
           <Field label="Tile size">
             <Select value={tile} onValueChange={setTile}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{[16, 24, 32, 48, 64].map((n) => <SelectItem key={n} value={`${n}`}>{n} × {n} px</SelectItem>)}</SelectContent>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[16, 24, 32, 48, 64].map((n) => (
+                  <SelectItem key={n} value={`${n}`}>
+                    {n} × {n} px
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </Field>
         </div>
@@ -514,12 +843,26 @@ function ImportTileset({ close }: { close: () => void }) {
           <Fold>What makes a good tileset</Fold>
           <CollapsibleContent>
             <ul className="grid list-disc gap-1.5 border-t border-border py-3 pr-3 pl-7 text-xs leading-relaxed text-muted-foreground">
-              <li><b>A grid</b> of square tiles, all the same size, starting at the top-left corner with <b>no spacing or margins</b>. Pick that size under <b>Tile size</b>.</li>
-              <li><b>Width and height</b> a multiple of the tile size, for example 128×128 px for 8 × 8 tiles of 16 px. Extra pixels on the right or bottom are cut off.</li>
-              <li><b>16 px tiles</b> match the built-in Hoenn tiles. Bigger tiles are shrunk to fit the same grid on the map.</li>
-              <li><b>Transparent background</b> for objects, so the ground shows through. Ground tiles should be solid.</li>
-              <li><b>Big things</b> like houses span several tiles: select them together in the palette and paint them as one stamp.</li>
-              <li><b>Up to 512 KB</b> without an account, 4 MB when logged in. Fully empty tiles paint nothing, so they never cover what is below.</li>
+              <li>
+                <b>A grid</b> of square tiles, all the same size, starting at the top-left corner with <b>no spacing or margins</b>. Pick that size under{" "}
+                <b>Tile size</b>.
+              </li>
+              <li>
+                <b>Width and height</b> a multiple of the tile size, for example 128×128 px for 8 × 8 tiles of 16 px. Extra pixels on the right or bottom are
+                cut off.
+              </li>
+              <li>
+                <b>16 px tiles</b> match the built-in Hoenn tiles. Bigger tiles are shrunk to fit the same grid on the map.
+              </li>
+              <li>
+                <b>Transparent background</b> for objects, so the ground shows through. Ground tiles should be solid.
+              </li>
+              <li>
+                <b>Big things</b> like houses span several tiles: select them together in the palette and paint them as one stamp.
+              </li>
+              <li>
+                <b>Up to 512 KB</b> without an account, 4 MB when logged in. Fully empty tiles paint nothing, so they never cover what is below.
+              </li>
             </ul>
           </CollapsibleContent>
         </Collapsible>
@@ -529,24 +872,42 @@ function ImportTileset({ close }: { close: () => void }) {
             <AiPrompt prompt={tilesetKinds[kind].prompt(Number(tile))}>
               <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-0.5">
                 {Object.entries(tilesetKinds).map(([key, { label }]) => (
-                  <button key={key} aria-pressed={kind === key} onClick={() => setKind(key as typeof kind)} className={cn("rounded px-2 py-1 text-xs", kind === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{label}</button>
+                  <button
+                    key={key}
+                    aria-pressed={kind === key}
+                    onClick={() => setKind(key as typeof kind)}
+                    className={cn(
+                      "rounded px-2 py-1 text-xs",
+                      kind === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
                 ))}
               </div>
-              <Hint>{tilesetKinds[kind].hint} The prompt uses the tile size chosen above ({tile} px). AI tools rarely line tiles up perfectly: check the grid in a pixel editor before importing.</Hint>
+              <Hint>
+                {tilesetKinds[kind].hint} The prompt uses the tile size chosen above ({tile} px). AI tools rarely line tiles up perfectly: check the grid in a
+                pixel editor before importing.
+              </Hint>
             </AiPrompt>
           </CollapsibleContent>
         </Collapsible>
-        <Button disabled={!file || busy} onClick={async () => {
-          setBusy(true);
-          try {
-            const sheet = await session.addTileset(file!, name, Number(tile));
-            close();
-            toast.success(`${sheet.name} added: pick it above the tile palette`);
-          } catch (error) {
-            toast.error(message(error));
-            setBusy(false);
-          }
-        }}>Add tileset</Button>
+        <Button
+          disabled={!file || busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const sheet = await session.addTileset(file!, name, Number(tile));
+              close();
+              toast.success(`${sheet.name} added: pick it above the tile palette`);
+            } catch (error) {
+              toast.error(message(error));
+              setBusy(false);
+            }
+          }}
+        >
+          Add tileset
+        </Button>
       </DialogContent>
     </Dialog>
   );
@@ -620,7 +981,7 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
   const [name, setName] = useState("");
   const [layout, setLayout] = useState<keyof typeof layouts>("dreammist");
   const [busy, setBusy] = useState(false);
-  const ok = image ? (kind === "pokemon" ? (image.width <= 256) && (image.height <= 256) : Boolean(frameOf(image, layout))) : false;
+  const ok = image ? (kind === "pokemon" ? image.width <= 256 && image.height <= 256 : Boolean(frameOf(image, layout))) : false;
   const frame = image && kind === "person" ? frameOf(image, layout) : null;
   //Tell how the image fits as soon as it's picked or the layout changes
   useEffect(() => {
@@ -637,9 +998,15 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
         toast.success(`${image.width}×${image.height} px, looks good`, { id });
       }
     } else if (!frame) {
-      toast.error("This image doesn't match the layout", { id, description: `It doesn't split into ${layouts[layout].columns} columns and ${layouts[layout].rows.length} rows of equal frames. Pick another layout, or resize it to a multiple of ${layouts[layout].columns}×${layouts[layout].rows.length}.` });
-    } else if ((frame.w !== 16) || (frame.h !== 32)) {
-      toast.warning(`Frames of ${frame.w}×${frame.h} px`, { id, description: "They're scaled to one tile wide on the map. Check each direction walks the right way." });
+      toast.error("This image doesn't match the layout", {
+        id,
+        description: `It doesn't split into ${layouts[layout].columns} columns and ${layouts[layout].rows.length} rows of equal frames. Pick another layout, or resize it to a multiple of ${layouts[layout].columns}×${layouts[layout].rows.length}.`,
+      });
+    } else if (frame.w !== 16 || frame.h !== 32) {
+      toast.warning(`Frames of ${frame.w}×${frame.h} px`, {
+        id,
+        description: "They're scaled to one tile wide on the map. Check each direction walks the right way.",
+      });
     } else {
       toast.success("Frames of 16×32 px", { id, description: "Same size as the game's own characters. Check each direction walks the right way." });
     }
@@ -647,80 +1014,134 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>{kind === "person" ? "Upload a person sprite" : "Upload a Pokémon sprite"}</DialogTitle><DialogDescription className="sr-only">Upload your own sprite</DialogDescription></DialogHeader>
-        <button onClick={async () => {
-          const chosen = await pick(imageTypes.join(","));
-          if ((!chosen) || (!allowUpload(chosen, 256 * 1024))) {
-            return;
-          }
-          const loaded = await loadImage(URL.createObjectURL(chosen));
-          setFile(chosen);
-          setImage(loaded);
-          setName((current) => current || chosen.name.replace(/\.\w+$/, "").slice(0, 30));
-          //4 columns can only be RPG Maker XP, 3 columns default to DreamMist (VX/MV sheets look alike, pick them by hand)
-          if (kind === "person") {
-            setLayout((!frameOf(loaded, "dreammist")) && (frameOf(loaded, "rpgxp")) ? "rpgxp" : "dreammist");
-          }
-        }} className="grid min-h-36 place-items-center gap-2 rounded-md border border-dashed border-border p-4 text-center text-muted-foreground hover:border-ring">
-          {image && file
-            ? <>{kind === "person" ? <Frames image={image} layout={layout} /> : <img src={image.src} alt="" style={{ width: image.width * 2 }} className="max-w-full [image-rendering:pixelated]" />}<small>{file.name} · {image.width}×{image.height} px</small></>
-            : <><ImageIcon size={24} /><b className="text-sm text-foreground">Choose an image</b><small>PNG, WebP, AVIF or GIF with a transparent background</small></>}
+        <DialogHeader>
+          <DialogTitle>{kind === "person" ? "Upload a person sprite" : "Upload a Pokémon sprite"}</DialogTitle>
+          <DialogDescription className="sr-only">Upload your own sprite</DialogDescription>
+        </DialogHeader>
+        <button
+          onClick={async () => {
+            const chosen = await pick(imageTypes.join(","));
+            if (!chosen || !allowUpload(chosen, 256 * 1024)) {
+              return;
+            }
+            const loaded = await loadImage(URL.createObjectURL(chosen));
+            setFile(chosen);
+            setImage(loaded);
+            setName((current) => current || chosen.name.replace(/\.\w+$/, "").slice(0, 30));
+            //4 columns can only be RPG Maker XP, 3 columns default to DreamMist (VX/MV sheets look alike, pick them by hand)
+            if (kind === "person") {
+              setLayout(!frameOf(loaded, "dreammist") && frameOf(loaded, "rpgxp") ? "rpgxp" : "dreammist");
+            }
+          }}
+          className="grid min-h-36 place-items-center gap-2 rounded-md border border-dashed border-border p-4 text-center text-muted-foreground hover:border-ring"
+        >
+          {image && file ? (
+            <>
+              {kind === "person" ? (
+                <Frames image={image} layout={layout} />
+              ) : (
+                <img src={image.src} alt="" style={{ width: image.width * 2 }} className="max-w-full [image-rendering:pixelated]" />
+              )}
+              <small>
+                {file.name} · {image.width}×{image.height} px
+              </small>
+            </>
+          ) : (
+            <>
+              <ImageIcon size={24} />
+              <b className="text-sm text-foreground">Choose an image</b>
+              <small>PNG, WebP, AVIF or GIF with a transparent background</small>
+            </>
+          )}
         </button>
         <div className={cn("grid gap-2", kind === "person" && "grid-cols-2")}>
-          <Field label="Name"><Input value={name} placeholder={kind === "person" ? "Ranger Jo" : "Flamefox"} maxLength={30} onChange={(event) => setName(event.target.value)} /></Field>
-          {kind === "person"
-            ? (
-              <Field label="Layout">
-                <Select value={layout} onValueChange={(value) => setLayout(value as keyof typeof layouts)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(layouts).map(([value, { label }]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-            )
-            : null}
+          <Field label="Name">
+            <Input value={name} placeholder={kind === "person" ? "Ranger Jo" : "Flamefox"} maxLength={30} onChange={(event) => setName(event.target.value)} />
+          </Field>
+          {kind === "person" ? (
+            <Field label="Layout">
+              <Select value={layout} onValueChange={(value) => setLayout(value as keyof typeof layouts)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(layouts).map(([value, { label }]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
         </div>
         <Collapsible defaultOpen className="rounded-lg border border-border bg-card">
           <Fold>Size and layout</Fold>
           <CollapsibleContent>
-          <ul className="list-disc space-y-1 border-t border-border px-7 py-3 text-xs text-muted-foreground [&_b]:text-foreground">
-            {kind === "person"
-              ? (
+            <ul className="list-disc space-y-1 border-t border-border px-7 py-3 text-xs text-muted-foreground [&_b]:text-foreground">
+              {kind === "person" ? (
                 <>
-                  <li><b>Sheet:</b> 3 columns × 4 rows, every frame the same size.</li>
-                  <li><b>Frame:</b> 16×32 px like the game&apos;s characters (whole image 48×128). 32×32, 32×48 or 32×64 also work.</li>
-                  <li><b>Rows:</b> facing down, up, left, right.</li>
-                  <li><b>Columns:</b> standing, left foot forward, right foot forward.</li>
-                  <li><b>Background:</b> transparent, feet at the bottom of each frame.</li>
-                  <li><b>RPG Maker sheets</b> work too: pick their layout above.</li>
+                  <li>
+                    <b>Sheet:</b> 3 columns × 4 rows, every frame the same size.
+                  </li>
+                  <li>
+                    <b>Frame:</b> 16×32 px like the game&apos;s characters (whole image 48×128). 32×32, 32×48 or 32×64 also work.
+                  </li>
+                  <li>
+                    <b>Rows:</b> facing down, up, left, right.
+                  </li>
+                  <li>
+                    <b>Columns:</b> standing, left foot forward, right foot forward.
+                  </li>
+                  <li>
+                    <b>Background:</b> transparent, feet at the bottom of each frame.
+                  </li>
+                  <li>
+                    <b>RPG Maker sheets</b> work too: pick their layout above.
+                  </li>
                 </>
-              )
-              : (
+              ) : (
                 <>
-                  <li><b>One image</b> of the whole Pokémon, facing left (it&apos;s flipped when it walks right).</li>
-                  <li><b>Size:</b> 64×64 px is ideal, from 32×32 up to 96×96. 256×256 at most.</li>
-                  <li><b>Background:</b> transparent, feet near the bottom.</li>
-                  <li><b>Used</b> on the map and in battle. Its species still decides types, stats and moves.</li>
+                  <li>
+                    <b>One image</b> of the whole Pokémon, facing left (it&apos;s flipped when it walks right).
+                  </li>
+                  <li>
+                    <b>Size:</b> 64×64 px is ideal, from 32×32 up to 96×96. 256×256 at most.
+                  </li>
+                  <li>
+                    <b>Background:</b> transparent, feet near the bottom.
+                  </li>
+                  <li>
+                    <b>Used</b> on the map and in battle. Its species still decides types, stats and moves.
+                  </li>
                 </>
               )}
-          </ul>
+            </ul>
           </CollapsibleContent>
         </Collapsible>
         <Collapsible className="rounded-lg border border-border bg-card">
           <Fold>Make it with AI</Fold>
-          <CollapsibleContent><AiPrompt prompt={prompts[kind]} /></CollapsibleContent>
+          <CollapsibleContent>
+            <AiPrompt prompt={prompts[kind]} />
+          </CollapsibleContent>
         </Collapsible>
         <DialogFooter>
-          <Button disabled={!ok || busy} onClick={async () => {
-            setBusy(true);
-            try {
-              const sprite = await session.addSprite(file!, image!, kind, name, layout);
-              close(sprite.id);
-              toast.success(`${sprite.name} added`);
-            } catch (error) {
-              toast.error(message(error));
-              setBusy(false);
-            }
-          }}>Add sprite</Button>
+          <Button
+            disabled={!ok || busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const sprite = await session.addSprite(file!, image!, kind, name, layout);
+                close(sprite.id);
+                toast.success(`${sprite.name} added`);
+              } catch (error) {
+                toast.error(message(error));
+                setBusy(false);
+              }
+            }}
+          >
+            Add sprite
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -729,5 +1150,13 @@ function ImportSprite({ kind, close }: { kind: "person" | "pokemon"; close: (id?
 
 /** Publish description textarea (shared with the publish dialog) */
 export function Description({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <Textarea rows={3} maxLength={280} placeholder="A cozy seaside town with a tricky gym and a hidden cave…" value={value} onChange={(event) => onChange(event.target.value)} />;
+  return (
+    <Textarea
+      rows={3}
+      maxLength={280}
+      placeholder="A cozy seaside town with a tricky gym and a hidden cave…"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
 }

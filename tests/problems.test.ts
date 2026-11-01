@@ -3,7 +3,8 @@ import { describe, expect, test } from "vitest";
 import { blank, type Npc } from "@/game/data";
 import { problems } from "@/game/problems";
 
-const person = (npc: Partial<Npc>) => ({ x: 1, y: 1, sprite: "youngster", dir: "down", name: "Bob", dialogue: "Hi", role: "talk", wander: false, ...npc }) as Npc;
+const person = (npc: Partial<Npc>) =>
+  ({ x: 1, y: 1, sprite: "youngster", dir: "down", name: "Bob", dialogue: "Hi", role: "talk", wander: false, ...npc }) as Npc;
 const texts = (city: ReturnType<typeof blank>) => problems(city).map(({ text }) => text);
 
 describe("problems", () => {
@@ -15,7 +16,10 @@ describe("problems", () => {
 
   test("doors that lead nowhere or to deleted maps", () => {
     const city = blank();
-    city.doors = [{ x: 12, y: 8, to: "?", tx: -1, ty: -1 }, { x: 3, y: 3, to: "gone", tx: -1, ty: -1 }];
+    city.doors = [
+      { x: 12, y: 8, to: "?", tx: -1, ty: -1 },
+      { x: 3, y: 3, to: "gone", tx: -1, ty: -1 },
+    ];
     expect(texts(city)).toEqual(expect.arrayContaining(["Door at 12, 8 outside doesn't lead anywhere yet", "Door at 3, 3 outside leads to a deleted map"]));
     expect(problems(city)[0]).toMatchObject({ kind: "error", layer: "door", door: 0, at: { x: 12, y: 8 } });
   });
@@ -58,7 +62,11 @@ describe("problems", () => {
   test("story steps that can never happen", () => {
     const city = blank();
     city.zones = [];
-    city.story = [{ id: "a", n: 1, name: "Get the parcel", blocked: "" }, { id: "b", n: 2, name: "Deliver it", blocked: "" }, { id: "c", n: 3, name: "Lost step", blocked: "" }];
+    city.story = [
+      { id: "a", n: 1, name: "Get the parcel", blocked: "" },
+      { id: "b", n: 2, name: "Deliver it", blocked: "" },
+      { id: "c", n: 3, name: "Lost step", blocked: "" },
+    ];
     city.npcs = [
       person({ name: "Clerk", story: { completes: "a" } }),
       person({ name: "Prof", story: { requires: "a", completes: "b" } }),
@@ -72,8 +80,14 @@ describe("problems", () => {
   test("side quests that start after a step that never happens, or have no steps", () => {
     const city = blank();
     city.zones = [];
-    city.story = [{ id: "a", n: 1, name: "Lost step", blocked: "" }, { id: "k", n: 2, name: "Find Skitty", blocked: "", quest: "q" }];
-    city.quests = [{ id: "q", name: "Lost kitten", after: "a" }, { id: "e", name: "Empty" }];
+    city.story = [
+      { id: "a", n: 1, name: "Lost step", blocked: "" },
+      { id: "k", n: 2, name: "Find Skitty", blocked: "", quest: "q" },
+    ];
+    city.quests = [
+      { id: "q", name: "Lost kitten", after: "a" },
+      { id: "e", name: "Empty" },
+    ];
     city.npcs = [person({ name: "Girl", story: { completes: "k" } })];
     expect(texts(city)).toEqual([
       'Story step "Lost step" can never happen: nobody completes it',
@@ -87,7 +101,9 @@ describe("problems", () => {
     city.zones = [];
     city.gate[11] = 7;
     city.npcs = [person({ story: { until: "deleted" } })];
-    expect(texts(city)).toEqual(expect.arrayContaining(["Gate tiles outside belong to a deleted story step and block the way forever", "Bob at 1, 1 uses a story step that was deleted"]));
+    expect(texts(city)).toEqual(
+      expect.arrayContaining(["Gate tiles outside belong to a deleted story step and block the way forever", "Bob at 1, 1 uses a story step that was deleted"]),
+    );
   });
 
   test("errors come before warnings", () => {

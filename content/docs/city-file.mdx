@@ -13,34 +13,34 @@ To have an AI agent write a whole game file, see [Make a game with an AI agent](
 type City = {
   v: 1;
   id: string;
-  name: string;           // up to 40 characters
+  name: string; // up to 40 characters
   author: string;
-  width: number;          // tiles
+  width: number; // tiles
   height: number;
   layers: {
-    ground: number[];     // width × height tile values, row by row
-    decor: number[];      // the Objects layer
+    ground: number[]; // width × height tile values, row by row
+    decor: number[]; // the Objects layer
     above: number[];
   };
-  solid: number[];        // 1 = blocked
-  zone: number[];         // 0 = none, n = zones[n - 1]
-  gate: number[];         // 0 = open, n = the story step whose `n` is n
+  solid: number[]; // 1 = blocked
+  zone: number[]; // 0 = none, n = zones[n - 1]
+  gate: number[]; // 0 = open, n = the story step whose `n` is n
   zones: Zone[];
   npcs: Npc[];
   spawn: { x: number; y: number };
   doors: Door[];
-  story: Step[];          // main story and side quest steps, in order within each
-  quests: Quest[];        // side quests
-  interiors: City[];      // interiors and outdoor maps, same shape, without story, quests, zones, tilesets, music
-  outdoor?: boolean;      // on an outdoor map (route, town): joined to the region at its edges
-  region?: { x: number; y: number };  // its position on the region grid, in tiles (the outside map is at 0, 0)
+  story: Step[]; // main story and side quest steps, in order within each
+  quests: Quest[]; // side quests
+  interiors: City[]; // interiors and outdoor maps, same shape, without story, quests, zones, tilesets, music
+  outdoor?: boolean; // on an outdoor map (route, town): joined to the region at its edges
+  region?: { x: number; y: number }; // its position on the region grid, in tiles (the outside map is at 0, 0)
   tilesets?: Tileset[];
-  sprites?: Sprite[];     // custom looks for people and Pokémon
+  sprites?: Sprite[]; // custom looks for people and Pokémon
   music?: { town?: string; battle?: string };
-  weather?: "rain" | "snow" | "fog" | "sandstorm";  // per map, clear when not set
-  time?: "evening" | "night";  // per map, day when not set
-  battle?: { image: string; platforms: boolean };  // per map battle background (picture url); maps without one use the outside map's, then the built-in scene
-  updated: number;        // timestamp in milliseconds
+  weather?: "rain" | "snow" | "fog" | "sandstorm"; // per map, clear when not set
+  time?: "evening" | "night"; // per map, day when not set
+  battle?: { image: string; platforms: boolean }; // per map battle background (picture url); maps without one use the outside map's, then the built-in scene
+  updated: number; // timestamp in milliseconds
 };
 ```
 
@@ -48,30 +48,30 @@ Every grid is a flat array of `width × height` numbers. The tile at column `x` 
 
 ## Tile values
 
-| Value | Meaning |
-| --- | --- |
-| `0` | Empty |
-| `1` to `9999` | Built-in Hoenn tileset: frame number + 1 |
+| Value                         | Meaning                                                |
+| ----------------------------- | ------------------------------------------------------ |
+| `0`                           | Empty                                                  |
+| `1` to `9999`                 | Built-in Hoenn tileset: frame number + 1               |
 | `(k + 1) × 10000 + frame + 1` | Frame of the custom tileset at index `k` in `tilesets` |
 
 ## Story steps
 
 ```ts
 type Step = {
-  id: string;             // used by people's story settings
-  quest?: string;         // side quest id, main story when not set
-  goal?: string;          // what the Journal says while it's the next step
-  n: number;              // used by gate tiles, stays the same when steps are reordered
+  id: string; // used by people's story settings
+  quest?: string; // side quest id, main story when not set
+  goal?: string; // what the Journal says while it's the next step
+  n: number; // used by gate tiles, stays the same when steps are reordered
   name: string;
-  blocked: string;        // message at the gates
+  blocked: string; // message at the gates
   blocker?: "wall" | "object" | "person";
-  tile?: number;          // tile drawn on the gates when blocker is "object"
+  tile?: number; // tile drawn on the gates when blocker is "object"
 };
 
 type Quest = {
   id: string;
   name: string;
-  after?: string;         // step id: the quest starts once it's done
+  after?: string; // step id: the quest starts once it's done
 };
 ```
 
@@ -81,35 +81,35 @@ type Quest = {
 type Npc = {
   x: number;
   y: number;
-  sprite: string;         // "" for signs and Pokémon, "custom:<id>" for a custom sprite
-  creature?: { species: number; level: number; look?: string };  // a Pokémon on the map, look = custom sprite id
+  sprite: string; // "" for signs and Pokémon, "custom:<id>" for a custom sprite
+  creature?: { species: number; level: number; look?: string }; // a Pokémon on the map, look = custom sprite id
   dir: "up" | "down" | "left" | "right";
   name: string;
-  dialogue: string;       // an empty line starts a new page
-  role: "talk" | "trainer" | "healer" | "wild" | "shop";  // "wild": a Pokémon to battle and catch, "shop": a Poké Mart clerk
-  shop?: ItemId[];        // what a clerk sells, everything when not set
-  gift?: { item: ItemId; count: number };  // given the first time the player talks to them
-  approach?: boolean;     // walks up to the player and talks the first time they see them
+  dialogue: string; // an empty line starts a new page
+  role: "talk" | "trainer" | "healer" | "wild" | "shop"; // "wild": a Pokémon to battle and catch, "shop": a Poké Mart clerk
+  shop?: ItemId[]; // what a clerk sells, everything when not set
+  gift?: { item: ItemId; count: number }; // given the first time the player talks to them
+  approach?: boolean; // walks up to the player and talks the first time they see them
   wander: boolean;
   path?: {
-    points: { x: number; y: number }[];  // stops after where they stand
-    loop: boolean;        // true: back to the start, false: walk back the same way
+    points: { x: number; y: number }[]; // stops after where they stand
+    loop: boolean; // true: back to the start, false: walk back the same way
     run: boolean;
-    pause: number;        // seconds at each stop
+    pause: number; // seconds at each stop
   };
   trainer?: {
-    team: { species: number; level: number }[];  // national Pokédex numbers, 1 to 1025
+    team: { species: number; level: number }[]; // national Pokédex numbers, 1 to 1025
     gym: boolean;
     badge: string;
     defeat: string;
   };
   story?: {
-    after?: string;       // Shows up (step id)
-    until?: string;       // Leaves
-    requires?: string;    // Needs first
-    locked?: string;      // Says until then
-    completes?: string;   // Talking (or beating them) completes
-    done?: string;        // Says afterwards
+    after?: string; // Shows up (step id)
+    until?: string; // Leaves
+    requires?: string; // Needs first
+    locked?: string; // Says until then
+    completes?: string; // Talking (or beating them) completes
+    done?: string; // Says afterwards
     reward?: { species?: number; level?: number; balls?: number; potions?: number; money?: number };
   };
 };
@@ -123,24 +123,24 @@ type ItemId = string;
 ```ts
 type Zone = {
   name: string;
-  rate: number;           // 0.01 to 0.4, chance per step
-  color: number;          // editor overlay color, like 0x2ecc40
+  rate: number; // 0.01 to 0.4, chance per step
+  color: number; // editor overlay color, like 0x2ecc40
   creatures: { species: number; min: number; max: number }[];
 };
 
 type Door = {
   x: number;
   y: number;
-  to: string;             // interior id, "" for outside, "?" for nowhere yet
-  tx: number;             // arrival tile, -1 to arrive next to the matching door
+  to: string; // interior id, "" for outside, "?" for nowhere yet
+  tx: number; // arrival tile, -1 to arrive next to the matching door
   ty: number;
 };
 
 type Tileset = {
   id: string;
   name: string;
-  url: string;            // uploaded file or data: URL
-  tile: number;           // tile size in pixels
+  url: string; // uploaded file or data: URL
+  tile: number; // tile size in pixels
   columns: number;
   rows: number;
 };
@@ -150,10 +150,10 @@ type Tileset = {
 type Sprite = {
   id: string;
   name: string;
-  url: string;            // uploaded file or data: URL
+  url: string; // uploaded file or data: URL
   kind: "person" | "pokemon";
-  layout?: "dreammist" | "rpgvx" | "rpgxp";  // person sheets
-  w: number;              // frame size in pixels
+  layout?: "dreammist" | "rpgvx" | "rpgxp"; // person sheets
+  w: number; // frame size in pixels
   h: number;
 };
 ```

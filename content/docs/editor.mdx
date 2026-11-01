@@ -5,14 +5,14 @@ description: The screen, the tools, moving around, selections and undo.
 
 ## The screen
 
-| Area | What's there |
-| --- | --- |
-| Top bar | The city name and menu, **Build** and **Play**, the command search, **Publish**, **Share**, your party and trainer card, and your account. |
-| Tool rail | On the far left: Brush, Eraser, Rectangle, Fill, Picker and Select, with Undo and Redo at the bottom. |
-| Side panel | **Maps** (outside and interiors), **Layers**, and the options of the selected layer. |
-| Map controls | At the bottom right: zoom, center, grid, minimap and side panel toggles. |
-| Minimap | Top right. Click or drag in it to jump around. |
-| Status bar | At the bottom: the map you're on, the tile under the cursor, where the town is saved, and **Problems**. |
+| Area         | What's there                                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Top bar      | The city name and menu, **Build** and **Play**, the command search, **Publish**, **Share**, your party and trainer card, and your account. |
+| Tool rail    | On the far left: Brush, Eraser, Rectangle, Fill, Picker and Select, with Undo and Redo at the bottom.                                      |
+| Side panel   | **Maps** (outside and interiors), **Layers**, and the options of the selected layer.                                                       |
+| Map controls | At the bottom right: zoom, center, grid, minimap and side panel toggles.                                                                   |
+| Minimap      | Top right. Click or drag in it to jump around.                                                                                             |
+| Status bar   | At the bottom: the map you're on, the tile under the cursor, where the town is saved, and **Problems**.                                    |
 
 Hover any icon to see what it does and its shortcut. Drag the edge of the side panel to resize it, and double-click the edge to hide it.
 
@@ -33,14 +33,14 @@ The status bar counts what looks broken in your town. Click it for the list, the
 
 ## Tools
 
-| Tool | Key | What it does |
-| --- | --- | --- |
-| Brush | <kbd>B</kbd> | Paints the current brush or stamp. Drag to paint a line. |
-| Eraser | <kbd>E</kbd> | Removes tiles from the current layer. |
+| Tool      | Key          | What it does                                                     |
+| --------- | ------------ | ---------------------------------------------------------------- |
+| Brush     | <kbd>B</kbd> | Paints the current brush or stamp. Drag to paint a line.         |
+| Eraser    | <kbd>E</kbd> | Removes tiles from the current layer.                            |
 | Rectangle | <kbd>R</kbd> | Drag to fill a rectangle. Multi-tile stamps repeat as a pattern. |
-| Fill | <kbd>F</kbd> | Fills a connected area of the same tile. |
-| Picker | <kbd>I</kbd> | Click a tile on the map to use it as the brush. |
-| Select | <kbd>S</kbd> | Drag to select an area to copy, cut, paste or clear. |
+| Fill      | <kbd>F</kbd> | Fills a connected area of the same tile.                         |
+| Picker    | <kbd>I</kbd> | Click a tile on the map to use it as the brush.                  |
+| Select    | <kbd>S</kbd> | Drag to select an area to copy, cut, paste or clear.             |
 
 Tools work on the selected layer. On gameplay layers like Collision and Encounters they paint that layer's value instead of tiles.
 
@@ -55,13 +55,13 @@ See [How a game works](/docs/how-it-works#layers) for what each layer holds.
 
 ## Moving around
 
-| Do this | With |
-| --- | --- |
-| Pan | Two-finger swipe, right-drag, or <kbd>Space</kbd>+drag. On a touch screen, drag with two fingers |
-| Zoom | Pinch, <kbd>Ctrl</kbd>+scroll, <kbd>+</kbd> and <kbd>−</kbd> |
-| Fit the map | <kbd>0</kbd> or the center button |
-| Jump | Click or drag in the minimap |
-| Toggle the grid | <kbd>G</kbd> |
+| Do this         | With                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| Pan             | Two-finger swipe, right-drag, or <kbd>Space</kbd>+drag. On a touch screen, drag with two fingers |
+| Zoom            | Pinch, <kbd>Ctrl</kbd>+scroll, <kbd>+</kbd> and <kbd>−</kbd>                                     |
+| Fit the map     | <kbd>0</kbd> or the center button                                                                |
+| Jump            | Click or drag in the minimap                                                                     |
+| Toggle the grid | <kbd>G</kbd>                                                                                     |
 
 On a tablet, one finger paints and two fingers pan and zoom. Buttons get bigger, the delete and show/hide buttons that normally appear on hover stay visible, and on small screens the side panel starts closed so the map has room.
 
@@ -79,7 +79,9 @@ People and doors are not copied. Place them again after pasting.
 
 ## Undo and redo
 
-<kbd>⌘</kbd> <kbd>Z</kbd> undoes, <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Z</kbd> redoes. Every change is undoable: painting, people, story steps and doors, and also renaming the town or an interior, resizing a map, removing an interior, and adding or removing tilesets, sprites and music. Opening another map starts a fresh history.
+<kbd>⌘</kbd> <kbd>Z</kbd> undoes, <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Z</kbd> redoes. Every change is undoable: painting, people, story steps and doors, and also
+renaming the town or an interior, resizing a map, removing an interior, and adding or removing tilesets, sprites and music. Opening another map starts a fresh
+history.
 
 For towns saved online, **Version history** goes back further. See [Accounts and saving](/docs/saving).
 

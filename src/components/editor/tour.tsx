@@ -18,7 +18,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 let open = false;
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => (listeners.add(listener), () => void listeners.delete(listener));
-const setOpen = (value: boolean) => (open = value, listeners.forEach((listener) => listener()));
+const setOpen = (value: boolean) => ((open = value), listeners.forEach((listener) => listener()));
 
 /** Start the getting started tour (city menu) */
 export function startTour() {
@@ -28,7 +28,7 @@ export function startTour() {
 
 /** Brand new players see the tour on their first visit: no trainer yet, and at most the starter town saved */
 function firstVisit() {
-  return (storage.get("tour", "") === "") && (!trainer.exists) && (library.list().length <= 1);
+  return storage.get("tour", "") === "" && !trainer.exists && library.list().length <= 1;
 }
 
 //=================================================================================================
@@ -45,41 +45,45 @@ export function Tour() {
   const session = useSession();
   const editor = useEditor();
   const speaker = useSpeaker();
-  const shown = useSyncExternalStore(subscribe, () => open, () => false);
+  const shown = useSyncExternalStore(
+    subscribe,
+    () => open,
+    () => false,
+  );
   const [start, setStart] = useState<null | Start>(null);
   const [talked, setTalked] = useState(false);
 
   //Open by itself once for new players
   useEffect(() => {
-    if ((session.ready) && (!session.visiting) && (firstVisit())) {
+    if (session.ready && !session.visiting && firstVisit()) {
       setOpen(true);
     }
   }, [session.ready, session.visiting]);
 
   //Remember the town as it was when the tour opened
-  if ((shown) && (!start) && (session.ready)) {
+  if (shown && !start && session.ready) {
     setStart({ name: session.city.name, ground: [...session.city.layers.ground], npcs: new Set(session.city.npcs) });
   }
-  if ((!shown) && (start)) {
+  if (!shown && start) {
     setStart(null);
     setTalked(false);
   }
-  if ((!shown) || (!start) || (!editor) || (session.visiting)) {
+  if (!shown || !start || !editor || session.visiting) {
     return null;
   }
 
   //Progress, read from the town itself
   const city = session.city;
   const added = city.npcs.filter((npc) => !start.npcs.has(npc));
-  const speaking = added.find((npc) => (npc.dialogue.trim()) && (!defaults.includes(npc.dialogue.trim())) && (npc.dialogue.trim() !== `Welcome to ${city.name}!`));
+  const speaking = added.find((npc) => npc.dialogue.trim() && !defaults.includes(npc.dialogue.trim()) && npc.dialogue.trim() !== `Welcome to ${city.name}!`);
   const friend = speaking ?? added[0];
   const painted = city.layers.ground.filter((value, i) => value !== start.ground[i]).length;
-  if ((!talked) && (session.mode === "play") && (friend) && (speaker === friend.name)) {
+  if (!talked && session.mode === "play" && friend && speaker === friend.name) {
     setTalked(true);
   }
 
   const close = (result: "done" | "skipped") => (storage.set("tour", result), setOpen(false));
-  const build = async () => session.mode === "edit" ? undefined : await session.setMode("edit");
+  const build = async () => (session.mode === "edit" ? undefined : await session.setMode("edit"));
   const steps = [
     {
       title: "Name your town",
@@ -113,7 +117,13 @@ export function Tour() {
         editor.select("npc");
         editor.selectNpc(city.npcs.indexOf(friend!));
         //Focus the Dialogue box once the panel shows them
-        requestAnimationFrame(() => [...document.querySelectorAll("label")].find(({ textContent }) => textContent === "Dialogue")?.closest("div.grid")?.querySelector("textarea")?.focus());
+        requestAnimationFrame(() =>
+          [...document.querySelectorAll("label")]
+            .find(({ textContent }) => textContent === "Dialogue")
+            ?.closest("div.grid")
+            ?.querySelector("textarea")
+            ?.focus(),
+        );
       },
     },
     {
@@ -130,47 +140,70 @@ export function Tour() {
   const current = steps.findIndex(({ done }) => !done);
   const count = steps.filter(({ done }) => done).length;
   //A step needs the ones before it (you can't talk to someone you haven't added)
-  const ready = (index: number) => (index < 3) || (index === 3 ? added.length > 0 : Boolean(speaking));
+  const ready = (index: number) => index < 3 || (index === 3 ? added.length > 0 : Boolean(speaking));
 
   return (
     <section aria-label="Getting started" className="absolute bottom-3 left-3 z-20 w-72 rounded-lg border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
       <header className="mb-2 flex items-center gap-2">
         <Sparkle size={16} weight="fill" className="text-select" />
         <b className="flex-1 text-sm">{current < 0 ? "You made a game!" : "Your first game"}</b>
-        <span className="font-mono text-[11px] text-subtle-fg">{count} / {steps.length}</span>
-        <button aria-label="Close the tour" title="Close the tour" onClick={() => close(current < 0 ? "done" : "skipped")} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"><X size={13} /></button>
+        <span className="font-mono text-[11px] text-subtle-fg">
+          {count} / {steps.length}
+        </span>
+        <button
+          aria-label="Close the tour"
+          title="Close the tour"
+          onClick={() => close(current < 0 ? "done" : "skipped")}
+          className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X size={13} />
+        </button>
       </header>
-      <div className="mb-2 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-select transition-[width]" style={{ width: `${(count / steps.length) * 100}%` }} /></div>
-      {current < 0
-        ? (
-          <div className="grid gap-2">
-            <p className="text-xs leading-relaxed text-muted-foreground">Someone in your town now talks to visitors. Share it with a friend, or keep building: add a house, a trainer, or a story.</p>
-            <div className="flex gap-2">
-              <Button size="sm" className="flex-1" onClick={() => (close("done"), share())}>Share it</Button>
-              <Button size="sm" variant="outline" className="flex-1" onClick={async () => (close("done"), await build())}>Keep building</Button>
-            </div>
+      <div className="mb-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-select transition-[width]" style={{ width: `${(count / steps.length) * 100}%` }} />
+      </div>
+      {current < 0 ? (
+        <div className="grid gap-2">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Someone in your town now talks to visitors. Share it with a friend, or keep building: add a house, a trainer, or a story.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1" onClick={() => (close("done"), share())}>
+              Share it
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1" onClick={async () => (close("done"), await build())}>
+              Keep building
+            </Button>
           </div>
-        )
-        : (
-          <ol className="grid gap-1">
-            {steps.map((step, index) => (
-              <li key={step.title} className={cn("rounded-md px-2 py-1.5", index === current && "bg-muted")}>
-                <div className="flex items-center gap-2 text-sm">
-                  {step.done ? <CheckCircle size={16} weight="fill" className="shrink-0 text-success" /> : <Circle size={16} className="shrink-0 text-subtle-fg" />}
-                  <span className={cn(step.done ? "text-muted-foreground line-through" : index === current ? "text-foreground" : "text-muted-foreground")}>{step.title}</span>
+        </div>
+      ) : (
+        <ol className="grid gap-1">
+          {steps.map((step, index) => (
+            <li key={step.title} className={cn("rounded-md px-2 py-1.5", index === current && "bg-muted")}>
+              <div className="flex items-center gap-2 text-sm">
+                {step.done ? (
+                  <CheckCircle size={16} weight="fill" className="shrink-0 text-success" />
+                ) : (
+                  <Circle size={16} className="shrink-0 text-subtle-fg" />
+                )}
+                <span className={cn(step.done ? "text-muted-foreground line-through" : index === current ? "text-foreground" : "text-muted-foreground")}>
+                  {step.title}
+                </span>
+              </div>
+              {index === current ? (
+                <div className="mt-1.5 flex items-center gap-2 pl-6">
+                  <p className="flex-1 text-[11px] leading-snug text-muted-foreground">{step.hint}</p>
+                  {ready(index) ? (
+                    <Button size="sm" variant="secondary" className="h-7 shrink-0 px-2 text-xs" onClick={() => void step.show()}>
+                      Show me
+                    </Button>
+                  ) : null}
                 </div>
-                {index === current
-                  ? (
-                    <div className="mt-1.5 flex items-center gap-2 pl-6">
-                      <p className="flex-1 text-[11px] leading-snug text-muted-foreground">{step.hint}</p>
-                      {ready(index) ? <Button size="sm" variant="secondary" className="h-7 shrink-0 px-2 text-xs" onClick={() => void step.show()}>Show me</Button> : null}
-                    </div>
-                  )
-                  : null}
-              </li>
-            ))}
-          </ol>
-        )}
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }

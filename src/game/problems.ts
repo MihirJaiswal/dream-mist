@@ -6,7 +6,7 @@ import { questOf, stepLabel } from "./story";
 
 /** Do two placed maps overlap */
 function overlapping(a: Placed, b: Placed) {
-  return (a.x < b.x + b.map.width) && (b.x < a.x + a.map.width) && (a.y < b.y + b.map.height) && (b.y < a.y + a.map.height);
+  return a.x < b.x + b.map.width && b.x < a.x + a.map.width && a.y < b.y + b.map.height && b.y < a.y + a.map.height;
 }
 
 /** Something in a town that won't work as intended, and where to fix it */
@@ -33,17 +33,31 @@ const silent = (text: string) => !text.trim();
 export function problems(city: City, valid: (species: number) => boolean = () => true): Problem[] {
   const found = [] as Problem[];
   const maps = [city, ...city.interiors];
-  const id = (map: City) => map === city ? "" : map.id;
-  const name = (map: City) => map === city ? "outside" : `in ${map.name}`;
-  const exists = (to: string) => (to === "") || city.interiors.some((map) => map.id === to);
+  const id = (map: City) => (map === city ? "" : map.id);
+  const name = (map: City) => (map === city ? "outside" : `in ${map.name}`);
+  const exists = (to: string) => to === "" || city.interiors.some((map) => map.id === to);
 
   //Doors
   for (const map of maps) {
     map.doors.forEach((door, index) => {
       if (door.to === "?") {
-        found.push({ kind: "error", text: `Door at ${door.x}, ${door.y} ${name(map)} doesn't lead anywhere yet`, map: id(map), layer: "door", at: door, door: index });
+        found.push({
+          kind: "error",
+          text: `Door at ${door.x}, ${door.y} ${name(map)} doesn't lead anywhere yet`,
+          map: id(map),
+          layer: "door",
+          at: door,
+          door: index,
+        });
       } else if (!exists(door.to)) {
-        found.push({ kind: "error", text: `Door at ${door.x}, ${door.y} ${name(map)} leads to a deleted map`, map: id(map), layer: "door", at: door, door: index });
+        found.push({
+          kind: "error",
+          text: `Door at ${door.x}, ${door.y} ${name(map)} leads to a deleted map`,
+          map: id(map),
+          layer: "door",
+          at: door,
+          door: index,
+        });
       }
     });
   }
@@ -52,18 +66,29 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
   const placed = outdoors(city);
   for (const room of city.interiors.filter(({ outdoor }) => outdoor)) {
     const self = placed.find(({ map }) => map === room)!;
-    const other = placed.find((item) => (item.map !== room) && (overlapping(self, item)));
+    const other = placed.find((item) => item.map !== room && overlapping(self, item));
     if (other) {
-      found.push({ kind: "error", text: `${room.name} overlaps ${other.map === city ? "the outside map" : other.map.name} in the region map`, map: room.id, layer: "door" });
+      found.push({
+        kind: "error",
+        text: `${room.name} overlaps ${other.map === city ? "the outside map" : other.map.name} in the region map`,
+        map: room.id,
+        layer: "door",
+      });
       continue;
     }
-    if ((walk.has(room)) || (maps.some((map) => map.doors.some(({ to }) => to === room.id)))) {
+    if (walk.has(room) || maps.some((map) => map.doors.some(({ to }) => to === room.id))) {
       continue;
     }
-    const touching = placed.map((item) => ({ item, shared: edge(self, item) })).find(({ item, shared }) => (item.map !== room) && (shared));
+    const touching = placed.map((item) => ({ item, shared: edge(self, item) })).find(({ item, shared }) => item.map !== room && shared);
     if (touching) {
       const middle = touching.shared!.tiles[Math.floor(touching.shared!.tiles.length / 2)];
-      found.push({ kind: "warning", text: `Nobody can walk into ${room.name}: the edge it shares with ${touching.item.map === city ? "the outside map" : touching.item.map.name} is blocked all along. Open a gap in the trees or walls on both sides`, map: room.id, layer: "solid", at: middle });
+      found.push({
+        kind: "warning",
+        text: `Nobody can walk into ${room.name}: the edge it shares with ${touching.item.map === city ? "the outside map" : touching.item.map.name} is blocked all along. Open a gap in the trees or walls on both sides`,
+        map: room.id,
+        layer: "solid",
+        at: middle,
+      });
     } else {
       found.push({ kind: "warning", text: `${room.name} isn't joined to any other map. Move it next to one in the region map`, map: room.id, layer: "door" });
     }
@@ -71,7 +96,7 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
   for (const room of city.interiors.filter(({ outdoor }) => !outdoor)) {
     if (!maps.some((map) => map.doors.some(({ to }) => to === room.id))) {
       found.push({ kind: "warning", text: `Nobody can get into ${room.name}: no door leads to it`, map: "", layer: "door" });
-    } else if (!room.doors.some(({ to }) => (to !== "?") && (to !== room.id) && (exists(to)))) {
+    } else if (!room.doors.some(({ to }) => to !== "?" && to !== room.id && exists(to))) {
       found.push({ kind: "error", text: `${room.name} has no door back out`, map: room.id, layer: "door", at: room.spawn });
     }
   }
@@ -81,19 +106,26 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
     map.npcs.forEach((npc, index) => {
       const at = { x: npc.x, y: npc.y };
       const who = npc.name || (npc.creature ? "A Pokémon" : npc.sprite ? "Someone" : "A sign");
-      if ((npc.role === "trainer") && (!npc.trainer?.team.length)) {
+      if (npc.role === "trainer" && !npc.trainer?.team.length) {
         found.push({ kind: "error", text: `${who} is a trainer with no Pokémon`, map: id(map), layer: "npc", at, npc: index });
-      } else if ((npc.creature) && (!valid(npc.creature.species))) {
+      } else if (npc.creature && !valid(npc.creature.species)) {
         found.push({ kind: "error", text: `${who} at ${at.x}, ${at.y} isn't a real Pokémon`, map: id(map), layer: "npc", at, npc: index });
-      } else if ((["talk", "healer"].includes(npc.role)) && (silent(npc.dialogue))) {
-        found.push({ kind: "warning", text: npc.sprite || npc.creature ? `${who} at ${at.x}, ${at.y} has nothing to say` : `Sign at ${at.x}, ${at.y} is blank`, map: id(map), layer: "npc", at, npc: index });
+      } else if (["talk", "healer"].includes(npc.role) && silent(npc.dialogue)) {
+        found.push({
+          kind: "warning",
+          text: npc.sprite || npc.creature ? `${who} at ${at.x}, ${at.y} has nothing to say` : `Sign at ${at.x}, ${at.y} is blank`,
+          map: id(map),
+          layer: "npc",
+          at,
+          npc: index,
+        });
       }
     });
   }
 
   //Where visitors arrive
   const { spawn } = city;
-  if ((spawn.x < 0) || (spawn.y < 0) || (spawn.x >= city.width) || (spawn.y >= city.height)) {
+  if (spawn.x < 0 || spawn.y < 0 || spawn.x >= city.width || spawn.y >= city.height) {
     found.push({ kind: "error", text: "Visitors arrive outside the map", map: "", layer: "spawn" });
   } else if (city.solid[spawn.y * city.width + spawn.x]) {
     found.push({ kind: "error", text: `Visitors arrive on a blocked tile (${spawn.x}, ${spawn.y})`, map: "", layer: "spawn", at: spawn });
@@ -107,7 +139,13 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
     for (const map of maps) {
       const index = map.zone.indexOf(z + 1);
       if (index >= 0) {
-        found.push({ kind: "warning", text: `Encounter zone "${zone.name}" is painted but has no Pokémon`, map: id(map), layer: "zone", at: { x: index % map.width, y: Math.floor(index / map.width) } });
+        found.push({
+          kind: "warning",
+          text: `Encounter zone "${zone.name}" is painted but has no Pokémon`,
+          map: id(map),
+          layer: "zone",
+          at: { x: index % map.width, y: Math.floor(index / map.width) },
+        });
         break;
       }
     }
@@ -121,13 +159,13 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
     changed = false;
     for (const { npc } of people) {
       const story = npc.story;
-      if ((!story?.completes) || (reachable.has(story.completes))) {
+      if (!story?.completes || reachable.has(story.completes)) {
         continue;
       }
       //A side quest's steps also wait until the quest starts
       const step = city.story.find(({ id }) => id === story.completes);
       const start = step ? questOf(city, step)?.after : undefined;
-      if (((!story.after) || (reachable.has(story.after))) && ((!story.requires) || (reachable.has(story.requires))) && ((!start) || (reachable.has(start)))) {
+      if ((!story.after || reachable.has(story.after)) && (!story.requires || reachable.has(story.requires)) && (!start || reachable.has(start))) {
         reachable.add(story.completes);
         changed = true;
       }
@@ -139,7 +177,11 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
     }
     const completer = people.some(({ npc }) => npc.story?.completes === step.id);
     const start = questOf(city, step)?.after;
-    const why = !completer ? "nobody completes it" : (start) && (!reachable.has(start)) ? "its side quest starts after a step that never happens" : "whoever completes it waits for a step that never happens";
+    const why = !completer
+      ? "nobody completes it"
+      : start && !reachable.has(start)
+        ? "its side quest starts after a step that never happens"
+        : "whoever completes it waits for a step that never happens";
     found.push({ kind: "error", text: `Story step ${stepLabel(city, step)} can never happen: ${why}`, map: "", layer: "story", step: step.n });
   });
   for (const quest of city.quests) {
@@ -148,16 +190,29 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
     }
   }
   for (const { npc, index, map } of people) {
-    const missing = (["after", "until", "requires", "completes"] as const).filter((key) => (npc.story?.[key]) && (!steps.has(npc.story[key]!)));
+    const missing = (["after", "until", "requires", "completes"] as const).filter((key) => npc.story?.[key] && !steps.has(npc.story[key]!));
     if (missing.length) {
-      found.push({ kind: "warning", text: `${npc.name || "Someone"} at ${npc.x}, ${npc.y} uses a story step that was deleted`, map: id(map), layer: "npc", at: { x: npc.x, y: npc.y }, npc: index });
+      found.push({
+        kind: "warning",
+        text: `${npc.name || "Someone"} at ${npc.x}, ${npc.y} uses a story step that was deleted`,
+        map: id(map),
+        layer: "npc",
+        at: { x: npc.x, y: npc.y },
+        npc: index,
+      });
     }
   }
   const numbers = new Set(city.story.map(({ n }) => n));
   for (const map of maps) {
-    const index = map.gate.findIndex((n) => (n) && (!numbers.has(n)));
+    const index = map.gate.findIndex((n) => n && !numbers.has(n));
     if (index >= 0) {
-      found.push({ kind: "warning", text: `Gate tiles ${name(map)} belong to a deleted story step and block the way forever`, map: id(map), layer: "story", at: { x: index % map.width, y: Math.floor(index / map.width) } });
+      found.push({
+        kind: "warning",
+        text: `Gate tiles ${name(map)} belong to a deleted story step and block the way forever`,
+        map: id(map),
+        layer: "story",
+        at: { x: index % map.width, y: Math.floor(index / map.width) },
+      });
     }
   }
 

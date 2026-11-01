@@ -66,7 +66,7 @@ describe("route and town presets", () => {
     expect(road.npcs.some(({ name }) => name === "Sign")).toBe(true);
     const next = town(outdoor(city, { width: 30, height: 24, x: 30, y: 0 }), "right");
     //Made to the right of the outside map: the way in is on its left edge
-    expect([...Array(24).keys()].some((y) => (!next.solid[y * 30]) && (!next.layers.above[y * 30]))).toBe(true);
+    expect([...Array(24).keys()].some((y) => !next.solid[y * 30] && !next.layers.above[y * 30])).toBe(true);
   });
 });
 
@@ -77,7 +77,9 @@ describe("problems", () => {
     for (let x = 0; x < city.width; x++) {
       city.solid[x] = 1;
     }
-    expect(problems(city).map(({ text }) => text)).toContain("Nobody can walk into Route 101: the edge it shares with the outside map is blocked all along. Open a gap in the trees or walls on both sides");
+    expect(problems(city).map(({ text }) => text)).toContain(
+      "Nobody can walk into Route 101: the edge it shares with the outside map is blocked all along. Open a gap in the trees or walls on both sides",
+    );
     road.region = { x: 40, y: 40 };
     expect(problems(city).map(({ text }) => text)).toContain("Route 101 isn't joined to any other map. Move it next to one in the region map");
     road.region = { x: 2, y: 2 };

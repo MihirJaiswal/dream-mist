@@ -28,18 +28,33 @@ function SelectionPanel() {
   ];
   return (
     <div className="grid grid-cols-1 gap-2">
-      <Hint>{pasting ? "Click on the map to paste. Press Esc to stop pasting." : "Drag on the map to select an area. Copying takes every layer, including collision and encounters."}</Hint>
+      <Hint>
+        {pasting
+          ? "Click on the map to paste. Press Esc to stop pasting."
+          : "Drag on the map to select an area. Copying takes every layer, including collision and encounters."}
+      </Hint>
       <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
         <SelectionPlus size={22} className="text-muted-foreground" />
         <div className="min-w-0">
-          <b className="block text-sm">{area ? `${area.w}×${area.h} tiles selected` : pasting && clip ? `Pasting ${clip.w}×${clip.h} tiles` : "Nothing selected"}</b>
-          <small className="text-xs text-muted-foreground">{area ? `from tile ${area.x}, ${area.y}` : clip ? `Clipboard: ${clip.w}×${clip.h} tiles` : "Clipboard is empty"}</small>
+          <b className="block text-sm">
+            {area ? `${area.w}×${area.h} tiles selected` : pasting && clip ? `Pasting ${clip.w}×${clip.h} tiles` : "Nothing selected"}
+          </b>
+          <small className="text-xs text-muted-foreground">
+            {area ? `from tile ${area.x}, ${area.y}` : clip ? `Clipboard: ${clip.w}×${clip.h} tiles` : "Clipboard is empty"}
+          </small>
         </div>
       </div>
       <div className="grid gap-0.5">
         {actions.map(({ icon: Icon, label, key, run, disabled }) => (
-          <button key={label} disabled={disabled} onClick={run} className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
-            <Icon size={15} /><span className="flex-1 text-left">{label}</span>{key ? <kbd className="font-mono text-[10px] text-subtle-fg">{key}</kbd> : null}
+          <button
+            key={label}
+            disabled={disabled}
+            onClick={run}
+            className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Icon size={15} />
+            <span className="flex-1 text-left">{label}</span>
+            {key ? <kbd className="font-mono text-[10px] text-subtle-fg">{key}</kbd> : null}
           </button>
         ))}
       </div>
@@ -62,7 +77,12 @@ export function Sidebar({ onImportTileset, onSprite }: { onImportTileset: () => 
       case "above":
         return <TilesPanel onImport={onImportTileset} />;
       case "solid":
-        return <div className="grid grid-cols-1 gap-2"><Hint>Paint red tiles where visitors can&apos;t walk, like water, walls and trees. Objects painted on the Objects layer block automatically.</Hint><AutoCollision /></div>;
+        return (
+          <div className="grid grid-cols-1 gap-2">
+            <Hint>Paint red tiles where visitors can&apos;t walk, like water, walls and trees. Objects painted on the Objects layer block automatically.</Hint>
+            <AutoCollision />
+          </div>
+        );
       case "zone":
         return <ZonesPanel />;
       case "story":
@@ -72,7 +92,12 @@ export function Sidebar({ onImportTileset, onSprite }: { onImportTileset: () => 
       case "npc":
         return <PeoplePanel onSprite={onSprite} />;
       case "spawn":
-        return <Hint>Visitors start at tile {editor.city.spawn.x}, {editor.city.spawn.y}. Click the map to move the spawn point. Map size, music and tilesets are in City settings.</Hint>;
+        return (
+          <Hint>
+            Visitors start at tile {editor.city.spawn.x}, {editor.city.spawn.y}. Click the map to move the spawn point. Map size, music and tilesets are in City
+            settings.
+          </Hint>
+        );
     }
   };
   return (
@@ -80,9 +105,15 @@ export function Sidebar({ onImportTileset, onSprite }: { onImportTileset: () => 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <MapsPane />
         <LayersPane />
-        {editor.tool === "select"
-          ? <Pane title="Selection" hint="copy, cut and paste"><SelectionPanel /></Pane>
-          : <Pane title={current.label} hint={current.hint}>{context()}</Pane>}
+        {editor.tool === "select" ? (
+          <Pane title="Selection" hint="copy, cut and paste">
+            <SelectionPanel />
+          </Pane>
+        ) : (
+          <Pane title={current.label} hint={current.hint}>
+            {context()}
+          </Pane>
+        )}
       </div>
       <div
         title="Drag to resize"

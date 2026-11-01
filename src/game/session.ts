@@ -113,7 +113,7 @@ export class Session {
     this.#status(this.room ? "Live" : "Saving…");
     clearTimeout(this.#timeout);
     this.#timeout = setTimeout(() => this.persist(), 700) as unknown as number;
-    if ((!cloud.user) && (cloud.available) && (!this.room)) {
+    if (!cloud.user && cloud.available && !this.room) {
       this.edits++;
     }
   };
@@ -121,12 +121,12 @@ export class Session {
   /** Save the city now (in this browser, and online when it belongs to the account or this builder hosts the room) */
   async persist() {
     clearTimeout(this.#timeout);
-    if ((this.visiting) || (!this.city)) {
+    if (this.visiting || !this.city) {
       return;
     }
     const local = library.save(this.city);
     storage.set("last", this.city.id);
-    if ((this.online) && ((!this.room) || (this.room.host))) {
+    if (this.online && (!this.room || this.room.host)) {
       try {
         await cloud.cities.save(this.online.id, this.city, this.online.invite ?? "");
         this.#status(this.room ? "Live · saved" : "Saved online");
@@ -176,7 +176,7 @@ export class Session {
 
   /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
   async setMode(mode: "edit" | "play", from: null | { x: number; y: number } = null): Promise<void> {
-    if ((mode === "play") && (!trainer.exists)) {
+    if (mode === "play" && !trainer.exists) {
       await ui.onboarding();
       if (!trainer.exists) {
         if (this.visiting) {
@@ -186,7 +186,7 @@ export class Session {
       }
     }
     //Remember where you were building, to come back to it after playing
-    if ((mode === "play") && (this.mode === "edit")) {
+    if (mode === "play" && this.mode === "edit") {
       this.#building = { area: this.#areaId(), x: this.map.world.x, y: this.map.world.y, scale: this.map.world.scale.x };
     }
     this.menu = null;
@@ -197,7 +197,7 @@ export class Session {
     if (mode === "edit") {
       const view = this.#building;
       this.#building = null;
-      if ((view) && (view.area !== this.#areaId()) && (area(this.city, view.area))) {
+      if (view && view.area !== this.#areaId() && area(this.city, view.area)) {
         //Playing walked through a door: go back to the map you were building
         this.area = area(this.city, view.area)!;
         this.map.load(this.area);
@@ -268,7 +268,7 @@ export class Session {
 
   /** Play from a tile of the open map (the spawn when none is given) */
   playFrom(tile: null | { x: number; y: number }) {
-    if ((tile) && (!this.map.inside(tile))) {
+    if (tile && !this.map.inside(tile)) {
       tile = null;
     }
     return this.setMode("play", tile);
@@ -327,7 +327,7 @@ export class Session {
     const index = target.y * target.map.width + target.x;
     const gate = target.map.gate[index] ? this.city.story.find(({ n }) => n === target.map.gate[index]) : null;
     const [fx, fy] = [Math.max(0, Math.min(this.area.width - 1, x)), Math.max(0, Math.min(this.area.height - 1, y))];
-    if ((!walkable(this.area, fx, fy)) || (!walkable(target.map, target.x, target.y)) || ((gate) && (!trainer.done(this.city.id, gate.id)))) {
+    if (!walkable(this.area, fx, fy) || !walkable(target.map, target.x, target.y) || (gate && !trainer.done(this.city.id, gate.id))) {
       return false;
     }
     setTimeout(() => this.openArea(target.map === this.city ? "" : target.map.id, { x: target.x, y: target.y, dir }), 0);
@@ -371,15 +371,20 @@ export class Session {
     }
     //Arrive at the door leading back, one tile away from it
     const back = target.doors.find(({ to }) => to === (from === this.city ? "" : from.id));
-    const arrive = (door.tx >= 0)
-      ? { x: door.tx, y: door.ty, dir: "down" as Direction }
-      : back
-      ? { x: back.x, y: Math.max(0, Math.min(target.height - 1, back.y + (back.y >= target.height - 1 ? -1 : 1))), dir: (back.y >= target.height - 1 ? "up" : "down") as Direction }
-      : { ...target.spawn, dir: "down" as Direction };
+    const arrive =
+      door.tx >= 0
+        ? { x: door.tx, y: door.ty, dir: "down" as Direction }
+        : back
+          ? {
+              x: back.x,
+              y: Math.max(0, Math.min(target.height - 1, back.y + (back.y >= target.height - 1 ? -1 : 1))),
+              dir: (back.y >= target.height - 1 ? "up" : "down") as Direction,
+            }
+          : { ...target.spawn, dir: "down" as Direction };
     this.fading = true;
     this.notify();
     setTimeout(() => this.openArea(door.to, arrive), 180);
-    setTimeout(() => (this.fading = false, this.notify()), 600);
+    setTimeout(() => ((this.fading = false), this.notify()), 600);
   }
 
   /** Re-render the whole map (after tilesets, sprites or size change) */
@@ -418,7 +423,7 @@ export class Session {
 
   /** Bring trainer progress in line with the account after signing in */
   async synchronize() {
-    const remote = await cloud.trainer.get().catch(() => null) as Trainer | null;
+    const remote = (await cloud.trainer.get().catch(() => null)) as Trainer | null;
     if (remote?.party?.length) {
       trainer.profile = upgrade(remote);
       trainer.save();
@@ -435,7 +440,9 @@ export class Session {
     ui.toast(`Signed in as ${cloud.user!.username}`, "success");
     const local = this.localCities();
     if (local.length) {
-      await ui.bring(local.map((city) => ({ id: city.id, name: city.name, width: city.width, height: city.height, people: city.npcs.length, updated: city.updated })));
+      await ui.bring(
+        local.map((city) => ({ id: city.id, name: city.name, width: city.width, height: city.height, people: city.npcs.length, updated: city.updated })),
+      );
     }
   }
 
@@ -443,7 +450,7 @@ export class Session {
   async bring(ids: string[]) {
     let saved = 0;
     for (const city of this.localCities().filter(({ id }) => ids.includes(id))) {
-      if ((city.id === this.city.id) && (!this.visiting)) {
+      if (city.id === this.city.id && !this.visiting) {
         await this.upload();
       } else {
         const created = await cloud.cities.create(sanitize(city));
@@ -566,7 +573,7 @@ export class Session {
   /** Make your own copy of the city you're visiting */
   async remix() {
     //Online cities are forked into the account (credits the original), others are copied locally
-    if ((cloud.user) && (this.visit)) {
+    if (cloud.user && this.visit) {
       return this.fork(this.visit);
     }
     const copy = sanitize(JSON.parse(JSON.stringify(this.city)));
@@ -684,8 +691,16 @@ export class Session {
         continue;
       }
       const target = area(this.city, map);
-      const values = target ? (grid === "solid" ? target.solid : grid === "zone" ? target.zone : grid === "gate" ? target.gate : target.layers[grid as "ground"]) : null;
-      if ((values) && (index >= 0) && (index < values.length)) {
+      const values = target
+        ? grid === "solid"
+          ? target.solid
+          : grid === "zone"
+            ? target.zone
+            : grid === "gate"
+              ? target.gate
+              : target.layers[grid as "ground"]
+        : null;
+      if (values && index >= 0 && index < values.length) {
         values[index] = value;
       }
     }
@@ -698,7 +713,16 @@ export class Session {
       element = new PIXI.Container();
       const color = parseInt(peer.color.slice(1), 16);
       element.addChild(new PIXI.Graphics().lineStyle({ width: 1.5, color, alpha: 1, native: true }).drawRect(0, 0, size, size));
-      const name = element.addChild(new PIXI.Text(peer.name, { fontFamily: "IBM Plex Sans, sans-serif", fontSize: 24, fontWeight: "600", fill: 0xffffff, stroke: color, strokeThickness: 6 }));
+      const name = element.addChild(
+        new PIXI.Text(peer.name, {
+          fontFamily: "IBM Plex Sans, sans-serif",
+          fontSize: 24,
+          fontWeight: "600",
+          fill: 0xffffff,
+          stroke: color,
+          strokeThickness: 6,
+        }),
+      );
       name.scale.set(0.25);
       name.position.set(0, -8);
       this.map.containers.overlay.addChild(element);
@@ -715,7 +739,11 @@ export class Session {
       await cloud.cities.join(id, invite).catch(() => false);
     }
     const { city, meta } = await cloud.cities.get(id);
-    await this.open(sanitize(city), { online: { id, mine: meta.mine, invite, published: meta.published, forkOf: meta.forkOf }, keepRoom: true, mode: this.mode });
+    await this.open(sanitize(city), {
+      online: { id, mine: meta.mine, invite, published: meta.published, forkOf: meta.forkOf },
+      keepRoom: true,
+      mode: this.mode,
+    });
     history.replaceState(null, "", `#room=${id}.${invite}`);
     this.chat = [];
     this.room = new Room({
@@ -739,7 +767,7 @@ export class Session {
               this.openArea(area(this.city, current) ? current : "");
             }
           }
-          if (("tilesets" in patch) || ("sprites" in patch)) {
+          if ("tilesets" in patch || "sprites" in patch) {
             await this.rerender();
           }
           if ("music" in patch) {
@@ -753,7 +781,7 @@ export class Session {
         city: async (city) => {
           const current = this.area === this.city ? "" : this.area.id;
           await this.open(sanitize(city), { online: this.online, keepRoom: true, mode: this.mode });
-          if ((current) && (area(this.city, current))) {
+          if (current && area(this.city, current)) {
             this.openArea(current);
           }
         },
@@ -799,7 +827,7 @@ export class Session {
       return false;
     }
     if (!this.room) {
-      const code = this.online!.invite ?? await cloud.cities.invite(this.online!.id);
+      const code = this.online!.invite ?? (await cloud.cities.invite(this.online!.id));
       this.online!.invite = code;
       await this.joinRoom(this.online!.id, code, cloud.user!.username);
     }
@@ -839,7 +867,7 @@ export class Session {
   /** Resize the open map (content stays anchored to the top-left corner) */
   resizeArea(width: number, height: number) {
     const [w, h] = [Math.max(6, Math.min(128, width)), Math.max(6, Math.min(128, height))];
-    if ((w === this.area.width) && (h === this.area.height)) {
+    if (w === this.area.width && h === this.area.height) {
       return;
     }
     this.#undoable(() => {
@@ -950,11 +978,12 @@ export class Session {
 
   /** How many tiles are painted with a custom tileset, across every map of the city */
   tilesetUses(index: number) {
-    const min = (index + 1) * range, max = min + range;
+    const min = (index + 1) * range,
+      max = min + range;
     let count = 0;
     for (const map of [this.city, ...this.city.interiors]) {
       for (const layer of ["ground", "decor", "above"] as const) {
-        count += map.layers[layer].filter((value) => (value >= min) && (value < max)).length;
+        count += map.layers[layer].filter((value) => value >= min && value < max).length;
       }
     }
     return count;
@@ -962,7 +991,9 @@ export class Session {
 
   /** How many people and Pokémon look like a custom sprite, or show it as their portrait */
   spriteUses(id: string) {
-    return [this.city, ...this.city.interiors].flatMap((map) => map.npcs).filter((npc) => (npc.sprite === `custom:${id}`) || (npc.creature?.look === id) || (npc.portrait === `sprite:custom:${id}`)).length;
+    return [this.city, ...this.city.interiors]
+      .flatMap((map) => map.npcs)
+      .filter((npc) => npc.sprite === `custom:${id}` || npc.creature?.look === id || npc.portrait === `sprite:custom:${id}`).length;
   }
 
   /** Remove a custom tileset (tiles painted with it are erased, other tilesets keep their position) */
@@ -970,10 +1001,11 @@ export class Session {
     return this.#undoable(async () => {
       const sheets = this.city.tilesets ?? [];
       sheets[index] = { ...sheets[index], url: "", name: "(removed)" };
-      const min = (index + 1) * range, max = min + range;
+      const min = (index + 1) * range,
+        max = min + range;
       for (const map of [this.city, ...this.city.interiors]) {
         for (const layer of ["ground", "decor", "above"] as const) {
-          map.layers[layer] = map.layers[layer].map((value) => (value >= min) && (value < max) ? 0 : value);
+          map.layers[layer] = map.layers[layer].map((value) => (value >= min && value < max ? 0 : value));
         }
       }
       await this.rerender();
@@ -987,7 +1019,15 @@ export class Session {
     return this.#undoable(async () => {
       const url = await this.#store(file, "sprite", name, 256 * 1024);
       const frame = kind === "person" ? frameOf(image, layout)! : { w: image.width, h: image.height };
-      const sprite: Sprite = { id: uid(), name: name.trim() || (kind === "person" ? "Custom person" : "Custom Pokémon"), url, kind, ...(kind === "person" ? { layout } : {}), w: frame.w, h: frame.h };
+      const sprite: Sprite = {
+        id: uid(),
+        name: name.trim() || (kind === "person" ? "Custom person" : "Custom Pokémon"),
+        url,
+        kind,
+        ...(kind === "person" ? { layout } : {}),
+        w: frame.w,
+        h: frame.h,
+      };
       this.city.sprites = [...(this.city.sprites ?? []), sprite];
       await loadSprites(this.city.sprites);
       this.room?.meta({ sprites: this.city.sprites });
@@ -1035,8 +1075,8 @@ export class Session {
   /** Use a Potion or a cure on a Pokémon outside battle (false when it would do nothing) */
   useItem(id: ItemId, creature: Creature) {
     const item = items[id];
-    const helps = item.kind === "heal" ? (creature.hp > 0) && (creature.hp < hp(creature)) : item.kind === "cure" ? Boolean(creature.status) : false;
-    if ((!helps) || (!trainer.take(id))) {
+    const helps = item.kind === "heal" ? creature.hp > 0 && creature.hp < hp(creature) : item.kind === "cure" ? Boolean(creature.status) : false;
+    if (!helps || !trainer.take(id)) {
       return false;
     }
     if (item.kind === "heal") {
@@ -1053,7 +1093,7 @@ export class Session {
   buy(id: ItemId, count: number) {
     const profile = trainer.profile;
     const cost = items[id].price * count;
-    if ((!profile) || (count <= 0) || (profile.money < cost)) {
+    if (!profile || count <= 0 || profile.money < cost) {
       return false;
     }
     profile.money -= cost;
@@ -1105,7 +1145,7 @@ export class Session {
     const [mode, value = ""] = location.hash.slice(1).split("=");
     if (mode === "room") {
       const [id, invite] = value.split(".");
-      if ((cloud.available) && (isCloudId(id)) && (invite)) {
+      if (cloud.available && isCloudId(id) && invite) {
         let name = cloud.user?.username ?? storage.get("guest", "");
         if (!name) {
           name = await ui.guestName();
@@ -1116,7 +1156,7 @@ export class Session {
       }
       ui.toast("This invite link needs online features to be set up", "error");
     }
-    if ((mode === "open") && (isCloudId(value)) && (cloud.user)) {
+    if (mode === "open" && isCloudId(value) && cloud.user) {
       try {
         await this.openOnline(value);
         return true;
@@ -1124,13 +1164,13 @@ export class Session {
         ui.toast(message(error), "error");
       }
     }
-    if (((mode === "remix") || (mode === "fork")) && (isCloudId(value)) && (cloud.user)) {
+    if ((mode === "remix" || mode === "fork") && isCloudId(value) && cloud.user) {
       history.replaceState(null, "", location.pathname);
       await this.open(blank());
       await this.fork(value);
       return true;
     }
-    if ((mode === "visit") || (mode === "remix") || (mode === "fork")) {
+    if (mode === "visit" || mode === "remix" || mode === "fork") {
       try {
         const city = isCloudId(value) ? sanitize((await cloud.cities.get(value)).city) : await decode(value);
         if (mode === "visit") {
@@ -1172,7 +1212,7 @@ export class Session {
     await Promise.all([loadAssets(progress), cloud.init()]);
     const returning = Boolean(cloud.user) && storage.get("signin-pending", false);
     storage.set("signin-pending", false);
-    if ((cloud.user) && (!returning)) {
+    if (cloud.user && !returning) {
       await this.synchronize();
     }
     trainer.onsave = (profile) => {
@@ -1190,7 +1230,7 @@ export class Session {
     this.editor.onplay = (tile) => void this.playFrom(tile);
     this.editor.onrestore = (town) => void this.#restore(town);
     this.map.oncontext = (tile, screen) => {
-      if ((this.mode !== "edit") || (!this.map.inside(tile))) {
+      if (this.mode !== "edit" || !this.map.inside(tile)) {
         return;
       }
       this.menu = { tile, left: screen.x, top: screen.y };
@@ -1198,7 +1238,7 @@ export class Session {
     };
     if (!(await this.#route())) {
       const last = library.list().find(({ id }) => id === storage.get("last", "")) ?? library.list()[0];
-      if ((last) && (isCloudId(last.id)) && (cloud.user)) {
+      if (last && isCloudId(last.id) && cloud.user) {
         try {
           await this.openOnline(last.id);
         } catch {
@@ -1230,6 +1270,6 @@ export const imageTypes = ["image/png", "image/webp", "image/avif", "image/gif"]
 export const session = new Session();
 
 //Debug handle while developing locally
-if ((typeof location !== "undefined") && (location.hostname === "localhost")) {
+if (typeof location !== "undefined" && location.hostname === "localhost") {
   Object.assign(globalThis, { dreammist: session });
 }

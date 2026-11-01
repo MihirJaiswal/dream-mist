@@ -22,7 +22,10 @@ export const daytimes: { key: Daytime; label: string }[] = [
 ];
 
 /** Tint of each time of day, and of weathers that color the air */
-const tints = { evening: [0xff6a20, 0.26], night: [0x0b1840, 0.48], rain: [0x5070a0, 0.12], fog: [0xdfe6ec, 0.32], sandstorm: [0xc8a060, 0.22] } as Record<string, [number, number]>;
+const tints = { evening: [0xff6a20, 0.26], night: [0x0b1840, 0.48], rain: [0x5070a0, 0.12], fog: [0xdfe6ec, 0.32], sandstorm: [0xc8a060, 0.22] } as Record<
+  string,
+  [number, number]
+>;
 
 /** One falling raindrop, snowflake, grain of sand or patch of fog */
 type Particle = { x: number; y: number; speed: number; size: number; phase: number };
@@ -57,7 +60,13 @@ export class Atmosphere {
     this.#time = time;
     const count = { clear: 0, rain: 140, snow: 90, fog: 7, sandstorm: 120 }[weather] ?? 0;
     const { width, height } = this.#app.screen;
-    this.#drops = Array.from({ length: count }, () => ({ x: Math.random() * width, y: Math.random() * height, speed: 0.6 + Math.random() * 0.8, size: Math.random(), phase: Math.random() * Math.PI * 2 }));
+    this.#drops = Array.from({ length: count }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      speed: 0.6 + Math.random() * 0.8,
+      size: Math.random(),
+      phase: Math.random() * Math.PI * 2,
+    }));
     this.#update(0);
   }
 
@@ -112,7 +121,9 @@ export class Atmosphere {
           drop.y += (0.8 + drop.speed) * dt;
           drop.x += Math.sin(this.#clock / 40 + drop.phase) * 0.6 * dt;
           wrap(drop);
-          g.beginFill(0xffffff, 0.85).drawCircle(drop.x, drop.y, 1.2 + drop.size * 2).endFill();
+          g.beginFill(0xffffff, 0.85)
+            .drawCircle(drop.x, drop.y, 1.2 + drop.size * 2)
+            .endFill();
         }
         break;
       }
@@ -120,7 +131,9 @@ export class Atmosphere {
         for (const drop of this.#drops) {
           drop.x += (0.15 + drop.speed * 0.2) * dt;
           wrap(drop);
-          g.beginFill(0xffffff, 0.09).drawEllipse(drop.x, drop.y, 180 + drop.size * 160, 60 + drop.size * 50).endFill();
+          g.beginFill(0xffffff, 0.09)
+            .drawEllipse(drop.x, drop.y, 180 + drop.size * 160, 60 + drop.size * 50)
+            .endFill();
         }
         break;
       }

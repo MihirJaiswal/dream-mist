@@ -133,7 +133,7 @@ describe("creatures", () => {
         expect(creature.moves.some(({ key }) => assets.moves[key]?.power > 0)).toBe(true);
         for (const { key } of creature.moves) {
           //Every move either deals damage or has an effect battles know how to play
-          expect((assets.moves[key]?.power > 0) || (Boolean(assets.moves[key]?.effect))).toBe(true);
+          expect(assets.moves[key]?.power > 0 || Boolean(assets.moves[key]?.effect)).toBe(true);
         }
       }
     }

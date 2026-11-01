@@ -40,14 +40,14 @@ Open http://localhost:3000. The editor is at `/editor`.
 
 Without Supabase, everything works offline: cities and your trainer are saved in the browser. Online features (log in, Explore, publish, short links, live rooms, uploads) need a Supabase project, see below.
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Website, docs and editor with hot reload |
-| `npm run build` / `npm start` | Production build and server |
-| `npm test` | Run the tests |
-| `npm run typecheck` | Check types |
-| `npm run lint` | Check the code with ESLint |
-| `npm run data` | Rebuild `public/game` from `maps/`, `copyrighted/` and PokeAPI (only needed after changing those) |
+| Command                       | What it does                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `npm run dev`                 | Website, docs and editor with hot reload                                                          |
+| `npm run build` / `npm start` | Production build and server                                                                       |
+| `npm test`                    | Run the tests                                                                                     |
+| `npm run typecheck`           | Check types                                                                                       |
+| `npm run lint`                | Check the code with ESLint                                                                        |
+| `npm run data`                | Rebuild `public/game` from `maps/`, `copyrighted/` and PokeAPI (only needed after changing those) |
 
 ## Going online (Supabase and Vercel)
 
