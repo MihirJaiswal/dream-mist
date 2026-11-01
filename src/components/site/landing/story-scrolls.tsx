@@ -62,11 +62,11 @@ function Side({ story, side, moved, onPick }: { story: Story; side: "left" | "ri
   const left = side === "left";
   return (
     <button onClick={onPick} aria-label={`Read ${story.starter.name}'s story: ${story.title}`} className="group relative hidden h-[270px] w-[200px] shrink-0 cursor-pointer transition-[translate] duration-150 ease-[steps(3)] hover:-translate-y-1.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-dashed focus-visible:outline-white xl:block 2xl:w-[270px]">
-      <span className={cn("absolute -bottom-4 -top-4 w-10 stepped bg-[#c99a5b]", left ? "left-0 shadow-[inset_-6px_0_0_#9c6b33]" : "right-0 shadow-[inset_6px_0_0_#9c6b33]")} aria-hidden="true" />
-      <span key={story.starter.id} className={cn(moved && "hop", "stepped absolute inset-y-0 flex flex-col items-center justify-center gap-3 bg-[#ecd3a3] shadow-[inset_0_0_0_4px_#d9b77d] transition-colors group-hover:bg-[#f3dfb6]", left ? "left-10 right-0" : "left-0 right-10")}>
+      <span className={cn("absolute -bottom-4 -top-4 w-10 stepped bg-[#7d62c9]", left ? "left-0 shadow-[inset_-6px_0_0_#4a3590]" : "right-0 shadow-[inset_6px_0_0_#4a3590]")} aria-hidden="true" />
+      <span key={story.starter.id} className={cn(moved && "hop", "stepped absolute inset-y-0 flex flex-col items-center justify-center gap-3 bg-[#1d1038] shadow-[inset_0_0_0_4px_#3f2c74] transition-colors group-hover:bg-[#24153f]", left ? "left-10 right-0" : "left-0 right-10")}>
         <Starter starter={story.starter} scale={story.starter.big} />
-        <span className="font-game text-[13px] text-[#7a5430]">{story.kind}</span>
-        <span className="blink font-pixel text-[10px] text-[#a0662e] opacity-0 group-hover:opacity-100">▶ Read</span>
+        <span className="font-game text-[13px] text-[#c9b8f5]">{story.kind}</span>
+        <span className="blink font-pixel text-[10px] text-[#f06aa6] opacity-0 group-hover:opacity-100">▶ Read</span>
       </span>
     </button>
   );
@@ -76,32 +76,32 @@ function Side({ story, side, moved, onPick }: { story: Story; side: "left" | "ri
 function Main({ story, moved }: { story: Story; moved: boolean }) {
   return (
     <div key={story.starter.id} className={cn("relative", moved && "unrolling")}>
-      <div className="roller-left absolute -bottom-4 -top-4 w-8 stepped bg-[#c99a5b] shadow-[inset_-6px_0_0_#9c6b33] sm:w-10" aria-hidden="true" />
-      <div className="roller-right absolute -bottom-4 -top-4 w-8 stepped bg-[#c99a5b] shadow-[inset_6px_0_0_#9c6b33] sm:w-10" aria-hidden="true" />
+      <div className="roller-left absolute -bottom-4 -top-4 w-8 stepped bg-[#7d62c9] shadow-[inset_-6px_0_0_#4a3590] sm:w-10" aria-hidden="true" />
+      <div className="roller-right absolute -bottom-4 -top-4 w-8 stepped bg-[#7d62c9] shadow-[inset_6px_0_0_#4a3590] sm:w-10" aria-hidden="true" />
       <div className="unroll">
-        <div className="stepped relative bg-[#ecd3a3] px-6 py-8 text-[#4a2e14] shadow-[inset_0_0_0_4px_#d9b77d] sm:px-12">
+        <div className="stepped relative bg-[#1d1038] px-6 py-8 text-white shadow-[inset_0_0_0_4px_#3f2c74] sm:px-12">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Starter starter={story.starter} scale={1} />
               <div>
                 <h2 className="font-pixel text-[22px] leading-none sm:text-[28px]">{story.title}</h2>
-                <p className="mt-1 font-game text-[14px] text-[#7a5430]">{story.tagline}</p>
+                <p className="mt-1 font-game text-[14px] text-[#c9b8f5]">{story.tagline}</p>
               </div>
             </div>
-            <span className="font-pixel text-[13px] text-[#a0662e]">{story.kind}</span>
+            <span className="font-pixel text-[13px] text-[#f06aa6]">{story.kind}</span>
           </div>
           <ol className="mt-6 grid gap-3 sm:grid-cols-3">
             {story.steps.map(({ name, detail, done }, i) => (
-              <li key={name} className="stepped bg-[#f6e6c4] p-3 shadow-[inset_0_0_0_3px_#d9b77d]">
-                <span className={cn("font-pixel text-[11px]", done ? "text-[#3f8a3a]" : "text-[#a0662e]")}>{done ? "✓ Done" : `Step ${i + 1}`}</span>
+              <li key={name} className="stepped bg-[#2a1a52] p-3 shadow-[inset_0_0_0_3px_#3f2c74]">
+                <span className={cn("font-pixel text-[11px]", done ? "text-[#5ee07a]" : "text-[#f06aa6]")}>{done ? "✓ Done" : `Step ${i + 1}`}</span>
                 <p className="mt-1 font-game text-[16px] font-bold leading-tight">{name}</p>
-                <p className="mt-1 font-game text-[13px] text-[#7a5430]">{detail}</p>
+                <p className="mt-1 font-game text-[13px] text-[#c9b8f5]">{detail}</p>
               </li>
             ))}
           </ol>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <p className="max-w-[44ch] font-game text-[15px] leading-relaxed">{story.text}</p>
-            <PixelButton href={story.link} tone="wood">{story.action}</PixelButton>
+            <PixelButton href={story.link}>{story.action}</PixelButton>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@ export function StoryScrolls() {
         {stories.map((story) => {
           const active = story === middle;
           return (
-            <button key={story.starter.id} role="tab" aria-selected={active} onClick={() => pick(order.indexOf(stories.indexOf(story)))} className={cn("stepped flex flex-col items-center gap-1 px-3 pb-2 pt-1 font-pixel text-[11px] transition-colors", active ? "bg-[#ecd3a3] text-[#4a2e14]" : "bg-[#1d1038] text-[#c9b8f5] shadow-[inset_0_0_0_3px_#3f2c74]")}>
+            <button key={story.starter.id} role="tab" aria-selected={active} onClick={() => pick(order.indexOf(stories.indexOf(story)))} className={cn("stepped flex flex-col items-center gap-1 px-3 pb-2 pt-1 font-pixel text-[11px] transition-colors", active ? "bg-[#f06aa6] text-[#2a0a1e]" : "bg-[#1d1038] text-[#c9b8f5] shadow-[inset_0_0_0_3px_#3f2c74]")}>
               <Starter starter={story.starter} className="h-12 w-auto" />
               {story.starter.name}
             </button>
