@@ -1,7 +1,13 @@
 //Imports
 import type { City } from "./data";
 import type { Target } from "./editor/constants";
+import { edge, outdoors, type Placed, reachable as joined } from "./region";
 import { questOf, stepLabel } from "./story";
+
+/** Do two placed maps overlap */
+function overlapping(a: Placed, b: Placed) {
+  return (a.x < b.x + b.map.width) && (b.x < a.x + a.map.width) && (a.y < b.y + b.map.height) && (b.y < a.y + a.map.height);
+}
 
 /** Something in a town that won't work as intended, and where to fix it */
 export type Problem = {
@@ -41,7 +47,28 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
       }
     });
   }
-  for (const room of city.interiors) {
+  //Outdoor maps: reached by walking across an edge open on both sides (or through a door)
+  const walk = joined(city);
+  const placed = outdoors(city);
+  for (const room of city.interiors.filter(({ outdoor }) => outdoor)) {
+    const self = placed.find(({ map }) => map === room)!;
+    const other = placed.find((item) => (item.map !== room) && (overlapping(self, item)));
+    if (other) {
+      found.push({ kind: "error", text: `${room.name} overlaps ${other.map === city ? "the outside map" : other.map.name} in the region map`, map: room.id, layer: "door" });
+      continue;
+    }
+    if ((walk.has(room)) || (maps.some((map) => map.doors.some(({ to }) => to === room.id)))) {
+      continue;
+    }
+    const touching = placed.map((item) => ({ item, shared: edge(self, item) })).find(({ item, shared }) => (item.map !== room) && (shared));
+    if (touching) {
+      const middle = touching.shared!.tiles[Math.floor(touching.shared!.tiles.length / 2)];
+      found.push({ kind: "warning", text: `Nobody can walk into ${room.name}: the edge it shares with ${touching.item.map === city ? "the outside map" : touching.item.map.name} is blocked all along. Open a gap in the trees or walls on both sides`, map: room.id, layer: "solid", at: middle });
+    } else {
+      found.push({ kind: "warning", text: `${room.name} isn't joined to any other map. Move it next to one in the region map`, map: room.id, layer: "door" });
+    }
+  }
+  for (const room of city.interiors.filter(({ outdoor }) => !outdoor)) {
     if (!maps.some((map) => map.doors.some(({ to }) => to === room.id))) {
       found.push({ kind: "warning", text: `Nobody can get into ${room.name}: no door leads to it`, map: "", layer: "door" });
     } else if (!room.doors.some(({ to }) => (to !== "?") && (to !== room.id) && (exists(to)))) {

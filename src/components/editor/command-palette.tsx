@@ -2,6 +2,7 @@
 
 import { cities, importTileset, newCity, settings, versionHistory } from "@/components/editor/city-dialogs";
 import { useEditor, useSession } from "@/components/editor/hooks";
+import { addOutdoor, regionMap } from "@/components/editor/region-map";
 import { publish, share } from "@/components/editor/share-dialogs";
 import { shortcutsSheet } from "@/components/editor/shortcuts";
 import { timeline } from "@/components/editor/story-timeline";
@@ -12,7 +13,7 @@ import { species } from "@/game/assets";
 import { brushes, terrains } from "@/game/brushes";
 import { kindOf, type Stamp, targets, tools } from "@/game/editor/constants";
 import { problems } from "@/game/problems";
-import { ArrowArcLeft, ArrowArcRight, BookOpen, ClockCounterClockwise, Crosshair, DoorOpen, DownloadSimple, Export, Folder, GearSix, GridFour, Image as ImageIcon, Keyboard, MapTrifold, Notebook, PaintBrush, PencilSimple, Play, Plus, ShareNetwork, Sparkle, Stack, TreeStructure, User, Warning } from "@phosphor-icons/react";
+import { ArrowArcLeft, ArrowArcRight, BookOpen, ClockCounterClockwise, Crosshair, DoorOpen, DownloadSimple, Export, Folder, GearSix, GlobeHemisphereWest, GridFour, Image as ImageIcon, Keyboard, MapTrifold, Notebook, PaintBrush, Path, PencilSimple, Play, Plus, ShareNetwork, Sparkle, Stack, TreeStructure, User, Warning } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useState } from "react";
 
 /** Command palette: Cmd+K (Ctrl+K) finds any action, tool, layer, stamp, map, person or problem by typing */
@@ -66,6 +67,9 @@ export function CommandPalette() {
           {building ? item("redo", "Redo", <ArrowArcRight />, () => editor.redo(), "⇧⌘Z") : null}
           {building ? item("grid", "Show or hide the grid", <GridFour />, () => editor.toggleGrid(), "G") : null}
           {session.mode === "play" ? item("journal", "Journal", <Notebook />, () => journalDialog(), "J", ["quests", "story", "objective"]) : null}
+          {building ? item("region", "Region map", <GlobeHemisphereWest />, () => regionMap(), undefined, ["routes", "towns", "world", "connect"]) : null}
+          {building ? item("route", "New route", <Path />, () => addOutdoor("route"), undefined, ["map", "outdoor", "road"]) : null}
+          {building ? item("town", "New town", <MapTrifold />, () => addOutdoor("town"), undefined, ["map", "outdoor", "city"]) : null}
           {building ? item("timeline", "Story timeline", <TreeStructure />, () => timeline(editor), undefined, ["quests", "side quest", "main story"]) : null}
           {item("center", "Fit the map on screen", <Crosshair />, () => session.map.fit(), "0", ["center", "zoom"])}
           {building ? item("share", "Share or invite friends", <ShareNetwork />, () => share(), undefined, ["link", "room", "live"]) : null}

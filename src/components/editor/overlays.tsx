@@ -219,15 +219,15 @@ export function QuestBanner() {
     const timer = setTimeout(() => {
       banners = banners.slice(1);
       bannerListeners.forEach((listener) => listener());
-    }, 3600);
+    }, current.kind === "place" ? 2400 : 3600);
     return () => clearTimeout(timer);
   }, [current]);
   if (!current) {
     return null;
   }
   return (
-    <div key={current.key} role="status" className="quest-banner">
-      <span className="kind">{current.kind === "quest" ? "Side quest" : "Story"}</span>
+    <div key={current.key} role="status" className={cn("quest-banner", current.kind === "place" && "place")}>
+      {current.kind === "place" ? null : <span className="kind">{current.kind === "quest" ? "Side quest" : "Story"}</span>}
       <span className="title">{current.title}</span>
       {current.text ? <span className="text">{current.text}</span> : null}
     </div>

@@ -10,7 +10,7 @@ import type { ItemId } from "./items";
 export type Portrait = { src: string; kind: "art" | "sprite" };
 
 /** Story or quest banner */
-export type Banner = { title: string; text: string; kind: "story" | "quest" };
+export type Banner = { title: string; text: string; kind: "story" | "quest" | "place" };
 
 /** Toast kinds */
 export type ToastType = "info" | "error" | "success" | "warning";

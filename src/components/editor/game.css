@@ -614,3 +614,18 @@
   8%, 88% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -8px); }
 }
+
+/* Name of the map just entered: a small plaque in the top-left corner, like the games' area signs */
+.quest-banner.place {
+  left: calc(16px + env(safe-area-inset-left, 0px));
+  padding: 6px 18px 8px;
+  animation: place-banner 2.4s ease both;
+}
+.quest-banner.place .title {
+  font-size: 18px;
+}
+@keyframes place-banner {
+  0% { opacity: 0; transform: translateY(-12px); }
+  10%, 85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-12px); }
+}

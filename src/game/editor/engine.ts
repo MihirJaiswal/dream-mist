@@ -1,9 +1,10 @@
 //Imports
 import * as PIXI from "pixi.js";
 import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
-import { brushes, piece, type Terrain, terrainOf, terrains, tops } from "../brushes";
-import { type City, interior, type Layer, layers, type Npc, type NpcStory, type Step, storage, uid } from "../data";
+import { brushes, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
+import { type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, uid } from "../data";
 import type { CityMap } from "../map";
+import { collides, isOutdoor, type Side, spot } from "../region";
 import { scaleOf } from "../sprites";
 import { custom as sheets, decode, encode, range } from "../tilesets";
 import { ui } from "../ui-bridge";
@@ -1222,6 +1223,42 @@ export class EditorEngine {
     this.onmaps?.();
     this.#notify();
     return map;
+  }
+
+  /** Create a route or another town next to the open outdoor map (or the outside map), joined at their edges */
+  newOutdoor(kind: "route" | "town") {
+    const world = this.#world;
+    const beside = isOutdoor(world, this.#city) ? this.#city : world;
+    const sizes = kind === "town" ? [{ width: 30, height: 24, sides: ["up", "right", "down", "left"] as Side[] }] : [{ width: 20, height: 40, sides: ["up", "down"] as Side[] }, { width: 40, height: 20, sides: ["right", "left"] as Side[] }];
+    for (const { width, height, sides } of sizes) {
+      const place = spot(world, { width, height }, beside, sides);
+      if (!place) {
+        continue;
+      }
+      const count = world.interiors.filter((map) => (map.outdoor) && (kind === "town" ? !map.name.startsWith("Route") : map.name.startsWith("Route"))).length;
+      let map = null as null | City;
+      this.#town(() => {
+        map = outdoor(world, { name: kind === "town" ? (count ? `New Town ${count + 1}` : "New Town") : `Route ${101 + count}`, width, height, x: place.x, y: place.y });
+        (kind === "town" ? town : route)(map, place.side);
+      });
+      this.onmaps?.();
+      this.#notify();
+      return { map: map!, side: place.side, beside };
+    }
+    return null;
+  }
+
+  /** Move an outdoor map on the region grid (false when it would overlap another map) */
+  moveMap(id: string, x: number, y: number) {
+    const map = this.#world.interiors.find((map) => map.id === id);
+    if ((!map?.outdoor) || (collides(this.#world, map, x, y))) {
+      return false;
+    }
+    this.#town(() => map.region = { x, y });
+    this.onmaps?.();
+    this.#map.drawNeighbors();
+    this.#notify();
+    return true;
   }
 
   /** Delete an interior and the doors leading to it */

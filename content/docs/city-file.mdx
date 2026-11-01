@@ -29,7 +29,9 @@ type City = {
   doors: Door[];
   story: Step[];          // main story and side quest steps, in order within each
   quests: Quest[];        // side quests
-  interiors: City[];      // same shape, without story, quests, zones, tilesets, music
+  interiors: City[];      // interiors and outdoor maps, same shape, without story, quests, zones, tilesets, music
+  outdoor?: boolean;      // on an outdoor map (route, town): joined to the region at its edges
+  region?: { x: number; y: number };  // its position on the region grid, in tiles (the outside map is at 0, 0)
   tilesets?: Tileset[];
   sprites?: Sprite[];     // custom looks for people and Pokémon
   music?: { town?: string; battle?: string };

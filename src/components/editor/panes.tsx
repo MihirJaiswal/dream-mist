@@ -3,32 +3,33 @@
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { targetIcons } from "@/components/editor/icons";
 import { Pane, TextInput, Tip } from "@/components/editor/widgets";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { addOutdoor, regionMap } from "@/components/editor/region-map";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { type Target, targets, templates } from "@/game/editor/constants";
 import { ui } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
-import { DoorOpen, Eye, EyeSlash, Lock, LockOpen, MapTrifold, Plus, Trash } from "@phosphor-icons/react";
+import { DoorOpen, Eye, EyeSlash, GlobeHemisphereWest, Lock, LockOpen, MapTrifold, Path, Plus, Trash } from "@phosphor-icons/react";
 
 /** Maps of the city: outside and interiors */
 export function MapsPane() {
   const session = useSession();
   const editor = useEditor();
   const world = session.city;
-  const row = (id: string, name: string) => {
+  const row = (id: string, name: string, outdoor = false) => {
     const active = editor.mapId === id;
-    const Icon = id ? DoorOpen : MapTrifold;
+    const Icon = !id ? MapTrifold : outdoor ? Path : DoorOpen;
     return (
-      <div key={id || "outside"} role="button" tabIndex={0} title={id ? "Edit this interior" : "Edit the outside map"} onClick={() => !active && session.openArea(id)} onKeyDown={(event) => event.key === "Enter" && session.openArea(id)} className={cn("group flex h-8 items-center gap-2 rounded-md px-2 pointer-coarse:h-10 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted text-foreground")}>
+      <div key={id || "outside"} role="button" tabIndex={0} title={!id ? "Edit the outside map" : outdoor ? "Edit this outdoor map" : "Edit this interior"} onClick={() => !active && session.openArea(id)} onKeyDown={(event) => event.key === "Enter" && session.openArea(id)} className={cn("group flex h-8 items-center gap-2 rounded-md px-2 pointer-coarse:h-10 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted text-foreground")}>
         <Icon size={15} className="shrink-0" />
         {active && id
-          ? <TextInput aria-label="Interior name" value={name} maxLength={30} onCommit={(value) => editor.renameInterior(value)} onClick={(event) => event.stopPropagation()} className="h-6 border-transparent bg-transparent px-1 text-sm shadow-none focus-visible:border-input" />
+          ? <TextInput aria-label="Map name" value={name} maxLength={30} onCommit={(value) => editor.renameInterior(value)} onClick={(event) => event.stopPropagation()} className="h-6 border-transparent bg-transparent px-1 text-sm shadow-none focus-visible:border-input" />
           : <span className="flex-1 truncate">{name}</span>}
         {id
           ? (
-            <Tip label="Delete interior">
-              <button aria-label="Delete interior" onClick={async (event) => {
+            <Tip label="Delete map">
+              <button aria-label="Delete map" onClick={async (event) => {
                 event.stopPropagation();
-                if (await ui.confirm(`Delete ${name}?`, { text: "Doors leading to this interior will be removed too.", action: "Delete", danger: true })) {
+                if (await ui.confirm(`Delete ${name}?`, { text: outdoor ? "Its people and everything built on it go too. Undo brings it back." : "Doors leading to this interior will be removed too.", action: "Delete", danger: true })) {
                   editor.removeInterior(id);
                 }
               }} className="grid size-6 place-items-center rounded text-subtle-fg opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"><Trash size={14} /></button>
@@ -42,19 +43,28 @@ export function MapsPane() {
     <Pane
       title="Maps"
       action={
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button title="Add an interior map" className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Plus size={12} />Interior</button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {templates.map(({ key, label }) => <DropdownMenuItem key={key} onSelect={() => session.openArea(editor.newInterior(key).id)}>{label}</DropdownMenuItem>)}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-0.5">
+          <Tip label="Region map" description="Routes and towns, joined where they touch"><button aria-label="Region map" onClick={() => regionMap()} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"><GlobeHemisphereWest size={14} /></button></Tip>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button title="Add a map" className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Plus size={12} />Map</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-xs text-subtle-fg">Outdoors, joined at the edge</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => addOutdoor("route")}><Path />Route</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => addOutdoor("town")}><MapTrifold />Town</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-subtle-fg">Interiors, through a door</DropdownMenuLabel>
+              {templates.map(({ key, label }) => <DropdownMenuItem key={key} onSelect={() => session.openArea(editor.newInterior(key).id)}><DoorOpen />{label}</DropdownMenuItem>)}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       }
     >
       <div className="grid gap-0.5">
         {row("", "Outside")}
-        {world.interiors.map((map) => row(map.id, map.name))}
+        {world.interiors.filter(({ outdoor }) => outdoor).map((map) => row(map.id, map.name, true))}
+        {world.interiors.filter(({ outdoor }) => !outdoor).map((map) => row(map.id, map.name))}
       </div>
     </Pane>
   );

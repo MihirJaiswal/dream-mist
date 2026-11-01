@@ -144,7 +144,11 @@ export type City = {
   story: Step[];
   /** Side quests, each with steps in `story` (outside map only, shared by interiors) */
   quests: Quest[];
-  /** Interior maps (houses, Pokémon Center, gyms), same shape as a city */
+  /** Outdoor map (route, another town) joined to the outside map where their edges touch, instead of an interior reached by doors */
+  outdoor?: boolean;
+  /** Position of an outdoor map on the region grid, in tiles (the outside map sits at 0, 0) */
+  region?: { x: number; y: number };
+  /** Interior maps (houses, Pokémon Center, gyms) and outdoor maps (routes), same shape as a city */
   interiors: City[];
   /** Custom tilesets (uploaded images) */
   tilesets?: Tileset[];
@@ -246,6 +250,10 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   if (daytimes.some(({ key }) => key === raw.time) && (raw.time !== "day")) {
     city.time = raw.time;
   }
+  if ((root) && (raw.outdoor)) {
+    city.outdoor = true;
+    city.region = { x: Math.round(Number(raw.region?.x) || 0), y: Math.round(Number(raw.region?.y) || 0) };
+  }
   city.interiors = [];
   if (root) {
     city.id = `${raw.id ?? uid()}`;
@@ -292,6 +300,17 @@ export function interior(root: City, { name = "House", width = 14, height = 10, 
     }
   }
   map.spawn = { x: Math.floor(width / 2), y: height - 2 };
+  attach(map, root);
+  root.interiors.push(map);
+  return map;
+}
+
+/** Create a new outdoor map (a route or another town) at a position of the region */
+export function outdoor(root: City, { name = "Route", width = 20, height = 40, x = 0, y = 0 } = {}) {
+  const map = blank({ width, height, name });
+  map.id = uid();
+  map.outdoor = true;
+  map.region = { x, y };
   attach(map, root);
   root.interiors.push(map);
   return map;

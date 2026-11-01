@@ -3,6 +3,7 @@ import * as PIXI from "pixi.js";
 import { Atmosphere, type Daytime, type Weather } from "./atmosphere";
 import { size, sprite } from "./assets";
 import { type City, type Layer, layers } from "./data";
+import { neighbors } from "./region";
 
 /** Display object */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,7 +24,7 @@ export class CityMap {
   readonly world: Display;
 
   /** Layer containers */
-  readonly containers = {} as Record<Layer | "blockers" | "actors" | "overlay", Display>;
+  readonly containers = {} as Record<Layer | "neighbors" | "blockers" | "actors" | "overlay", Display>;
 
   /** Tile sprites per layer */
   readonly sprites = {} as Record<Layer, (Display | null)[]>;
@@ -58,7 +59,7 @@ export class CityMap {
     this.app = new PIXI.Application({ resizeTo: host, backgroundColor: 0x0a0a0a, antialias: false });
     host.appendChild(this.app.view);
     this.world = this.app.stage.addChild(new PIXI.Container());
-    for (const name of [...layers.slice(0, 2), "blockers", "actors", layers[2], "overlay"] as const) {
+    for (const name of ["neighbors", ...layers.slice(0, 2), "blockers", "actors", layers[2], "overlay"] as const) {
       this.containers[name] = this.world.addChild(new PIXI.Container());
     }
     this.containers.actors.sortableChildren = true;
@@ -105,15 +106,59 @@ export class CityMap {
     this.app.resize();
   }
 
+  /** Whole city the loaded map belongs to (outdoor maps show the maps touching them around their edges) */
+  root = null as null | City;
+
   /** Load a city */
   load(city: City) {
     this.city = city;
+    this.drawNeighbors();
     for (const layer of layers) {
       this.containers[layer].removeChildren().forEach((child: Display) => child.destroy());
       this.sprites[layer] = new Array(city.width * city.height).fill(null);
       city.layers[layer].forEach((value, index) => this.set(layer, index, value));
     }
     this.redraw();
+  }
+
+  /** Draw the outdoor maps touching this one around its edges, so routes and towns join without a gap */
+  drawNeighbors() {
+    const container = this.containers.neighbors;
+    container.removeChildren().forEach((child: Display) => child.destroy({ texture: true, baseTexture: true }));
+    for (const { map, dx, dy } of this.root ? neighbors(this.root, this.city) : []) {
+      const image = container.addChild(new PIXI.Sprite(this.render(map)));
+      image.position.set(dx * size, dy * size);
+    }
+  }
+
+  /** Show neighboring maps faded (building) or as they are (playing) */
+  fadeNeighbors(faded: boolean) {
+    this.containers.neighbors.alpha = faded ? 0.4 : 1;
+  }
+
+  /** Render the tile layers of any map of the city to a texture (k scales it down) */
+  render(city: City, k = 1) {
+    const container = new PIXI.Container();
+    for (const layer of layers) {
+      city.layers[layer].forEach((value, index) => {
+        if (value) {
+          const tile = container.addChild(sprite(value));
+          tile.position.set((index % city.width) * size, Math.floor(index / city.width) * size);
+        }
+      });
+    }
+    const texture = PIXI.RenderTexture.create({ width: Math.max(1, Math.round(city.width * size * k)), height: Math.max(1, Math.round(city.height * size * k)) });
+    this.app.renderer.render(container, { renderTexture: texture, transform: new PIXI.Matrix().scale(k, k) });
+    container.destroy({ children: true });
+    return texture;
+  }
+
+  /** Picture of any map of the city (region thumbnails) */
+  picture(city: City, k = 1) {
+    const texture = this.render(city, k);
+    const canvas = this.app.renderer.plugins.extract.canvas(texture) as HTMLCanvasElement;
+    texture.destroy(true);
+    return canvas;
   }
 
   /** Update a tile */

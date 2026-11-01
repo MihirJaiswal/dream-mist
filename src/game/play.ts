@@ -152,15 +152,18 @@ export class Play {
   readonly #world: City;
   readonly #arrive: null | { x: number; y: number; dir: Direction };
   readonly #onwarp: null | ((door: Door) => void);
+  /** Walking off the edge of the map: true when another map is there and the player moves onto it */
+  readonly #onedge: null | ((x: number, y: number, dir: Direction) => boolean);
   /** Next time a gate message may show again */
   #bump = 0;
 
-  constructor(map: CityMap, city: City, { world = city, arrive = null as null | { x: number; y: number; dir: Direction }, onwarp = null as null | ((door: Door) => void) } = {}) {
+  constructor(map: CityMap, city: City, { world = city, arrive = null as null | { x: number; y: number; dir: Direction }, onwarp = null as null | ((door: Door) => void), onedge = null as null | ((x: number, y: number, dir: Direction) => boolean) } = {}) {
     this.#map = map;
     this.#city = city;
     this.#world = world;
     this.#arrive = arrive;
     this.#onwarp = onwarp;
+    this.#onedge = onedge;
     this.#ticker = (dt: number) => this.#update(dt);
   }
 
@@ -241,8 +244,8 @@ export class Play {
     sound.music("town");
   }
 
-  /** Stop play mode */
-  stop() {
+  /** Stop play mode (the music keeps going when moving to another map) */
+  stop(keepMusic = false) {
     ui.hush();
     this.#map.app.ticker.remove(this.#ticker);
     this.#listeners.forEach(([type, listener]) => document.removeEventListener(type, listener));
@@ -252,7 +255,9 @@ export class Play {
     this.#map.pannable = true;
     this.#map.done = () => false;
     this.#map.drawBlockers();
-    sound.stop();
+    if (!keepMusic) {
+      sound.stop();
+    }
   }
 
   /** Register a document listener */
@@ -348,6 +353,11 @@ export class Play {
       this.#tap = null;
       player.face(dir);
       const { x: dx, y: dy } = deltas[dir];
+      //Off the edge of an outdoor map: onto the map touching it there
+      if ((!this.#map.inside({ x: player.x + dx, y: player.y + dy })) && (this.#onedge?.(player.x + dx, player.y + dy, dir))) {
+        this.#busy = true;
+        return;
+      }
       if (!this.#blocked(player.x + dx, player.y + dy, player)) {
         player.tx = player.x + dx;
         player.ty = player.y + dy;

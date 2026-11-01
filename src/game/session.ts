@@ -4,6 +4,7 @@ import { load as loadAssets, size } from "./assets";
 import { sound } from "./audio";
 import { frames, template } from "./brushes";
 import { type Card, cloud, isCloudId } from "./cloud";
+import { crossing, walkable } from "./region";
 import { area, blank, type City, decode, type Direction, type Door, library, type Npc, resize, sanitize, storage, uid } from "./data";
 import { EditorEngine } from "./editor/engine";
 import { load as hoenn, type Section } from "./hoenn";
@@ -158,6 +159,7 @@ export class Session {
     await loadTilesets(city.tilesets);
     await loadSprites(city.sprites);
     sound.custom = city.music ?? {};
+    this.map.root = city;
     this.map.load(city);
     this.map.world.scale.set(3);
     this.map.center(city.spawn.x + 0.5, city.spawn.y + 0.5);
@@ -210,14 +212,15 @@ export class Session {
       this.map.scale(3);
       this.#play(from ? { ...from, dir: "down" } : null);
     }
-    this.#sky();
+    this.#scene();
     this.notify();
     setTimeout(() => this.map.app.resize(), 0);
   }
 
-  /** Weather and time of day of the open map, over the map while playing */
-  #sky() {
+  /** Weather and time of day of the open map over it while playing, and neighboring maps faded while building */
+  #scene() {
     this.map.sky(this.mode === "play" ? this.area.weather : "clear", this.mode === "play" ? this.area.time : "day");
+    this.map.fadeNeighbors(this.mode === "edit");
   }
 
   /** The whole town as text (interiors included), to undo town-wide changes */
@@ -252,7 +255,7 @@ export class Session {
     this.editor.start(this.area, this.city);
     sound.custom = this.city.music ?? {};
     await this.rerender();
-    this.#sky();
+    this.#scene();
     this.broadcastCity();
     this.notify();
   }
@@ -310,8 +313,24 @@ export class Session {
   /** Start play mode on the current map */
   #play(arrive = null as null | { x: number; y: number; dir: Direction }) {
     this.play?.stop();
-    this.play = new Play(this.map, this.area, { world: this.city, arrive, onwarp: (door) => this.#warp(door) });
+    this.play = new Play(this.map, this.area, { world: this.city, arrive, onwarp: (door) => this.#warp(door), onedge: (x, y, dir) => this.#cross(x, y, dir) });
     this.play.start();
+  }
+
+  /** Walk off the edge of an outdoor map onto the map touching it there (false when there's none, or the way is blocked) */
+  #cross(x: number, y: number, dir: Direction) {
+    const target = crossing(this.city, this.area, x, y);
+    if (!target) {
+      return false;
+    }
+    const index = target.y * target.map.width + target.x;
+    const gate = target.map.gate[index] ? this.city.story.find(({ n }) => n === target.map.gate[index]) : null;
+    const [fx, fy] = [Math.max(0, Math.min(this.area.width - 1, x)), Math.max(0, Math.min(this.area.height - 1, y))];
+    if ((!walkable(this.area, fx, fy)) || (!walkable(target.map, target.x, target.y)) || ((gate) && (!trainer.done(this.city.id, gate.id)))) {
+      return false;
+    }
+    setTimeout(() => this.openArea(target.map === this.city ? "" : target.map.id, { x: target.x, y: target.y, dir }), 0);
+    return true;
   }
 
   /** Open a map of the current city ("" = outside) */
@@ -320,19 +339,24 @@ export class Session {
     if (!map) {
       return ui.toast("That interior doesn't exist anymore", "error");
     }
-    this.play?.stop();
+    //Moving between maps while playing keeps the music going
+    this.play?.stop(this.mode === "play");
     this.play = null;
     this.editor.stop();
+    const moved = map !== this.area;
     this.area = map;
     this.map.load(map);
     if (this.mode === "play") {
       this.#play(arrive);
+      if (moved) {
+        ui.banner({ kind: "place", title: map === this.city ? this.city.name : map.name, text: "" });
+      }
     } else {
       this.editor.start(map, this.city);
       this.editor.reset(map, this.city);
       this.map.center(map.width / 2, map.height / 2);
     }
-    this.#sky();
+    this.#scene();
     this.notify();
   };
 
@@ -831,7 +855,7 @@ export class Session {
     this.#undoable(() => {
       this.area.weather = weather === "clear" ? undefined : weather;
       this.area.time = time === "day" ? undefined : time;
-      this.#sky();
+      this.#scene();
       this.broadcastCity();
       this.changed();
     });

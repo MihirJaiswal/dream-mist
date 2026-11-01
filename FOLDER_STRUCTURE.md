@@ -17,6 +17,7 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── session.ts        App logic: open, save, switch modes, rooms, uploads. React reads it through `subscribe`
 │   │   ├── editor/           Editor state and tools (engine.ts) and their constants
 │   │   ├── map.ts            Draws a city with PixiJS: layers, zoom, drag, overlays
+│   │   ├── region.ts         Routes and towns joined at their edges: positions, neighbors, crossing an edge
 │   │   ├── atmosphere.ts     Weather and time of day drawn over the map in play mode
 │   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers
 │   │   ├── battle.ts         Battles: damage, stat changes, conditions, catching, turns. Keeps a `view` the React battle screen draws

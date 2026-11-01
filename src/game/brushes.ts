@@ -1,4 +1,5 @@
 //Imports
+import type { Side } from "./region";
 import type { City, Layer } from "./data";
 
 /** Quick brush (tile values are tileset frame + 1) */
@@ -122,6 +123,96 @@ export function template(city: City) {
   );
   city.spawn = { x: cx, y: cy + 2 };
   return city;
+}
+
+/** Starter content for a new route: trees along its long sides, a path from end to end, tall grass and a sign where it begins */
+export function route(city: City, entrance: Side) {
+  const { width: W, height: H } = city;
+  const vertical = (entrance === "up") || (entrance === "down");
+  city.layers.ground.fill(frames.grass + 1);
+  const sand = (x: number, y: number) => city.layers.ground[y * W + x] = frames.sand + 1;
+  const grass = (x0: number, y0: number, x1: number, y1: number) => {
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        stamp(city, "Tall grass (wild Pokémon)", x, y);
+      }
+    }
+  };
+  if (vertical) {
+    const cx = Math.floor(W / 2) - 1;
+    for (let y = 0; y < H; y += 2) {
+      stamp(city, "Tree", 0, y);
+      stamp(city, "Tree", W - 2, y);
+    }
+    for (let y = 0; y < H; y++) {
+      sand(cx, y);
+      sand(cx + 1, y);
+    }
+    grass(3, Math.floor(H * 0.2), cx - 1, Math.floor(H * 0.38));
+    grass(cx + 3, Math.floor(H * 0.55), W - 3, Math.floor(H * 0.72));
+    //The sign stands by the path at the end the player comes from (the side touching the map it was made from)
+    sign(city, cx - 1, entrance === "up" ? H - 3 : 2, city.name);
+  } else {
+    const cy = Math.floor(H / 2) - 1;
+    for (let x = 0; x < W; x += 2) {
+      stamp(city, "Tree", x, 0);
+      stamp(city, "Tree", x, H - 2);
+    }
+    for (let x = 0; x < W; x++) {
+      sand(x, cy);
+      sand(x, cy + 1);
+    }
+    grass(Math.floor(W * 0.2), 3, Math.floor(W * 0.38), cy - 1);
+    grass(Math.floor(W * 0.55), cy + 3, Math.floor(W * 0.72), H - 3);
+    sign(city, entrance === "left" ? W - 3 : 2, cy - 1, city.name);
+  }
+  city.spawn = { x: Math.floor(W / 2), y: Math.floor(H / 2) };
+  return city;
+}
+
+/** Starter content for another town: a tree border with a way in from the side touching the map it was made from, and a path to the middle */
+export function town(city: City, entrance: Side) {
+  const { width: W, height: H } = city;
+  const cx = Math.floor(W / 2) - 1, cy = Math.floor(H / 2) - 1;
+  //The way in faces back towards the map it was made from
+  const facing = ({ up: "down", down: "up", left: "right", right: "left" } as const)[entrance];
+  city.layers.ground.fill(frames.grass + 1);
+  for (let x = 0; x < W; x += 2) {
+    const gap = Math.abs(x - cx) < 2;
+    if (!((gap) && (facing === "up"))) {
+      stamp(city, "Tree", x, 0);
+    }
+    if (!((gap) && (facing === "down"))) {
+      stamp(city, "Tree", x, H - 2);
+    }
+  }
+  for (let y = 2; y < H - 2; y += 2) {
+    const gap = Math.abs(y - cy) < 2;
+    if (!((gap) && (facing === "left"))) {
+      stamp(city, "Tree", 0, y);
+    }
+    if (!((gap) && (facing === "right"))) {
+      stamp(city, "Tree", W - 2, y);
+    }
+  }
+  //Path from the way in to the middle of town
+  const sand = (x: number, y: number) => city.layers.ground[y * W + x] = frames.sand + 1;
+  const [x0, x1] = facing === "left" ? [0, cx + 2] : facing === "right" ? [cx, W] : [cx, cx + 2];
+  const [y0, y1] = facing === "up" ? [0, cy + 2] : facing === "down" ? [cy, H] : [cy, cy + 2];
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      sand(x, y);
+    }
+  }
+  sign(city, cx - 2, cy - 1, `Welcome to ${city.name}!`);
+  city.spawn = { x: cx, y: cy + 2 };
+  return city;
+}
+
+/** A sign post someone can read */
+function sign(city: City, x: number, y: number, text: string) {
+  stamp(city, "Sign", x, y);
+  city.npcs.push({ x, y, sprite: "", dir: "down", name: "Sign", dialogue: text, role: "talk", wander: false });
 }
 
 /** Terrain: a 3×3 tileset block (corners, edges and center) painted with automatic borders */
