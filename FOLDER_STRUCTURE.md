@@ -57,7 +57,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── data/             Pokédex, walkable tiles, tile animations, Hoenn map sections
 │   │   ├── audio/            Default music and sound effects
 │   │   └── images/           Logo and loading art used by the editor
-│   └── site/                 Landing page art and sprites
+│   ├── site/                 Landing page art and sprites
+│   └── agents.md             Guide for AI agents to write whole games as .city.json files (served at /agents.md)
 │
 ├── maps/                     Source Hoenn maps made with Tiled (.tmx), placed by hoenn.world
 ├── copyrighted/              Source textures and audio from the Pokémon games

@@ -1,0 +1,37 @@
+---
+title: Make a game with an AI agent
+description: Hand the agent guide to Claude, ChatGPT or any coding agent, and import the game it writes.
+---
+
+A DreamMist game is a single `.city.json` file: the maps, people, wild Pokémon, story and weather are all plain data. So an AI agent can write a whole game for you, and you import it like any other city.
+
+## 1. Give the agent the guide
+
+The guide explains the file format, the tiles, people, story, doors and routes, and includes a builder script the agent runs to make the file.
+
+- **Link**: [/agents.md](/agents.md). Agents that can browse can read it straight from your DreamMist site.
+- **File**: open the link, save it, and attach `agents.md` to your chat.
+
+## 2. Ask for your game
+
+Describe the game you want. The more you say about places, people and story, the better. For example:
+
+> Using the DreamMist agent guide, make me a game: a foggy fishing village with a Pokémon Center and a Mart, a forest route full of bug catchers and Wurmple, a Water-type gym run by an old sailor, and a side quest about a lost Wingull. Night time in the forest.
+
+> Using the DreamMist agent guide, make a snowy mountain town at night with pine trees, a cave route with Zubat and Geodude, a rival who stops me at the cave entrance, and a legendary Pokémon waiting at the end.
+
+Agents that can run code follow the guide's steps: plan the game, write `build-town.mjs`, and run it to get the `.city.json` file. Others can write small maps by hand.
+
+## 3. Import it
+
+In the editor, open the city menu (or press <kbd>⌘</kbd> <kbd>K</kbd>) and choose **Your cities → Import file**, then pick the `.city.json` file. The game opens right away. Your current city stays saved in **Your cities**.
+
+Then check the **Problems** count in the bottom bar: it lists doors that lead nowhere, story steps nobody completes, routes nobody can reach and other mistakes. Click a problem to jump to it, fix it yourself, or paste the list back to the agent.
+
+## 4. Polish it in the editor
+
+The agent uses a small set of tiles. Once imported, it's a normal city: paint more details with the full tileset, move people, tweak dialogue, change the weather, then press **Play** to test and **Share** or **Publish** it.
+
+<Callout title="Ask for changes">
+  Keep the chat going: "make the gym harder", "add a second route to the east", "the town feels empty, add a park". The agent edits `build-town.mjs` and runs it again, and you import the new file.
+</Callout>

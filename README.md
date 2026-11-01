@@ -12,6 +12,10 @@ DreamMist is a browser-based town builder for Pokémon fans. Paint maps with the
 - **Together**: Google accounts, online saves, live building rooms, publish, Explore, likes and forks.
 - **Website**: landing page, Explore gallery and docs.
 
+## Make a game with an AI agent
+
+A game is one `.city.json` file, so an agent can write it. Give your agent [`public/agents.md`](public/agents.md) (served at `/agents.md`): it covers the file format, a tile catalog, people, story, doors and routes, and has a builder script that makes a complete game. Import the result from **Your cities → Import file**. A test (`tests/agents-guide.test.ts`) runs the guide's script and checks its game imports with no problems.
+
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) with React, [Tailwind CSS](https://tailwindcss.com) and [shadcn/ui](https://ui.shadcn.com)
