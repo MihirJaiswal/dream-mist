@@ -1,5 +1,6 @@
 import { Dialogue } from "@/components/site/landing/dialogue";
 import { Cloud, Ledge, PixelButton, Sticker } from "@/components/site/landing/pixel";
+import { StoryScrolls } from "@/components/site/landing/story-scrolls";
 import { LatestCities } from "@/components/site/latest-cities";
 import { edit } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -172,41 +173,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Story: a parchment scroll */}
+      {/* Story: one scroll per starter, click a side one to read it */}
       <section className="px-4 py-16">
-        <div className="relative mx-auto max-w-4xl">
-          <div className="absolute -left-3 -top-4 bottom-[-16px] w-8 stepped bg-[#c99a5b] shadow-[inset_-6px_0_0_#9c6b33] sm:-left-6 sm:w-10" aria-hidden="true" />
-          <div className="absolute -right-3 -top-4 bottom-[-16px] w-8 stepped bg-[#c99a5b] shadow-[inset_6px_0_0_#9c6b33] sm:-right-6 sm:w-10" aria-hidden="true" />
-          <div className="stepped relative bg-[#ecd3a3] px-6 py-8 text-[#4a2e14] shadow-[inset_0_0_0_4px_#d9b77d] sm:px-12">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Anim id={252} w={43} h={63} scale={1} className="h-auto w-12" />
-                <div>
-                  <h2 className="font-pixel text-[22px] leading-none sm:text-[28px]">The story</h2>
-                  <p className="mt-1 font-game text-[14px] text-[#7a5430]">The world opens up, step by step</p>
-                </div>
-              </div>
-              <span className="font-pixel text-[13px] text-[#a0662e]">Main story · Side quests</span>
-            </div>
-            <ol className="mt-6 grid gap-3 sm:grid-cols-3">
-              {[
-                { name: "Meet the Professor", detail: "Gives you 5 Poké Balls", done: true },
-                { name: "Beat your rival", detail: "Wally steps out of the way", done: true },
-                { name: "Win the Mist Badge", detail: "The boulder north disappears", done: false },
-              ].map(({ name, detail, done }, i) => (
-                <li key={name} className="stepped bg-[#f6e6c4] p-3 shadow-[inset_0_0_0_3px_#d9b77d]">
-                  <span className={cn("font-pixel text-[11px]", done ? "text-[#3f8a3a]" : "text-[#a0662e]")}>{done ? "✓ Done" : `Step ${i + 1}`}</span>
-                  <p className="mt-1 font-game text-[16px] font-bold leading-tight">{name}</p>
-                  <p className="mt-1 font-game text-[13px] text-[#7a5430]">{detail}</p>
-                </li>
-              ))}
-            </ol>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-              <p className="max-w-[44ch] font-game text-[15px] leading-relaxed">Block roads with trees, boulders or people, choose who opens them, and add side quests the player finds on the way. A Journal tells them what to do next.</p>
-              <PixelButton href="/docs/story" tone="wood">Write your story</PixelButton>
-            </div>
-          </div>
-        </div>
+        <StoryScrolls />
       </section>
 
       {/* Catching: the party wall */}
@@ -234,7 +203,7 @@ export default function Home() {
       {/* Everything else: feature cards and stats */}
       <section className="px-4 py-20">
         <Heading lead="No code, all in your browser">Everything a <Pink>Pokémon game</Pink> needs.</Heading>
-        <div className="mx-auto mt-14 grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto mt-14 grid max-w-7xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <Feature number={1} accent="#f06aa6" title="Paint real Hoenn tiles" image="/site/maps/petalburg-city.png" place="Petalburg City">Houses, Pokémon Centers and trees, terrains that draw their own borders, or your own tileset.</Feature>
           <Feature number={2} accent="#b9a6ff" title="Join routes and towns" image="/site/maps/rustboro-city.png" place="Rustboro City">Put routes and other towns side by side, and walk from one to the next across their edges.</Feature>
           <Feature number={3} accent="#5ee07a" title="Start from real places" image="/site/maps/fortree-city.png" place="Fortree City">Begin from any of the 60 towns and routes of Hoenn, or from a blank field.</Feature>

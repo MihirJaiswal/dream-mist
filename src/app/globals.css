@@ -72,6 +72,13 @@
   color-scheme: dark;
 }
 
+/* Docs sidebar matches the site header */
+#nd-sidebar,
+#nd-sidebar-mobile {
+  background-color: #0d0720;
+  border-color: #2d1a52;
+}
+
 /* Docs: pixel headings like the rest of the site, body text stays easy to read */
 .docs-night h1,
 .docs-night .prose :is(h2, h3) {
@@ -242,6 +249,49 @@ kbd {
   background: #8a4f24;
   color: #fbe8c8;
 }
+/* Story scrolls: rollers sit just outside the parchment; a newly picked story unrolls from the middle */
+.roller-left {
+  left: -0.75rem;
+}
+.roller-right {
+  right: -0.75rem;
+}
+@media (min-width: 640px) {
+  .roller-left {
+    left: -1.5rem;
+  }
+  .roller-right {
+    right: -1.5rem;
+  }
+}
+@keyframes roller-left {
+  from { left: calc(50% - 1.25rem); }
+}
+@keyframes roller-right {
+  from { right: calc(50% - 1.25rem); }
+}
+@keyframes unroll {
+  from { clip-path: inset(0 50% 0 50%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.unrolling .roller-left {
+  animation: roller-left 0.55s steps(10) both;
+}
+.unrolling .roller-right {
+  animation: roller-right 0.55s steps(10) both;
+}
+.unrolling .unroll {
+  animation: unroll 0.55s steps(10) both;
+}
+/* A side scroll's starter hops in when it changes */
+@keyframes hop {
+  0%, 100% { translate: 0 0; }
+  40% { translate: 0 -14px; }
+}
+.hop {
+  animation: hop 0.4s steps(4);
+}
+
 /* Stone blocks with a lit top edge */
 .pixel-ledge {
   height: 40px;
