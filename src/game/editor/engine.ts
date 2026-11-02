@@ -2,8 +2,10 @@
 import * as PIXI from "pixi.js";
 import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
 import { brushes, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
-import { type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, uid } from "../data";
-import type { CityMap } from "../map";
+import { arrow, ICE } from "../behaviors";
+import { type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
+import { type CityMap, drawBall } from "../map";
+import { reindex } from "../scripts";
 import { collides, isOutdoor, type Side, spot } from "../region";
 import { scaleOf } from "../sprites";
 import { custom as sheets, decode, encode, range } from "../tilesets";
@@ -54,6 +56,12 @@ export class EditorEngine {
   #target: Target = "ground";
   #stamp: Stamp = { w: 1, h: 1, tiles: [0] };
   #zone = 1;
+  /** Collision brush: blocked tiles (0) or a tile behavior */
+  #collision = 0;
+  /** Selected trigger on the Events layer (-1 = none) */
+  #trigger = -1;
+  /** Trigger area being dragged out, or a trigger being moved */
+  #framing = null as null | { from: { x: number; y: number } } | { index: number; dx: number; dy: number; before: string };
   #auto = storage.get("auto-solid", true);
   #random = false;
   #selected = -1;
@@ -161,6 +169,12 @@ export class EditorEngine {
   }
   get zone() {
     return this.#zone;
+  }
+  get collision() {
+    return this.#collision;
+  }
+  get trigger() {
+    return this.#trigger;
   }
   get auto() {
     return this.#auto;
@@ -287,6 +301,7 @@ export class EditorEngine {
     this.#blocking = "";
     this.#map.overlays.cursor.clear();
     this.#map.overlays.solid.visible = false;
+    this.#map.overlays.behavior.visible = false;
     this.#map.overlays.zone.visible = false;
     this.#map.overlays.gate.visible = false;
     this.#map.overlays.grid.visible = false;
@@ -354,6 +369,7 @@ export class EditorEngine {
     this.#target = target;
     this.#selected = -1;
     this.#door = -1;
+    this.#trigger = -1;
     if (placing.includes(target) && this.#tool !== "brush") {
       this.#tool = "brush";
     }
@@ -544,7 +560,7 @@ export class EditorEngine {
 
   /** Grid painted on a gameplay target */
   get #gridOf(): Grid {
-    return this.#target === "zone" ? "zone" : this.#target === "story" ? "gate" : "solid";
+    return this.#target === "zone" ? "zone" : this.#target === "story" ? "gate" : this.#collision ? "behavior" : "solid";
   }
 
   /** Tile layer being edited (null on gameplay targets) */
@@ -554,7 +570,15 @@ export class EditorEngine {
 
   /** Values of a grid */
   #grid(grid: Grid) {
-    return grid === "solid" ? this.#city.solid : grid === "zone" ? this.#city.zone : grid === "gate" ? this.#city.gate : this.#city.layers[grid];
+    return grid === "solid"
+      ? this.#city.solid
+      : grid === "behavior"
+        ? this.#city.behavior
+        : grid === "zone"
+          ? this.#city.zone
+          : grid === "gate"
+            ? this.#city.gate
+            : this.#city.layers[grid];
   }
 
   /** Apply a cell change within the current stroke */
@@ -579,7 +603,7 @@ export class EditorEngine {
     if (emit) {
       this.onedit?.([[grid, index, value]]);
     }
-    if (grid === "solid" || grid === "zone" || grid === "gate") {
+    if (grid === "solid" || grid === "behavior" || grid === "zone" || grid === "gate") {
       this.#grid(grid)[index] = value;
       this.#redrawOverlays();
     } else {
@@ -593,6 +617,7 @@ export class EditorEngine {
       this.#pending = requestAnimationFrame(() => {
         this.#pending = 0;
         this.#map.drawSolid();
+        this.#map.drawBehaviors();
         this.#map.drawZones();
         this.#map.drawGates();
         this.#map.drawBlockers();
@@ -605,12 +630,23 @@ export class EditorEngine {
     if (this.#tool === "erase") {
       return 0;
     }
-    return this.#target === "zone" ? this.#zone : this.#target === "story" ? this.#step : 1;
+    return this.#target === "zone" ? this.#zone : this.#target === "story" ? this.#step : this.#collision || 1;
   }
 
   /** Paint the stamp at a position (pattern origin used for rectangle and fill tiling) */
   #paint(x: number, y: number, origin = { x, y }) {
     const layer = this.layer;
+    if (this.#target === "solid") {
+      //Erasing clears both blocked tiles and behaviors; ice and push tiles must be walkable
+      if (this.#tool === "erase") {
+        this.#set("solid", x, y, 0);
+        return this.#set("behavior", x, y, 0);
+      }
+      if (this.#collision === ICE || arrow(this.#collision)) {
+        this.#set("solid", x, y, 0);
+      }
+      return this.#set(this.#gridOf, x, y, this.#value());
+    }
     if (!layer) {
       return this.#set(this.#gridOf, x, y, this.#value());
     }
@@ -973,7 +1009,8 @@ export class EditorEngine {
     if (tool) {
       return this.setTool(tool.key);
     }
-    if (Number(key) >= 1 && Number(key) <= targets.length) {
+    //1 to 9 pick a layer (0 fits the map, so later layers have no number)
+    if (Number(key) >= 1 && Number(key) <= Math.min(9, targets.length)) {
       return this.select(targets[Number(key) - 1].key);
     }
     if (key === "g") {
@@ -997,6 +1034,9 @@ export class EditorEngine {
     }
     if ((key === "delete" || key === "backspace") && this.#selected >= 0) {
       this.deleteNpc();
+    }
+    if ((key === "delete" || key === "backspace") && this.#target === "event" && this.#trigger >= 0) {
+      this.deleteTrigger();
     }
   };
 
@@ -1153,7 +1193,7 @@ export class EditorEngine {
       }
       clip.grids[grid].forEach((value, i) => {
         //Empty tiles are transparent, collision and encounters are copied as is
-        if (value || grid === "solid" || grid === "zone") {
+        if (value || grid === "solid" || grid === "behavior" || grid === "zone") {
           this.#set(grid, x + (i % clip.w), y + Math.floor(i / clip.w), value);
         }
       });
@@ -1523,7 +1563,13 @@ export class EditorEngine {
 
   /** People of the whole city using a step in a story setting */
   people(key: keyof NpcStory, id: string) {
-    return [this.#world, ...this.#world.interiors].flatMap((map) => map.npcs.filter((npc) => npc.story?.[key] === id).map((npc) => npc.name || "Someone"));
+    const scripted = (actions: { do: string; step?: string }[] = []) =>
+      key === "completes" && actions.some((action) => action.do === "step" && action.step === id);
+    return [this.#world, ...this.#world.interiors].flatMap((map) => [
+      ...map.npcs.filter((npc) => npc.story?.[key] === id || scripted(npc.script?.actions)).map((npc) => npc.name || "Someone"),
+      //Event areas completing it in their script
+      ...map.triggers.filter((trigger) => scripted(trigger.actions)).map((trigger) => `event "${trigger.name || "Event"}"`),
+    ]);
   }
 
   /** Gate tiles of a step on every map */
@@ -1692,7 +1738,11 @@ export class EditorEngine {
     if (index < 0) {
       return;
     }
-    this.mutate(() => this.#city.npcs.splice(index, 1));
+    this.mutate(() => {
+      this.#city.npcs.splice(index, 1);
+      //Scripts about them forget them, and follow the people after them
+      reindex(this.#city, index);
+    });
     this.#selected = -1;
     this.#pathing = -1;
     this.#markersRefresh();
@@ -1709,6 +1759,9 @@ export class EditorEngine {
 
   /** Place, select and move people, doors and the spawn */
   #placing(type: "down" | "move" | "up", tile: { x: number; y: number }) {
+    if (this.#target === "event") {
+      return this.#framingTrigger(type, tile);
+    }
     const { x, y } = tile;
     if (!this.#map.inside(tile)) {
       return;
@@ -1776,6 +1829,123 @@ export class EditorEngine {
       }
       this.#notify();
     }
+  }
+
+  //=================================================================================================
+  // Events
+
+  /** Choose the Collision brush: blocked tiles (0) or a tile behavior */
+  setCollision(value: number) {
+    this.#collision = value;
+    if (this.#tool !== "erase" && this.#tool !== "rect" && this.#tool !== "fill") {
+      this.#tool = "brush";
+    }
+    this.#notify();
+  }
+
+  /** Select a trigger (-1 = none) */
+  selectTrigger(index: number) {
+    this.#trigger = index;
+    this.#markersRefresh();
+    this.#notify();
+  }
+
+  /** Edit a trigger in the Events panel (switches to the Events layer) */
+  editTrigger(index: number) {
+    this.select("event");
+    this.selectTrigger(index);
+  }
+
+  /** Remove the selected trigger */
+  deleteTrigger() {
+    const index = this.#trigger;
+    if (index < 0) {
+      return;
+    }
+    this.mutate(() => this.#city.triggers.splice(index, 1));
+    this.#trigger = -1;
+    this.#markersRefresh();
+    this.#notify();
+  }
+
+  /** Move or resize the selected trigger (kept inside the map) */
+  frameTrigger(patch: Partial<Pick<Trigger, "x" | "y" | "w" | "h">>) {
+    const trigger = this.#city.triggers[this.#trigger];
+    if (!trigger) {
+      return;
+    }
+    const { width, height } = this.#city;
+    this.mutate(() => {
+      Object.assign(trigger, patch);
+      trigger.x = Math.max(0, Math.min(width - 1, trigger.x));
+      trigger.y = Math.max(0, Math.min(height - 1, trigger.y));
+      trigger.w = Math.max(1, Math.min(width - trigger.x, trigger.w));
+      trigger.h = Math.max(1, Math.min(height - trigger.y, trigger.h));
+    });
+  }
+
+  /** Trigger under a tile (the last one drawn wins) */
+  #triggerAt({ x, y }: { x: number; y: number }) {
+    return this.#city.triggers.findLastIndex((t) => x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h);
+  }
+
+  /** Drag an area to add a trigger, or drag a trigger to move it */
+  #framingTrigger(type: "down" | "move" | "up", tile: { x: number; y: number }) {
+    const clamp = ({ x, y }: { x: number; y: number }) => ({
+      x: Math.max(0, Math.min(this.#city.width - 1, x)),
+      y: Math.max(0, Math.min(this.#city.height - 1, y)),
+    });
+    const { x, y } = clamp(tile);
+    if (type === "down") {
+      if (!this.#map.inside(tile)) {
+        return;
+      }
+      const at = this.#triggerAt(tile);
+      if (at >= 0) {
+        const trigger = this.#city.triggers[at];
+        this.#framing = { index: at, dx: x - trigger.x, dy: y - trigger.y, before: this.#state() };
+        this.selectTrigger(at);
+      } else {
+        this.#framing = { from: { x, y } };
+        this.#map.cursor(x, y, 1, 1, 0xb76df0);
+      }
+      return;
+    }
+    const framing = this.#framing;
+    if (!framing) {
+      return;
+    }
+    if ("from" in framing) {
+      const { from } = framing;
+      const area = { x: Math.min(from.x, x), y: Math.min(from.y, y), w: Math.abs(x - from.x) + 1, h: Math.abs(y - from.y) + 1 };
+      if (type === "move") {
+        this.#map.cursor(area.x, area.y, area.w, area.h, 0xb76df0);
+        return;
+      }
+      this.#framing = null;
+      this.#map.overlays.cursor.clear();
+      const trigger: Trigger = { id: uid(), ...area, name: `Event ${this.#city.triggers.length + 1}`, once: true, actions: [] };
+      this.mutate(() => this.#city.triggers.push(trigger));
+      this.selectTrigger(this.#city.triggers.length - 1);
+      return;
+    }
+    const trigger = this.#city.triggers[framing.index];
+    if (!trigger) {
+      this.#framing = null;
+      return;
+    }
+    if (type === "move") {
+      trigger.x = Math.max(0, Math.min(this.#city.width - trigger.w, x - framing.dx));
+      trigger.y = Math.max(0, Math.min(this.#city.height - trigger.h, y - framing.dy));
+      this.#markersRefresh();
+      return;
+    }
+    this.#framing = null;
+    const after = this.#state();
+    if (after !== framing.before) {
+      this.#push({ snapshot: { before: framing.before, after } });
+    }
+    this.#notify();
   }
 
   //=================================================================================================
@@ -1868,24 +2038,28 @@ export class EditorEngine {
 
   /** Apply a snapshot-tracked change (people, spawn, zones, story and doors) as one undo step */
   mutate(fn: () => void) {
-    const snapshot = () =>
-      JSON.stringify({
-        npcs: this.#city.npcs,
-        spawn: this.#city.spawn,
-        zones: this.#city.zones,
-        story: this.#city.story,
-        quests: this.#city.quests,
-        doors: this.#city.doors,
-      });
-    const before = snapshot();
+    const before = this.#state();
     fn();
-    const after = snapshot();
+    const after = this.#state();
     if (before !== after) {
       this.#push({ snapshot: { before, after } });
     }
     this.#markersRefresh();
     this.#map.drawBlockers();
     this.#notify();
+  }
+
+  /** Snapshot of what `mutate` tracks */
+  #state() {
+    return JSON.stringify({
+      npcs: this.#city.npcs,
+      spawn: this.#city.spawn,
+      zones: this.#city.zones,
+      story: this.#city.story,
+      quests: this.#city.quests,
+      doors: this.#city.doors,
+      triggers: this.#city.triggers,
+    });
   }
 
   /** Save a change made directly on the city without an undo step (sliders while dragging) */
@@ -1904,6 +2078,7 @@ export class EditorEngine {
       story: this.#city.story,
       quests: this.#city.quests,
       doors: this.#city.doors,
+      triggers: this.#city.triggers,
     });
   }
 
@@ -1949,6 +2124,9 @@ export class EditorEngine {
       Object.assign(this.#city, JSON.parse(entry.snapshot[direction]));
       this.#emitMeta();
       this.#selected = -1;
+      if (this.#trigger >= this.#city.triggers.length) {
+        this.#trigger = -1;
+      }
       this.#markersRefresh();
       this.#map.drawZones();
       this.#map.drawBlockers();
@@ -1980,8 +2158,9 @@ export class EditorEngine {
 
   /** Overlay visibility depends on the target */
   #overlaysRefresh() {
-    const { solid, zone, gate } = this.#map.overlays;
+    const { solid, behavior, zone, gate } = this.#map.overlays;
     solid.visible = (this.#target === "solid" || this.#target === "decor") && !this.#hidden.has("solid");
+    behavior.visible = (this.#target === "solid" || this.#target === "event") && !this.#hidden.has("solid");
     zone.visible = this.#target === "zone" && !this.#hidden.has("zone");
     gate.visible = (this.#target === "story" || this.#target === "door") && !this.#hidden.has("story");
     for (const layer of layers) {
@@ -2015,6 +2194,18 @@ export class EditorEngine {
     this.#drawRoutes();
     const step = this.#city.story.find(({ n }) => n === this.#step);
     this.#city.npcs.forEach((npc, i) => {
+      //Item balls (hidden items show faded)
+      if (npc.role === "item") {
+        const ball = this.#markers.addChild(drawBall(new PIXI.Graphics(), npc.x * size + size / 2, npc.y * size + size / 2 + 1, npc.hidden));
+        ball.zIndex = npc.y;
+        if (this.#target === "npc" && i === this.#selected) {
+          const ring = this.#markers.addChild(
+            new PIXI.Graphics().lineStyle({ width: 1, color: 0xffdc00, native: true }).drawRect(npc.x * size, npc.y * size, size, size),
+          );
+          ring.zIndex = 9999;
+        }
+        return;
+      }
       const look = npc.creature ? creatureSprite(npc.creature.species, npc.creature.look) : null;
       const marker = this.#markers.addChild(new PIXI.Sprite(look ? look.texture : npc.sprite ? texture(npc.sprite, npc.dir) : PIXI.Texture.WHITE));
       if (look) {
@@ -2071,6 +2262,25 @@ export class EditorEngine {
         .lineTo(door.x * size + 8, door.y * size + 11);
       marker.zIndex = 9998;
     });
+    //Event areas (on the Events layer)
+    if (this.#target === "event") {
+      this.#city.triggers.forEach((trigger, i) => {
+        const selected = i === this.#trigger;
+        const area = this.#markers.addChild(new PIXI.Graphics());
+        area
+          .beginFill(0xb76df0, selected ? 0.35 : 0.2)
+          .lineStyle({ width: 1, color: selected ? 0xf2bf4b : 0xd9b3ff, alpha: 1, native: true })
+          .drawRect(trigger.x * size, trigger.y * size, trigger.w * size, trigger.h * size)
+          .endFill();
+        area.zIndex = 9997;
+        const name = this.#markers.addChild(
+          new PIXI.Text(trigger.name || "Event", { fontSize: 24, fontWeight: "bold", fill: 0xffffff, stroke: 0x2a1640, strokeThickness: 5 }),
+        );
+        name.scale.set(0.25);
+        name.position.set(trigger.x * size + 2, trigger.y * size + 1);
+        name.zIndex = 9999;
+      });
+    }
     const { x, y } = this.#city.spawn;
     const spawn = this.#markers.addChild(new PIXI.Sprite(texture("may", "down")));
     spawn.anchor.set(0.5, 1);

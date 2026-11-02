@@ -135,7 +135,7 @@ export function CommandPalette() {
             </CommandGroup>
             <CommandGroup heading="Layers">
               {targets.map(({ key, label, hint }, i) =>
-                item(`layer-${key}`, `${label} layer`, <Stack />, async () => (await edit(), editor.select(key)), `${i + 1}`, [hint]),
+                item(`layer-${key}`, `${label} layer`, <Stack />, async () => (await edit(), editor.select(key)), i < 9 ? `${i + 1}` : undefined, [hint]),
               )}
             </CommandGroup>
             <CommandGroup heading="Stamps">

@@ -23,12 +23,14 @@ type City = {
     above: number[];
   };
   solid: number[]; // 1 = blocked
+  behavior: number[]; // tile behaviors, see below (0 = normal)
   zone: number[]; // 0 = none, n = zones[n - 1]
   gate: number[]; // 0 = open, n = the story step whose `n` is n
   zones: Zone[];
   npcs: Npc[];
   spawn: { x: number; y: number };
   doors: Door[];
+  triggers: Trigger[]; // event areas that play a script when stepped in
   story: Step[]; // main story and side quest steps, in order within each
   quests: Quest[]; // side quests
   interiors: City[]; // interiors and outdoor maps, same shape, without story, quests, zones, tilesets, music
@@ -53,6 +55,16 @@ Every grid is a flat array of `width × height` numbers. The tile at column `x` 
 | `0`                           | Empty                                                  |
 | `1` to `9999`                 | Built-in Hoenn tileset: frame number + 1               |
 | `(k + 1) × 10000 + frame + 1` | Frame of the custom tileset at index `k` in `tilesets` |
+
+## Tile behaviors
+
+| `behavior`  | Tile                                                  |
+| ----------- | ----------------------------------------------------- |
+| `0`         | Normal                                                |
+| `1` to `4`  | Ledge jumped down, up, left, right                    |
+| `5`         | Surf water (crossed on a Water type, ignores `solid`) |
+| `6`         | Ice                                                   |
+| `7` to `10` | Push tile moving the player up, down, left, right     |
 
 ## Story steps
 
@@ -86,9 +98,11 @@ type Npc = {
   dir: "up" | "down" | "left" | "right";
   name: string;
   dialogue: string; // an empty line starts a new page
-  role: "talk" | "trainer" | "healer" | "wild" | "shop"; // "wild": a Pokémon to battle and catch, "shop": a Poké Mart clerk
+  role: "talk" | "trainer" | "healer" | "wild" | "shop" | "item"; // "wild": a Pokémon to battle and catch, "shop": a Poké Mart clerk, "item": an item ball holding `gift`
   shop?: ItemId[]; // what a clerk sells, everything when not set
-  gift?: { item: ItemId; count: number }; // given the first time the player talks to them
+  gift?: { item: ItemId; count: number }; // given the first time the player talks to them (or found in an item)
+  hidden?: boolean; // an item hidden on the ground instead of a ball
+  script?: { actions: Action[]; once: boolean }; // plays instead of their usual part when talked to
   approach?: boolean; // walks up to the player and talks the first time they see them
   wander: boolean;
   path?: {
@@ -116,6 +130,39 @@ type Npc = {
 
 // "poke-ball" | "great-ball" | "potion" | "super-potion" | "full-heal"
 type ItemId = string;
+```
+
+## Events and scripts
+
+```ts
+type Trigger = {
+  id: string;
+  x: number; // top-left tile of the area
+  y: number;
+  w: number;
+  h: number;
+  name: string;
+  once: boolean; // plays only the first time, per player
+  after?: string; // only once this step is done
+  until?: string; // no more once this step is done
+  actions: Action[];
+};
+
+// `who` is someone's index in the map's `npcs`, or "player"
+type Action =
+  | { do: "say"; text: string; who?: number } // no `who`: narration
+  | { do: "come"; who: number } // notice the player and walk up to them
+  | { do: "move"; who: number | "player"; steps: ("up" | "down" | "left" | "right")[] }
+  | { do: "face"; who: number | "player"; dir: "up" | "down" | "left" | "right" }
+  | { do: "back"; who: number } // walk back to where they stand
+  | { do: "wait"; seconds: number } // 0 to 10
+  | { do: "battle"; who: number } // a trainer or wild Pokémon of the map, stops the script if the player loses
+  | { do: "give"; item: ItemId; count: number }
+  | { do: "pokemon"; species: number; level: number }
+  | { do: "money"; amount: number }
+  | { do: "heal" }
+  | { do: "step"; step: string } // complete a story step
+  | { do: "warp"; to: string; x: number; y: number }; // map id ("" = outside) and tile, ends the script
 ```
 
 ## Zones, doors and tilesets

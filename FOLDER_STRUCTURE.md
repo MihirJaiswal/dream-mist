@@ -19,10 +19,12 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── map.ts            Draws a city with PixiJS: layers, zoom, drag, overlays
 │   │   ├── region.ts         Routes and towns joined at their edges: positions, neighbors, crossing an edge
 │   │   ├── atmosphere.ts     Weather and time of day drawn over the map in play mode
-│   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers
+│   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers, tile behaviors, scripts
+│   │   ├── behaviors.ts      Tile behaviors painted on the Collision layer: ledges, surf water, ice, push tiles
+│   │   ├── scripts.ts        Event script actions: their names, checking imported ones, fixing them when people are removed
 │   │   ├── battle.ts         Battles: damage, stat changes, conditions, catching, turns. Keeps a `view` the React battle screen draws
 │   │   ├── story.ts          Story lanes: main story and side quests, the Journal and progress banners
-│   │   ├── problems.ts       Finds what's broken in a town (doors, people, spawn, zones, story) for the Problems list
+│   │   ├── problems.ts       Finds what's broken in a town (doors, people, events, spawn, zones, story) for the Problems list
 │   │   ├── trainer.ts        Your trainer and party: stats, levels, moves, evolution, bag and money
 │   │   ├── items.ts          Items sold in the Poké Mart: balls, potions, Full Heal
 │   │   ├── data.ts           City format, browser saves, share codes, resizing and repairing cities
@@ -94,6 +96,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 | A panel, dialog or button in the editor  | `src/components/editor/`                                                                                          |
 | What a tool does on the map              | `src/game/editor/engine.ts`                                                                                       |
 | Walking, talking, doors, encounters      | `src/game/play.ts`                                                                                                |
+| Ledges, surf, ice and push tiles         | `src/game/behaviors.ts` (values), `src/game/play.ts` (movement), `drawBehaviors` in `src/game/map.ts`             |
+| Event script actions                     | `src/game/scripts.ts`, `#act` in `src/game/play.ts`, `src/components/editor/script-editor.tsx`                    |
 | Battle rules                             | `src/game/battle.ts` and `src/game/trainer.ts`                                                                    |
 | The city file format                     | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`)                                          |
 | Saving, accounts, Explore                | `src/game/cloud.ts` and `supabase/migrations/`                                                                    |

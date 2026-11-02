@@ -1,5 +1,5 @@
 //Imports
-import type { City } from "./data";
+import type { Action, City } from "./data";
 import type { Target } from "./editor/constants";
 import { edge, outdoors, type Placed, reachable as joined } from "./region";
 import { questOf, stepLabel } from "./story";
@@ -20,9 +20,10 @@ export type Problem = {
   layer: Target;
   /** Tile to look at */
   at?: { x: number; y: number };
-  /** Person, door or story step to select */
+  /** Person, door, event or story step to select */
   npc?: number;
   door?: number;
+  trigger?: number;
   step?: number;
 };
 
@@ -110,7 +111,9 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
         found.push({ kind: "error", text: `${who} is a trainer with no Pokémon`, map: id(map), layer: "npc", at, npc: index });
       } else if (npc.creature && !valid(npc.creature.species)) {
         found.push({ kind: "error", text: `${who} at ${at.x}, ${at.y} isn't a real Pokémon`, map: id(map), layer: "npc", at, npc: index });
-      } else if (["talk", "healer"].includes(npc.role) && silent(npc.dialogue)) {
+      } else if (npc.role === "item" && !npc.gift?.count) {
+        found.push({ kind: "error", text: `Item at ${at.x}, ${at.y} holds nothing`, map: id(map), layer: "npc", at, npc: index });
+      } else if (["talk", "healer"].includes(npc.role) && silent(npc.dialogue) && !npc.script?.actions.length) {
         found.push({
           kind: "warning",
           text: npc.sprite || npc.creature ? `${who} at ${at.x}, ${at.y} has nothing to say` : `Sign at ${at.x}, ${at.y} is blank`,
@@ -119,6 +122,51 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
           at,
           npc: index,
         });
+      }
+    });
+  }
+
+  //Scripts: of people, and of event areas
+  const known = new Set(city.story.map(({ id }) => id));
+  const check = (map: City, actions: Action[], where: string, focus: Pick<Problem, "layer" | "at" | "npc" | "trigger">) => {
+    const issue = actions
+      .map((action): string | null => {
+        const someone = "who" in action && typeof action.who === "number" ? map.npcs[action.who] : undefined;
+        if ("who" in action && typeof action.who === "number" && (!someone || someone.role === "item")) {
+          return "is about someone who isn't on the map anymore";
+        }
+        if (action.do === "battle" && !(someone?.role === "trainer" && someone.trainer?.team.length) && someone?.role !== "wild") {
+          return "battles someone who isn't a trainer";
+        }
+        if (action.do === "step" && !known.has(action.step)) {
+          return action.step ? "completes a story step that was deleted" : "completes a story step that isn't chosen";
+        }
+        if (action.do === "warp" && !exists(action.to)) {
+          return "warps to a deleted map";
+        }
+        return null;
+      })
+      .find(Boolean);
+    if (issue) {
+      found.push({ kind: "warning", text: `${where} ${issue}`, map: id(map), ...focus });
+    }
+  };
+  for (const map of maps) {
+    map.npcs.forEach((npc, index) => {
+      if (npc.script) {
+        const at = { x: npc.x, y: npc.y };
+        check(map, npc.script.actions, `The script of ${npc.name || "someone"} at ${at.x}, ${at.y}`, { layer: "npc", at, npc: index });
+      }
+    });
+    map.triggers.forEach((trigger, index) => {
+      const at = { x: trigger.x, y: trigger.y };
+      const focus = { layer: "event" as const, at, trigger: index };
+      if (!trigger.actions.length) {
+        found.push({ kind: "warning", text: `Event "${trigger.name || "Event"}" ${name(map)} does nothing yet`, map: id(map), ...focus });
+      } else if ((trigger.after && !known.has(trigger.after)) || (trigger.until && !known.has(trigger.until))) {
+        found.push({ kind: "warning", text: `Event "${trigger.name || "Event"}" ${name(map)} uses a story step that was deleted`, map: id(map), ...focus });
+      } else {
+        check(map, trigger.actions, `Event "${trigger.name || "Event"}" ${name(map)}`, focus);
       }
     });
   }
@@ -154,19 +202,28 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
   //Story: a step can happen once someone who completes it can be met (they appear and help only after steps that can happen)
   const steps = new Set(city.story.map(({ id }) => id));
   const people = maps.flatMap((map) => map.npcs.map((npc, index) => ({ npc, index, map })));
+  //Who completes each step, and what they wait for: people (by talking, or in their script) and event areas
+  const steps_ = (actions: Action[]) => actions.flatMap((action) => (action.do === "step" && action.step ? [action.step] : []));
+  const completers = [
+    ...people.flatMap(({ npc }) =>
+      [npc.story?.completes, ...steps_(npc.script?.actions ?? [])]
+        .filter((step): step is string => Boolean(step))
+        .map((step) => ({ step, needs: [npc.story?.after, npc.story?.requires] })),
+    ),
+    ...maps.flatMap((map) => map.triggers.flatMap((trigger) => steps_(trigger.actions).map((step) => ({ step, needs: [trigger.after] })))),
+  ];
   const reachable = new Set<string>();
   for (let changed = true; changed;) {
     changed = false;
-    for (const { npc } of people) {
-      const story = npc.story;
-      if (!story?.completes || reachable.has(story.completes)) {
+    for (const { step: completes, needs } of completers) {
+      if (reachable.has(completes)) {
         continue;
       }
       //A side quest's steps also wait until the quest starts
-      const step = city.story.find(({ id }) => id === story.completes);
+      const step = city.story.find(({ id }) => id === completes);
       const start = step ? questOf(city, step)?.after : undefined;
-      if ((!story.after || reachable.has(story.after)) && (!story.requires || reachable.has(story.requires)) && (!start || reachable.has(start))) {
-        reachable.add(story.completes);
+      if (needs.every((need) => !need || reachable.has(need)) && (!start || reachable.has(start))) {
+        reachable.add(completes);
         changed = true;
       }
     }
@@ -175,7 +232,7 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
     if (reachable.has(step.id)) {
       return;
     }
-    const completer = people.some(({ npc }) => npc.story?.completes === step.id);
+    const completer = completers.some(({ step: completes }) => completes === step.id);
     const start = questOf(city, step)?.after;
     const why = !completer
       ? "nobody completes it"

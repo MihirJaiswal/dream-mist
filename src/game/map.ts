@@ -4,10 +4,33 @@ import { Atmosphere, type Daytime, type Weather } from "./atmosphere";
 import { size, sprite } from "./assets";
 import { type City, type Layer, layers } from "./data";
 import { neighbors } from "./region";
+import { arrow, ICE, ledge, WATER } from "./behaviors";
 
 /** Display object */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Display = any;
+
+/** Draw an item ball centered on a point (hidden items are faded and dashed) */
+export function drawBall(graphic: PIXI.Graphics, cx: number, cy: number, hidden = false) {
+  const r = 5;
+  const alpha = hidden ? 0.45 : 1;
+  graphic
+    .lineStyle({ width: 1, color: 0x202020, alpha, native: true })
+    .beginFill(0xf4f4f4, alpha)
+    .drawCircle(cx, cy, r)
+    .endFill()
+    .beginFill(0xe03a3a, alpha)
+    .arc(cx, cy, r, Math.PI, 0)
+    .closePath()
+    .endFill()
+    .moveTo(cx - r, cy)
+    .lineTo(cx + r, cy)
+    .beginFill(0xf4f4f4, alpha)
+    .drawCircle(cx, cy, 1.5)
+    .endFill()
+    .lineStyle(0);
+  return graphic;
+}
 
 /** Pointer callback */
 export type PointerHandler = (type: "down" | "move" | "up", tile: { x: number; y: number }, event: PointerEvent) => void;
@@ -32,6 +55,7 @@ export class CityMap {
   /** Overlays */
   readonly overlays = {
     solid: new PIXI.Graphics(),
+    behavior: new PIXI.Graphics(),
     zone: new PIXI.Graphics(),
     gate: new PIXI.Graphics(),
     grid: new PIXI.Graphics(),
@@ -63,7 +87,7 @@ export class CityMap {
       this.containers[name] = this.world.addChild(new PIXI.Container());
     }
     this.containers.actors.sortableChildren = true;
-    for (const overlay of ["border", "zone", "gate", "solid", "grid", "cursor"] as const) {
+    for (const overlay of ["border", "zone", "gate", "solid", "behavior", "grid", "cursor"] as const) {
       this.containers.overlay.addChild(this.overlays[overlay]);
     }
     this.world.scale.set(3);
@@ -183,6 +207,7 @@ export class CityMap {
   /** Redraw all overlays */
   redraw() {
     this.drawSolid();
+    this.drawBehaviors();
     this.drawZones();
     this.drawGates();
     this.drawBlockers();
@@ -202,6 +227,71 @@ export class CityMap {
       (value, index) => value && solid.drawRect((index % this.city.width) * size + 2, Math.floor(index / this.city.width) * size + 2, size - 4, size - 4),
     );
     solid.endFill();
+  }
+
+  /** Draw tile behaviors overlay: ledge and push arrows, water waves, ice */
+  drawBehaviors() {
+    const { behavior } = this.overlays;
+    behavior.clear();
+    const { width } = this.city;
+    //Arrow pointing a direction inside a tile
+    const point = (x: number, y: number, dir: string, color: number) => {
+      const [cx, cy] = [x + size / 2, y + size / 2];
+      const tips = {
+        down: [cx - 4, cy - 2, cx + 4, cy - 2, cx, cy + 3],
+        up: [cx - 4, cy + 2, cx + 4, cy + 2, cx, cy - 3],
+        left: [cx + 2, cy - 4, cx + 2, cy + 4, cx - 3, cy],
+        right: [cx - 2, cy - 4, cx - 2, cy + 4, cx + 3, cy],
+      }[dir]!;
+      behavior.beginFill(color, 0.95).drawPolygon(tips).endFill();
+    };
+    (this.city.behavior ?? []).forEach((value, index) => {
+      if (!value) {
+        return;
+      }
+      const [x, y] = [(index % width) * size, Math.floor(index / width) * size];
+      const jump = ledge(value),
+        push = arrow(value);
+      if (jump) {
+        behavior
+          .beginFill(0xf2bf4b, 0.35)
+          .drawRect(x + 1, y + 1, size - 2, size - 2)
+          .endFill();
+        point(x, y, jump, 0xffe08a);
+      } else if (push) {
+        behavior
+          .beginFill(0xb76df0, 0.35)
+          .drawRect(x + 1, y + 1, size - 2, size - 2)
+          .endFill();
+        point(x, y, push, 0xe4c4ff);
+      } else if (value === WATER) {
+        behavior
+          .beginFill(0x3a8ee6, 0.4)
+          .drawRect(x + 1, y + 1, size - 2, size - 2)
+          .endFill();
+        behavior.lineStyle({ width: 1, color: 0xd6ecff, alpha: 0.9, native: true });
+        for (const dy of [5, 10]) {
+          behavior
+            .moveTo(x + 3, y + dy)
+            .lineTo(x + 6, y + dy - 2)
+            .lineTo(x + 9, y + dy)
+            .lineTo(x + 12, y + dy - 2);
+        }
+        behavior.lineStyle(0);
+      } else if (value === ICE) {
+        behavior
+          .beginFill(0xbfefff, 0.45)
+          .drawRect(x + 1, y + 1, size - 2, size - 2)
+          .endFill();
+        behavior
+          .lineStyle({ width: 1, color: 0xffffff, alpha: 0.9, native: true })
+          .moveTo(x + 4, y + 12)
+          .lineTo(x + 12, y + 4)
+          .moveTo(x + 4, y + 7)
+          .lineTo(x + 7, y + 4)
+          .lineStyle(0);
+      }
+    });
   }
 
   /** Draw encounter zones overlay */

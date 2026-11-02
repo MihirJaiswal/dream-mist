@@ -68,10 +68,13 @@ Open a person in the **People** layer and scroll to **Story**:
 
 1. If they **need** a step that isn't done, they say their waiting line, and nothing else happens.
 2. If their step is already done and they have something to **say afterwards**, they say it.
-3. Otherwise they say their **dialogue**. Trainers battle, and Nurses heal.
-4. If they **complete** a step that isn't done yet (and its side quest has started), it's done now: the reward is given, a banner shows what's next, gates open and people show up or leave.
+3. If they have a [script](/docs/events) (that hasn't played yet, when it plays only once), it plays instead of the next point.
+4. Otherwise they say their **dialogue**. Trainers battle, and Nurses heal.
+5. If they **complete** a step that isn't done yet (and its side quest has started), it's done now: the reward is given, a banner shows what's next, gates open and people show up or leave.
 
 Rewards are given once per player. A Pokémon reward goes to the party, or the PC box when the party has six.
+
+Steps can also be completed by a script's **Story step** action, like an event area where the rival runs up. See [Events and scripts](/docs/events).
 
 ## The Journal
 

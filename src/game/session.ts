@@ -297,6 +297,9 @@ export class Session {
     if (problem.door !== undefined) {
       this.editor.selectDoor(problem.door);
     }
+    if (problem.trigger !== undefined) {
+      this.editor.selectTrigger(problem.trigger);
+    }
     if (problem.step !== undefined) {
       this.editor.setStep(problem.step);
     }
@@ -694,11 +697,13 @@ export class Session {
       const values = target
         ? grid === "solid"
           ? target.solid
-          : grid === "zone"
-            ? target.zone
-            : grid === "gate"
-              ? target.gate
-              : target.layers[grid as "ground"]
+          : grid === "behavior"
+            ? target.behavior
+            : grid === "zone"
+              ? target.zone
+              : grid === "gate"
+                ? target.gate
+                : target.layers[grid as "ground"]
         : null;
       if (values && index >= 0 && index < values.length) {
         values[index] = value;
@@ -753,12 +758,12 @@ export class Session {
       handlers: {
         edit: (changes) => this.#remoteEdits(changes),
         meta: async (patch) => {
-          const { map = "", interiors, npcs, spawn, doors, ...shared } = patch as typeof patch & { interiors?: City[] };
+          const { map = "", interiors, npcs, spawn, doors, triggers, ...shared } = patch as typeof patch & { interiors?: City[] };
           Object.assign(this.city, shared);
-          //People, spawn and doors belong to one map
+          //People, spawn, doors and triggers belong to one map
           const target = area(this.city, map);
           if (target) {
-            Object.assign(target, Object.fromEntries(Object.entries({ npcs, spawn, doors }).filter(([, value]) => value !== undefined)));
+            Object.assign(target, Object.fromEntries(Object.entries({ npcs, spawn, doors, triggers }).filter(([, value]) => value !== undefined)));
           }
           if (interiors) {
             const current = this.area === this.city ? "" : this.area.id;

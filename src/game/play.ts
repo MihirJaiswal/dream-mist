@@ -2,8 +2,9 @@
 import * as PIXI from "pixi.js";
 import { artwork, creatureSprite, npc as texture, preview, size, species } from "./assets";
 import { frames } from "./brushes";
-import type { City, Direction, Door, Npc } from "./data";
-import type { CityMap } from "./map";
+import type { Action, City, Direction, Door, Npc, Trigger } from "./data";
+import { arrow, ICE, ledge, WATER } from "./behaviors";
+import { type CityMap, drawBall } from "./map";
 import { Battle } from "./battle";
 import { creatureImage, scaleOf } from "./sprites";
 import { create, trainer } from "./trainer";
@@ -33,6 +34,10 @@ class Actor {
   tx: number;
   ty: number;
   dir: Direction;
+  /** Where a ledge jump started (the actor hops up while jumping) */
+  jump = null as null | { x: number; y: number };
+  /** Sliding on ice: no walking frames */
+  sliding = false;
   readonly sprite: PIXI.Sprite;
   readonly name: string;
   /** Single texture of a Pokémon on the map (people use their walking frames) */
@@ -99,7 +104,7 @@ class Actor {
       this.y = this.ty;
     }
     if (!this.#still) {
-      this.sprite.texture = texture(this.name, this.dir, left > 0 ? (Math.floor(left * 4) % 2 ? 1 : 2) : 0);
+      this.sprite.texture = texture(this.name, this.dir, left > 0 && !this.sliding ? (Math.floor(left * 4) % 2 ? 1 : 2) : 0);
     }
     this.place();
     return !this.moving;
@@ -108,10 +113,18 @@ class Actor {
   /** Apply position to sprite */
   place() {
     //Pokémon hop a little while moving
-    const hop = this.#still && this.moving ? -Math.abs(Math.sin((this.x + this.y) * Math.PI)) * 3 : 0;
-    this.sprite.position.set(this.x * size + size / 2, (this.y + 1) * size + (this.#still ? 2 : 0) + hop);
+    let hop = this.#still && this.moving ? -Math.abs(Math.sin((this.x + this.y) * Math.PI)) * 3 : 0;
+    //A ledge jump arcs over two tiles
+    if (this.jump) {
+      const travelled = Math.abs(this.x - this.jump.x) + Math.abs(this.y - this.jump.y);
+      hop = -Math.sin((Math.min(2, travelled) / 2) * Math.PI) * 7;
+    }
+    this.sprite.position.set(this.x * size + size / 2, (this.y + 1) * size + (this.#still ? 2 : 0) + hop + this.lift);
     this.sprite.zIndex = this.y;
   }
+
+  /** Extra height (riding a Pokémon while surfing) */
+  lift = 0;
 
   /** Remove */
   destroy() {
@@ -184,6 +197,15 @@ export class Play {
   readonly #onedge: null | ((x: number, y: number, dir: Direction) => boolean);
   /** Next time a gate message may show again */
   #bump = 0;
+  /** Direction the player keeps moving in on their own (ice, push tiles) */
+  #force = null as Direction | null;
+  /** Surfing on a Pokémon, drawn under the player */
+  #surfing = false;
+  #mount = null as null | PIXI.Sprite;
+  /** A script is running: the player's scripted steps don't open doors or meet Pokémon */
+  #scene = false;
+  /** Item balls lying on the map */
+  readonly #balls = [] as { index: number; graphic: PIXI.Graphics }[];
 
   constructor(
     map: CityMap,
@@ -214,10 +236,11 @@ export class Play {
     return trainer.done(this.#world.id, step);
   }
 
-  /** Is a person present at this point of the story (wild Pokémon are gone once beaten or caught) */
+  /** Is a person present at this point of the story (wild Pokémon are gone once beaten or caught, items once picked up) */
   #present(data: Npc) {
     const story = data.story;
-    const gone = data.role === "wild" && this.#defeated(this.#city.npcs.indexOf(data));
+    const index = this.#city.npcs.indexOf(data);
+    const gone = (data.role === "wild" && this.#defeated(index)) || (data.role === "item" && this.#received(index));
     return !gone && (!story?.after || this.#done(story.after)) && (!story?.until || !this.#done(story.until));
   }
 
@@ -252,6 +275,9 @@ export class Play {
       };
       requestAnimationFrame(fade);
     }
+    for (const { index, graphic } of this.#balls) {
+      graphic.visible = this.#present(this.#city.npcs[index]);
+    }
     this.#map.drawBlockers(animate);
   }
 
@@ -264,6 +290,14 @@ export class Play {
     this.#grass = actors.addChild(new PIXI.Sprite(new PIXI.Texture(grass.baseTexture, new PIXI.Rectangle(grass.frame.x, grass.frame.y + 9, size, size - 9))));
     this.#grass.visible = false;
     this.#city.npcs.forEach((data, index) => {
+      if (data.role === "item") {
+        if (!data.hidden) {
+          const graphic = actors.addChild(drawBall(new PIXI.Graphics(), data.x * size + size / 2, data.y * size + size / 2 + 2));
+          graphic.zIndex = data.y;
+          this.#balls.push({ index, graphic });
+        }
+        return;
+      }
       if (!data.sprite && !data.creature) {
         return;
       }
@@ -289,6 +323,10 @@ export class Play {
       });
     });
     this.#refresh();
+    //Arriving on water (from a map surfed into): still surfing
+    if (this.#behavior(spawn.x, spawn.y) === WATER && this.#swimmer()) {
+      this.#mounted(true);
+    }
     this.#map.done = (step) => this.#done(step);
     this.#map.drawBlockers();
     this.#map.pannable = false;
@@ -307,6 +345,8 @@ export class Play {
     this.#player.destroy();
     this.#grass.destroy();
     this.#npcs.forEach(({ actor, bubble }) => (actor.destroy(), bubble?.destroy()));
+    this.#balls.forEach(({ graphic }) => graphic.destroy());
+    this.#mount?.destroy();
     this.#map.pannable = true;
     this.#map.done = () => false;
     this.#map.drawBlockers();
@@ -378,6 +418,11 @@ export class Play {
     }
   }
 
+  /** Behavior of a tile (0 = normal) */
+  #behavior(x: number, y: number) {
+    return this.#city.behavior?.[y * this.#city.width + x] ?? 0;
+  }
+
   /** Is a tile blocked */
   #blocked(x: number, y: number, self?: Actor) {
     if (!this.#map.inside({ x, y })) {
@@ -386,15 +431,97 @@ export class Play {
     if (this.#city.solid[y * this.#city.width + x]) {
       return true;
     }
-    if (this.#gate(x, y)) {
+    //People and Pokémon of the map stay off ledges and deep water
+    const behavior = this.#behavior(x, y);
+    if (self !== this.#player && (behavior === WATER || ledge(behavior))) {
       return true;
     }
+    return Boolean(this.#gate(x, y)) || this.#occupied(x, y, self);
+  }
+
+  /** Is someone (or an item ball) on a tile */
+  #occupied(x: number, y: number, self?: Actor) {
     for (const actor of [this.#player, ...this.#npcs.filter(({ hidden }) => !hidden).map(({ actor }) => actor)]) {
       if (actor !== self && ((Math.round(actor.x) === x && Math.round(actor.y) === y) || (actor.tx === x && actor.ty === y))) {
         return true;
       }
     }
-    return false;
+    return this.#balls.some(({ index, graphic }) => graphic.visible && this.#city.npcs[index].x === x && this.#city.npcs[index].y === y);
+  }
+
+  /** First party Pokémon that can surf (a Water type) */
+  #swimmer() {
+    return trainer.profile?.party.find((creature) => species(creature.species)?.types.includes("water")) ?? null;
+  }
+
+  /** Get on or off the Pokémon carrying the player across water */
+  #mounted(on: boolean) {
+    this.#surfing = on;
+    this.#mount?.destroy();
+    this.#mount = null;
+    this.#player.lift = 0;
+    const swimmer = on ? this.#swimmer() : null;
+    if (swimmer) {
+      const look = creatureSprite(swimmer.species);
+      const mount = this.#map.containers.actors.addChild(new PIXI.Sprite(look.texture));
+      mount.anchor.set(0.5, 1);
+      mount.scale.set(look.scale);
+      this.#mount = mount;
+      this.#player.lift = -5;
+    }
+    this.#player.place();
+  }
+
+  /** Try to move the player one tile (jumping off ledges, surfing, getting off the water): true when they move */
+  #try(dir: Direction) {
+    const player = this.#player;
+    const { x: dx, y: dy } = deltas[dir];
+    const [x, y] = [player.x + dx, player.y + dy];
+    const there = this.#behavior(x, y);
+    //Ledges are only jumped off in their direction, landing on the tile beyond
+    const jump = ledge(there);
+    if (jump && this.#map.inside({ x, y })) {
+      const [lx, ly] = [x + dx, y + dy];
+      const landing = this.#behavior(lx, ly);
+      if (jump !== dir || this.#surfing || this.#blocked(lx, ly, player) || landing === WATER || ledge(landing) || this.#occupied(x, y, player)) {
+        return false;
+      }
+      player.jump = { x: player.x, y: player.y };
+      player.tx = lx;
+      player.ty = ly;
+      return true;
+    }
+    //Deep water: surf on a Water type (collision on water is ignored), the first time with a word
+    if (there === WATER && this.#map.inside({ x, y })) {
+      const swimmer = this.#swimmer();
+      if (!swimmer || this.#gate(x, y) || this.#occupied(x, y, player)) {
+        return false;
+      }
+      if (!this.#surfing) {
+        this.#busy = true;
+        this.#held.length = 0;
+        this.#tap = null;
+        void ui.say(`${swimmer.nickname || species(swimmer.species).name} used Surf!`).then(() => {
+          this.#mounted(true);
+          player.tx = x;
+          player.ty = y;
+          this.#busy = false;
+        });
+        return true;
+      }
+      player.tx = x;
+      player.ty = y;
+      return true;
+    }
+    if (this.#blocked(x, y, player)) {
+      return false;
+    }
+    if (this.#surfing) {
+      this.#mounted(false);
+    }
+    player.tx = x;
+    player.ty = y;
+    return true;
   }
 
   /** Frame update */
@@ -402,8 +529,19 @@ export class Play {
     const now = performance.now();
     const player = this.#player;
 
-    //Player movement
-    if (!this.#busy && !player.moving && (this.#held.length || this.#tap)) {
+    //Sliding on ice or pushed along: the player keeps moving on their own until something stops them
+    if (!this.#busy && !player.moving && this.#force) {
+      const dir = this.#force;
+      if (arrow(this.#behavior(player.x, player.y))) {
+        player.face(dir);
+      }
+      player.sliding = this.#behavior(player.x, player.y) === ICE;
+      if (!this.#try(dir)) {
+        this.#force = null;
+        player.sliding = false;
+      }
+    } else if (!this.#busy && !player.moving && (this.#held.length || this.#tap)) {
+      //Player movement
       const dir = this.#held[this.#held.length - 1] ?? this.#tap!;
       this.#tap = null;
       player.face(dir);
@@ -413,9 +551,8 @@ export class Play {
         this.#busy = true;
         return;
       }
-      if (!this.#blocked(player.x + dx, player.y + dy, player)) {
-        player.tx = player.x + dx;
-        player.ty = player.y + dy;
+      if (this.#try(dir)) {
+        //Moving (or getting ready to surf)
       } else if (now > this.#bump && this.#gate(player.x + dx, player.y + dy)) {
         //Bumping into a story gate explains why the way is closed
         const step = this.#gate(player.x + dx, player.y + dy)!;
@@ -426,14 +563,26 @@ export class Play {
         ui.say(step.blocked || "The way is blocked for now.").then(() => ((this.#busy = false), (this.#bump = performance.now() + 600)));
       }
     }
-    if (player.advance((dt / 60) * (this.#running ? 8 : 4))) {
-      this.#stepped();
+    const speed = this.#force || this.#running ? 8 : 4;
+    if (player.advance((dt / 60) * speed)) {
+      player.jump = null;
+      if (!this.#scene) {
+        this.#stepped();
+      }
+    }
+    if (this.#mount) {
+      //The Pokémon carrying the player bobs on the water
+      this.#mount.position.set(player.x * size + size / 2, (player.y + 1) * size + 3 + Math.sin(now / 250));
+      this.#mount.zIndex = player.y - 0.01;
+      if (["left", "right"].includes(player.dir)) {
+        this.#mount.scale.x = Math.abs(this.#mount.scale.x) * (player.dir === "right" ? -1 : 1);
+      }
     }
 
     //Tall grass covers the player's feet
     const tile = Math.round(player.y) * this.#city.width + Math.round(player.x);
     const tall = frames.tall + 1;
-    this.#grass.visible = this.#city.layers.ground[tile] === tall || this.#city.layers.decor[tile] === tall;
+    this.#grass.visible = !player.jump && (this.#city.layers.ground[tile] === tall || this.#city.layers.decor[tile] === tall);
     this.#grass.position.set(player.x * size, player.y * size + 9);
     this.#grass.zIndex = player.y + 0.5;
 
@@ -530,13 +679,35 @@ export class Play {
 
   /** Player completed a step */
   async #stepped() {
+    //Ice keeps them sliding the same way, push tiles move them along
+    const here = this.#behavior(this.#player.x, this.#player.y);
+    this.#force = arrow(here) ?? (here === ICE ? this.#player.dir : null);
+    if (!this.#force) {
+      this.#player.sliding = false;
+    }
+
     //Doors
     const door = this.#city.doors?.find(({ x, y, to }) => x === this.#player.x && y === this.#player.y && to !== "?");
     if (door && this.#onwarp) {
       this.#busy = true;
+      this.#force = null;
       this.#held.length = 0;
       this.#tap = null;
       this.#onwarp(door);
+      return;
+    }
+
+    //Event areas
+    const trigger = this.#trigger(this.#player.x, this.#player.y);
+    if (trigger) {
+      this.#busy = true;
+      this.#force = null;
+      this.#player.sliding = false;
+      if (trigger.once) {
+        this.#mark(this.#event(trigger));
+      }
+      await this.#run(trigger.actions);
+      this.#busy = false;
       return;
     }
 
@@ -600,6 +771,21 @@ export class Play {
     this.#held.length = 0;
     this.#tap = null;
     const { actor } = npc;
+    await this.#exclaim(npc);
+    const { x: dx, y: dy } = deltas[actor.dir];
+    while (Math.abs(actor.x - this.#player.x) + Math.abs(actor.y - this.#player.y) > 1) {
+      actor.tx = actor.x + dx;
+      actor.ty = actor.y + dy;
+      await this.#arrived(actor);
+    }
+    this.#player.face(opposite[actor.dir]);
+    await this.#talk(npc);
+    this.#busy = false;
+  }
+
+  /** "!" over someone who noticed the player */
+  async #exclaim(npc: Person) {
+    const { actor } = npc;
     const bubble = this.#map.containers.actors.addChild(
       new PIXI.Text("!", { fontFamily: "monospace", fontSize: 14, fontWeight: "bold", fill: 0xffffff, stroke: 0xe0303a, strokeThickness: 4 }),
     );
@@ -610,18 +796,199 @@ export class Play {
     await new Promise((solve) => setTimeout(solve, 700));
     bubble.destroy();
     npc.bubble = null;
-    const { x: dx, y: dy } = deltas[actor.dir];
-    while (Math.abs(actor.x - this.#player.x) + Math.abs(actor.y - this.#player.y) > 1) {
-      actor.tx = actor.x + dx;
-      actor.ty = actor.y + dy;
-      await new Promise((solve) => {
-        const wait = () => (actor.moving ? requestAnimationFrame(wait) : solve(null));
-        wait();
-      });
+  }
+
+  /** Wait until someone stops moving */
+  #arrived(actor: Actor) {
+    return new Promise((solve) => {
+      const wait = () => (actor.moving ? requestAnimationFrame(wait) : solve(null));
+      wait();
+    });
+  }
+
+  //=================================================================================================
+  // Scripts
+
+  /** Play a script as a cutscene (the player can't move meanwhile) */
+  async #run(actions: Action[]) {
+    this.#scene = true;
+    this.#held.length = 0;
+    this.#tap = null;
+    try {
+      for (const action of actions) {
+        if (!(await this.#act(action))) {
+          break;
+        }
+      }
+    } finally {
+      this.#scene = false;
     }
-    this.#player.face(opposite[actor.dir]);
-    await this.#talk(npc);
-    this.#busy = false;
+  }
+
+  /** Someone of the map who can move in a script (people hidden by the story can't) */
+  #person(index: number) {
+    return this.#npcs.find((npc) => npc.index === index && !npc.hidden) ?? null;
+  }
+
+  /** Actor of someone in a script */
+  #who(who: number | "player") {
+    return who === "player" ? this.#player : (this.#person(who)?.actor ?? null);
+  }
+
+  /** Take one step in a script (waits a moment if the way is blocked, then gives up) */
+  async #stride(actor: Actor, dir: Direction) {
+    actor.face(dir);
+    const { x: dx, y: dy } = deltas[dir];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!this.#blocked(actor.x + dx, actor.y + dy, actor)) {
+        actor.tx = actor.x + dx;
+        actor.ty = actor.y + dy;
+        await this.#arrived(actor);
+        return true;
+      }
+      await new Promise((solve) => setTimeout(solve, 250));
+    }
+    return false;
+  }
+
+  /** Walk to a tile, across first then up or down, going around what is in the way when it can */
+  async #reach(actor: Actor, target: { x: number; y: number }) {
+    for (let steps = 0; steps < 60 && (actor.x !== target.x || actor.y !== target.y); steps++) {
+      const dx = Math.sign(target.x - actor.x),
+        dy = Math.sign(target.y - actor.y);
+      const options = [dx ? ((dx > 0 ? "right" : "left") as Direction) : null, dy ? ((dy > 0 ? "down" : "up") as Direction) : null].filter(
+        (dir): dir is Direction => dir !== null && !this.#blocked(actor.x + deltas[dir].x, actor.y + deltas[dir].y, actor),
+      );
+      if (!options.length || !(await this.#stride(actor, options[0]))) {
+        return;
+      }
+    }
+  }
+
+  /** Run one action of a script (false stops the script) */
+  async #act(action: Action): Promise<boolean> {
+    const profile = trainer.profile!;
+    switch (action.do) {
+      case "say": {
+        const data = action.who !== undefined ? this.#city.npcs[action.who] : null;
+        await ui.say(action.text || "…", data ? { speaker: data.name, portrait: portraitOf(data) } : undefined);
+        return true;
+      }
+      case "move": {
+        const actor = this.#who(action.who);
+        for (const dir of actor ? action.steps : []) {
+          await this.#stride(actor!, dir);
+        }
+        return true;
+      }
+      case "face": {
+        this.#who(action.who)?.face(action.dir);
+        return true;
+      }
+      case "come": {
+        const npc = this.#person(action.who);
+        if (!npc) {
+          return true;
+        }
+        const { actor } = npc;
+        await this.#exclaim(npc);
+        //The free tile next to the player closest to them
+        const player = this.#player;
+        const spots = (Object.keys(deltas) as Direction[])
+          .map((dir) => ({ x: player.x + deltas[dir].x, y: player.y + deltas[dir].y }))
+          .filter(({ x, y }) => (x === actor.x && y === actor.y) || !this.#blocked(x, y, actor))
+          .sort((a, b) => Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y) - (Math.abs(b.x - actor.x) + Math.abs(b.y - actor.y)));
+        if (spots[0]) {
+          await this.#reach(actor, spots[0]);
+        }
+        if (Math.abs(actor.x - player.x) + Math.abs(actor.y - player.y) === 1) {
+          const dir = (actor.x < player.x ? "right" : actor.x > player.x ? "left" : actor.y < player.y ? "down" : "up") as Direction;
+          actor.face(dir);
+          player.face(opposite[dir]);
+        }
+        return true;
+      }
+      case "back": {
+        const npc = this.#person(action.who);
+        if (npc) {
+          await this.#reach(npc.actor, npc.home);
+          npc.actor.face(npc.data.dir);
+        }
+        return true;
+      }
+      case "wait":
+        await new Promise((solve) => setTimeout(solve, action.seconds * 1000));
+        return true;
+      case "give": {
+        if (action.item in items && action.count > 0) {
+          trainer.give(action.item, action.count);
+          trainer.save();
+          sound.play("victory");
+          await ui.say(`${profile.name} received ${itemCount(action.item, action.count)}!`);
+        }
+        return true;
+      }
+      case "pokemon": {
+        if (species(action.species)) {
+          const where = trainer.catch(create(action.species, action.level, { shiny: false }));
+          trainer.save();
+          sound.play("victory");
+          await ui.say(`${profile.name} received ${species(action.species).name}!${where === "box" ? "\n\nIt was sent to the PC box." : ""}`);
+        }
+        return true;
+      }
+      case "money": {
+        if (action.amount > 0) {
+          profile.money += action.amount;
+          trainer.save();
+          await ui.say(`${profile.name} got ₽${action.amount}.`);
+        }
+        return true;
+      }
+      case "heal": {
+        trainer.heal();
+        trainer.save();
+        sound.play("victory");
+        await ui.say("Your Pokémon are fully healed!");
+        return true;
+      }
+      case "battle": {
+        const data = this.#city.npcs[action.who];
+        if (!data || !trainer.lead) {
+          return true;
+        }
+        if (data.role === "trainer" && data.trainer?.team.length && !this.#defeated(action.who)) {
+          return (await this.#fight(data, action.who)) !== "lose";
+        }
+        if (data.role === "wild" && data.creature && species(data.creature.species) && !this.#defeated(action.who)) {
+          const outcome = await new Battle({ wild: create(data.creature.species, data.creature.level, { shiny: false }) }).start();
+          if (outcome === "win" || outcome === "caught") {
+            profile.defeated.push(this.#key(action.who));
+            trainer.save();
+            await this.#progress(data);
+          }
+          await this.#after(outcome);
+          return outcome !== "lose";
+        }
+        return true;
+      }
+      case "step": {
+        const step = this.#world.story.find(({ id }) => id === action.step);
+        if (step && open(this.#world, step, (id) => this.#done(id)) && trainer.complete(this.#world.id, step.id)) {
+          trainer.save();
+          ui.banner(milestone(this.#world, step, (id) => this.#done(id)));
+          this.#refresh(true);
+        }
+        return true;
+      }
+      case "warp": {
+        if (this.#onwarp) {
+          this.#onwarp({ x: -1, y: -1, to: action.to, tx: action.x, ty: action.y });
+          return false;
+        }
+        return true;
+      }
+    }
   }
 
   /** Interact with facing tile */
@@ -689,8 +1056,67 @@ export class Play {
     this.#refresh(true);
   }
 
+  /** Has the player already received someone's gift (or picked up an item) */
+  #received(index: number) {
+    return trainer.profile?.received?.includes(this.#key(index)) ?? false;
+  }
+
+  /** Pick up an item ball or a hidden item */
+  async #pick(data: Npc, index: number) {
+    const profile = trainer.profile!;
+    if (!data.gift?.count || !(data.gift.item in items) || this.#received(index)) {
+      return;
+    }
+    trainer.give(data.gift.item, data.gift.count);
+    profile.received = [...(profile.received ?? []), this.#key(index)];
+    trainer.save();
+    this.#refresh();
+    sound.play("victory");
+    await ui.say(`${profile.name} found ${itemCount(data.gift.item, data.gift.count)}!`);
+    await this.#progress(data);
+  }
+
+  /** Key of a trigger played once by the player */
+  #event(trigger: Trigger) {
+    return this.#city === this.#world ? `${this.#world.id}:event:${trigger.id}` : `${this.#world.id}:${this.#city.id}/event:${trigger.id}`;
+  }
+
+  /** Has the player already seen a script or trigger played only once */
+  #ran(key: string) {
+    return trainer.profile?.met?.includes(key) ?? false;
+  }
+
+  /** Remember a script or trigger played only once */
+  #mark(key: string) {
+    const profile = trainer.profile;
+    if (profile && !this.#ran(key)) {
+      profile.met = [...(profile.met ?? []), key];
+      trainer.save();
+    }
+  }
+
+  /** Trigger the player stands in, if it can play now */
+  #trigger(x: number, y: number) {
+    return (
+      this.#city.triggers?.find(
+        (trigger) =>
+          trigger.actions.length &&
+          x >= trigger.x &&
+          x < trigger.x + trigger.w &&
+          y >= trigger.y &&
+          y < trigger.y + trigger.h &&
+          (!trigger.after || this.#done(trigger.after)) &&
+          (!trigger.until || !this.#done(trigger.until)) &&
+          !(trigger.once && this.#ran(this.#event(trigger))),
+      ) ?? null
+    );
+  }
+
   /** Talk to a NPC */
   async #talk({ data, index }: { data: Npc; index: number }) {
+    if (data.role === "item") {
+      return this.#pick(data, index);
+    }
     const voice = { speaker: data.name, portrait: portraitOf(data) };
     const story = data.story;
     //Not ready yet in the story
@@ -701,6 +1127,16 @@ export class Play {
     //Their part of the story is already done
     if (story?.completes && this.#done(story.completes) && story.done && data.role !== "healer") {
       await ui.say(story.done, voice);
+      return;
+    }
+    //Their script plays instead of their usual part (once, or every time)
+    const script = `${this.#key(index)}:script`;
+    if (data.script?.actions.length && !(data.script.once && this.#ran(script))) {
+      if (data.script.once) {
+        this.#mark(script);
+      }
+      await this.#run(data.script.actions);
+      await this.#progress(data);
       return;
     }
     if (data.role === "wild" && data.creature && species(data.creature.species)) {
@@ -741,24 +1177,7 @@ export class Play {
         return;
       }
       await ui.say(data.dialogue || "Let's battle!", voice);
-      const team = data.trainer.team.filter(({ species: id }) => species(id)).map(({ species: id, level }) => create(id, level, { shiny: false }));
-      const outcome = await new Battle({ opponent: { name: data.name || "Trainer", sprite: data.sprite, team } }).start();
-      if (outcome === "win") {
-        trainer.profile!.defeated.push(this.#key(index));
-        if (data.trainer.gym) {
-          const badge = data.trainer.badge || `${this.#city.name} Badge`;
-          trainer.profile!.badges.push({ city: this.#city.name, name: data.name, badge, date: Date.now() });
-          trainer.give("poke-ball", 5);
-          trainer.save();
-          await ui.say(`${data.trainer.defeat || "You beat me fair and square!"}\n\n${trainer.profile!.name} received the ${badge}!`, voice);
-          ui.toast(`🏅 ${badge} earned!`, "success");
-        } else {
-          trainer.save();
-          await ui.say(data.trainer.defeat || "You're strong!", voice);
-        }
-        await this.#progress(data);
-      }
-      await this.#after(outcome);
+      await this.#fight(data, index);
       return;
     }
     await ui.say(data.dialogue || "Hello!", voice);
@@ -789,6 +1208,30 @@ export class Play {
       await ui.say(`${profile.name} received ${itemCount(data.gift.item, data.gift.count)}!`);
     }
     await this.#progress(data);
+  }
+
+  /** Battle a trainer of the map (returns the outcome) */
+  async #fight(data: Npc, index: number) {
+    const voice = { speaker: data.name, portrait: portraitOf(data) };
+    const team = data.trainer!.team.filter(({ species: id }) => species(id)).map(({ species: id, level }) => create(id, level, { shiny: false }));
+    const outcome = await new Battle({ opponent: { name: data.name || "Trainer", sprite: data.sprite, team } }).start();
+    if (outcome === "win") {
+      trainer.profile!.defeated.push(this.#key(index));
+      if (data.trainer!.gym) {
+        const badge = data.trainer!.badge || `${this.#city.name} Badge`;
+        trainer.profile!.badges.push({ city: this.#city.name, name: data.name, badge, date: Date.now() });
+        trainer.give("poke-ball", 5);
+        trainer.save();
+        await ui.say(`${data.trainer!.defeat || "You beat me fair and square!"}\n\n${trainer.profile!.name} received the ${badge}!`, voice);
+        ui.toast(`🏅 ${badge} earned!`, "success");
+      } else {
+        trainer.save();
+        await ui.say(data.trainer!.defeat || "You're strong!", voice);
+      }
+      await this.#progress(data);
+    }
+    await this.#after(outcome);
+    return outcome;
   }
 
   /** Handle battle outcome */

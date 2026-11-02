@@ -3,6 +3,7 @@
 import { removeSprite } from "@/components/editor/city-dialogs";
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
+import { ScriptEditor } from "@/components/editor/script-editor";
 import { CanvasView, Field, Hint, NumberInput, Removable, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,6 +19,7 @@ import type { EditorEngine } from "@/game/editor/engine";
 import { type ItemId, itemIds, items } from "@/game/items";
 import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
+import { itemCount } from "@/game/items";
 import { lanes } from "@/game/story";
 import { cn } from "@/lib/utils";
 import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Eye, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
@@ -27,25 +29,59 @@ import { toast } from "sonner";
 /** Upload a custom sprite (resolves with its id) */
 type OnSprite = (kind: "person" | "pokemon") => Promise<string | undefined>;
 
+/** An item ball drawn on a small canvas */
+function ball(scale = 2, hidden = false) {
+  const canvas = Object.assign(document.createElement("canvas"), { width: 12 * scale, height: 12 * scale });
+  const context = canvas.getContext("2d")!;
+  context.scale(scale, scale);
+  context.globalAlpha = hidden ? 0.5 : 1;
+  context.lineWidth = 1;
+  context.strokeStyle = "#202020";
+  context.fillStyle = "#f4f4f4";
+  context.beginPath();
+  context.arc(6, 6, 5, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#e03a3a";
+  context.beginPath();
+  context.arc(6, 6, 5, Math.PI, 0);
+  context.fill();
+  context.beginPath();
+  context.arc(6, 6, 5, 0, Math.PI * 2);
+  context.moveTo(1, 6);
+  context.lineTo(11, 6);
+  context.stroke();
+  context.fillStyle = "#f4f4f4";
+  context.beginPath();
+  context.arc(6, 6, 1.5, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  return canvas;
+}
+
 /** How someone looks, as a small preview */
 function Look({ editor, npc, scale = 1 }: { editor: EditorEngine; npc: Npc; scale?: number }) {
   return (
     <CanvasView
       className="h-[30px] w-[34px] shrink-0 overflow-hidden"
       make={() =>
-        npc.creature
-          ? portrait(npc.creature.species, scale, creatureImage(npc.creature.look))
-          : npc.sprite
-            ? preview(texture(npc.sprite, "down"), scale * scaleOf(npc.sprite))
-            : editor.stampCanvas({ w: 1, h: 1, tiles: [206] }, 1.5)
+        npc.role === "item"
+          ? ball(2 * scale, npc.hidden)
+          : npc.creature
+            ? portrait(npc.creature.species, scale, creatureImage(npc.creature.look))
+            : npc.sprite
+              ? preview(texture(npc.sprite, "down"), scale * scaleOf(npc.sprite))
+              : editor.stampCanvas({ w: 1, h: 1, tiles: [206] }, 1.5)
       }
-      deps={[npc.sprite, npc.creature?.species, npc.creature?.look]}
+      deps={[npc.role, npc.hidden, npc.sprite, npc.creature?.species, npc.creature?.look]}
     />
   );
 }
 
 /** Display name of someone */
 function label(npc: Npc) {
+  if (npc.role === "item") {
+    return npc.gift && npc.gift.item in items ? items[npc.gift.item].name : "Item";
+  }
   return npc.name || (npc.creature ? species(npc.creature.species)?.name : kindOf(npc) === "sign" ? "Sign" : "Someone") || "Someone";
 }
 
@@ -54,6 +90,9 @@ function tag(npc: Npc) {
   const kind = kindOf(npc);
   if (kind === "sign") {
     return "sign";
+  }
+  if (kind === "item") {
+    return npc.hidden ? "hidden item" : "item ball";
   }
   if (kind === "pokemon") {
     return npc.role === "wild" ? `wild · Lv ${npc.creature!.level}` : "Pokémon";
@@ -67,9 +106,10 @@ function Kinds({ editor, active, onPick }: { editor: EditorEngine; active: Kind;
     person: () => preview(texture("youngster", "down"), 1),
     pokemon: () => portrait(25, 1),
     sign: () => editor.stampCanvas({ w: 1, h: 1, tiles: [206] }, 2),
+    item: () => ball(2.5),
   };
   return (
-    <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="What to place">
+    <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="What to place">
       {(Object.keys(kinds) as Kind[]).map((kind) => (
         <button
           key={kind}
@@ -97,13 +137,14 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
   const editor = useEditor();
   const npc = editor.city.npcs[editor.selected] as Npc | undefined;
   if (!npc) {
-    const count = { person: 0, pokemon: 0, sign: 0 };
+    const count = { person: 0, pokemon: 0, sign: 0, item: 0 };
     editor.city.npcs.forEach((npc) => count[kindOf(npc)]++);
     const summary =
       [
         count.person && `${count.person} ${count.person > 1 ? "people" : "person"}`,
         count.pokemon && `${count.pokemon} Pokémon`,
         count.sign && `${count.sign} sign${count.sign > 1 ? "s" : ""}`,
+        count.item && `${count.item} item${count.item > 1 ? "s" : ""}`,
       ]
         .filter(Boolean)
         .join(" · ") || "nobody yet";
@@ -179,13 +220,16 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
         </Tip>
       </div>
       <Kinds editor={editor} active={kind} onPick={(value) => editor.convertNpc(value)} />
-      {kind === "sign" ? (
+      {kind === "item" ? (
+        <ItemForm npc={npc} update={update} />
+      ) : kind === "sign" ? (
         <SignForm npc={npc} update={update} />
       ) : kind === "pokemon" ? (
         <PokemonForm editor={editor} npc={npc} update={update} onSprite={onSprite} />
       ) : (
         <PersonForm editor={editor} npc={npc} update={update} onSprite={onSprite} />
       )}
+      {kind !== "item" ? <PersonScript editor={editor} npc={npc} index={editor.selected} update={update} /> : null}
       <PersonStory editor={editor} npc={npc} update={update} />
     </div>
   );
@@ -232,6 +276,85 @@ function Words({
         onBlur={() => text !== value && onCommit(text)}
       />
     </Field>
+  );
+}
+
+/** Item ball or hidden item: what it holds */
+function ItemForm({ npc, update }: { npc: Npc; update: Update }) {
+  const gift = npc.gift ?? { item: "potion" as ItemId, count: 1 };
+  return (
+    <>
+      <Field label="Holds">
+        <div className="flex items-center gap-1.5">
+          <Select value={gift.item} onValueChange={(item) => update(() => (npc.gift = { ...gift, item: item as ItemId }))}>
+            <SelectTrigger className="h-8 flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {itemIds.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {items[id].name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-subtle-fg">×</span>
+          <NumberInput min={1} max={99} value={gift.count} onCommit={(count) => update(() => (npc.gift = { ...gift, count }))} className="w-14" />
+        </div>
+      </Field>
+      <Label className="flex items-center justify-between gap-2 text-xs font-normal text-muted-foreground">
+        Hidden on the ground
+        <Switch checked={Boolean(npc.hidden)} onCheckedChange={(hidden) => update(() => (hidden ? (npc.hidden = true) : delete npc.hidden))} />
+      </Label>
+      <Hint>
+        {npc.hidden
+          ? `Nothing shows on the map. Visitors find ${itemCount(gift.item, gift.count)} by facing this tile and pressing Space.`
+          : `An item ball blocks the tile. Visitors pick up ${itemCount(gift.item, gift.count)} by facing it and pressing Space.`}{" "}
+        Each player finds it once.
+      </Hint>
+    </>
+  );
+}
+
+/** Cutscene played when talked to, instead of their usual part */
+function PersonScript({ editor, npc, index, update }: { editor: EditorEngine; npc: Npc; index: number; update: Update }) {
+  const script = npc.script;
+  return (
+    <div className="grid gap-2 border-t border-border pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Script</p>
+        {script ? (
+          <button onClick={() => update(() => delete npc.script)} className="text-[11px] text-subtle-fg hover:text-destructive">
+            Remove script
+          </button>
+        ) : null}
+      </div>
+      {script ? (
+        <>
+          <Label className="flex items-center justify-between gap-2 text-xs font-normal text-muted-foreground">
+            Plays only the first time
+            <Switch checked={script.once} onCheckedChange={(once) => update(() => (script.once = once))} />
+          </Label>
+          <ScriptEditor editor={editor} actions={script.actions} update={update} self={index} />
+          <Hint>
+            Plays instead of their usual part when talked to{script.once ? ", then they go back to it" : ""}. Their story step still completes at the end.
+          </Hint>
+        </>
+      ) : (
+        <>
+          <Hint>Make them walk, talk with others, hand over gifts and start battles, like a small cutscene.</Hint>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => update(() => (npc.script = { actions: [{ do: "say", text: npc.dialogue || "…", who: index }], once: true }))}
+          >
+            <Plus />
+            Add a script
+          </Button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -877,7 +1000,7 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
       <div className="grid gap-1 border-t border-border pt-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Story</p>
         <Hint>
-          Add steps in the Story layer to make this {kindOf(npc) === "person" ? "person" : kindOf(npc) === "pokemon" ? "Pokémon" : "sign"} part of the story.
+          Add steps in the Story layer to make this {{ person: "person", pokemon: "Pokémon", sign: "sign", item: "item" }[kindOf(npc)]} part of the story.
         </Hint>
       </div>
     );
@@ -924,7 +1047,9 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
         ? "Beating or catching it completes"
         : kindOf(npc) === "sign"
           ? "Reading it completes"
-          : "Talking completes";
+          : kindOf(npc) === "item"
+            ? "Finding it completes"
+            : "Talking completes";
   return (
     <div className="grid gap-2 border-t border-border pt-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Story</p>

@@ -10,6 +10,7 @@ import { Hint, Pane } from "@/components/editor/widgets";
 import { ZonesPanel } from "@/components/editor/zones-panel";
 import { storage } from "@/game/data";
 import { targets } from "@/game/editor/constants";
+import { CollisionPanel, EventsPanel } from "@/components/editor/events-panel";
 import { ClipboardText, Copy, Scissors, SelectionPlus, Stamp, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -78,10 +79,9 @@ export function Sidebar({ onImportTileset, onSprite }: { onImportTileset: () => 
         return <TilesPanel onImport={onImportTileset} />;
       case "solid":
         return (
-          <div className="grid grid-cols-1 gap-2">
-            <Hint>Paint red tiles where visitors can&apos;t walk, like water, walls and trees. Objects painted on the Objects layer block automatically.</Hint>
+          <CollisionPanel>
             <AutoCollision />
-          </div>
+          </CollisionPanel>
         );
       case "zone":
         return <ZonesPanel />;
@@ -91,6 +91,8 @@ export function Sidebar({ onImportTileset, onSprite }: { onImportTileset: () => 
         return <DoorsPanel />;
       case "npc":
         return <PeoplePanel onSprite={onSprite} />;
+      case "event":
+        return <EventsPanel />;
       case "spawn":
         return (
           <Hint>

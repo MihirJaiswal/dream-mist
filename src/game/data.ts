@@ -10,6 +10,8 @@ import { frames } from "./brushes";
 import type { ItemId } from "./items";
 import type { Tileset } from "./tilesets";
 import type { Sprite } from "./sprites";
+import { isBehavior } from "./behaviors";
+import { actions as cleanActions } from "./scripts";
 
 /** Drawable tile layers (bottom to top, player walks between decor and above) */
 export const layers = ["ground", "decor", "above"] as const;
@@ -60,6 +62,59 @@ export type BattleBackground = { image: string; platforms: boolean };
 /** Door: stepping on it moves the player to another map ("" = outside) */
 export type Door = { x: number; y: number; to: string; tx: number; ty: number };
 
+/** Someone acting in a script: a person, Pokémon or sign of the same map (their index in `npcs`), or the player */
+export type Who = number | "player";
+
+/** One thing a script does, in order (scripts run as small cutscenes: the player can't move meanwhile) */
+export type Action =
+  /** Show a message, said by someone of the map (or nobody, for narration) */
+  | { do: "say"; text: string; who?: number }
+  /** Walk some steps (blocked steps are skipped) */
+  | { do: "move"; who: Who; steps: Direction[] }
+  /** Turn to face a direction */
+  | { do: "face"; who: Who; dir: Direction }
+  /** Notice the player ("!") and walk up to them */
+  | { do: "come"; who: number }
+  /** Walk back to where they stand on the map */
+  | { do: "back"; who: number }
+  /** Wait a moment */
+  | { do: "wait"; seconds: number }
+  /** Give the player an item, a Pokémon or money */
+  | { do: "give"; item: ItemId; count: number }
+  | { do: "pokemon"; species: number; level: number }
+  | { do: "money"; amount: number }
+  /** Heal the party */
+  | { do: "heal" }
+  /** Battle a trainer of the map (or a wild Pokémon placed on it). The script stops if the player loses */
+  | { do: "battle"; who: number }
+  /** Complete a story step (people come and go, gates open) */
+  | { do: "step"; step: string }
+  /** Take the player to another map ("" = outside) and tile. Ends the script */
+  | { do: "warp"; to: string; x: number; y: number };
+
+/** Kind of action */
+export type ActionKind = Action["do"];
+
+/** What someone does when talked to, instead of their usual part */
+export type Script = { actions: Action[]; once: boolean };
+
+/** Area that runs a script when the player steps in (a cutscene, a rival running up) */
+export type Trigger = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  name: string;
+  /** Runs only the first time (per player) */
+  once: boolean;
+  /** Only once this step is done */
+  after?: string;
+  /** No more once this step is done */
+  until?: string;
+  actions: Action[];
+};
+
 /** Person story settings (step ids) */
 export type NpcStory = {
   /** Appears only once this step is done */
@@ -88,7 +143,7 @@ export type NpcPath = {
   pause: number;
 };
 
-/** Person, Pokémon or sign placed in the city */
+/** Person, Pokémon, sign or item placed in the city */
 export type Npc = {
   x: number;
   y: number;
@@ -99,12 +154,16 @@ export type Npc = {
   dir: Direction;
   name: string;
   dialogue: string;
-  /** "wild" battles the player as a wild Pokémon (it can be caught, and is gone once beaten), "shop" runs a Poké Mart */
-  role: "talk" | "trainer" | "healer" | "wild" | "shop";
+  /** "wild" battles the player as a wild Pokémon (it can be caught, and is gone once beaten), "shop" runs a Poké Mart, "item" is an item ball (its `gift`) */
+  role: "talk" | "trainer" | "healer" | "wild" | "shop" | "item";
   /** Items a Poké Mart clerk sells (all of them when not set) */
   shop?: ItemId[];
-  /** Item handed to the player the first time they talk */
+  /** Item handed to the player the first time they talk (or found in an item ball) */
   gift?: { item: ItemId; count: number };
+  /** Item hidden on the ground instead of a ball: found by facing its tile and pressing Space */
+  hidden?: boolean;
+  /** Small cutscene played when talked to, instead of their usual part */
+  script?: Script;
   /** Walks up to the player and talks the first time they see them (a small cutscene) */
   approach?: boolean;
   /** Wander around spawn point */
@@ -135,6 +194,8 @@ export type City = {
   layers: Record<Layer, number[]>;
   /** Collision grid (1 = blocked) */
   solid: number[];
+  /** Tile behavior grid: ledges, surf water, ice and push tiles (0 = normal, see behaviors.ts) */
+  behavior: number[];
   /** Encounter zone grid (0 = none, n = zones[n - 1]) */
   zone: number[];
   zones: Zone[];
@@ -143,6 +204,8 @@ export type City = {
   npcs: Npc[];
   spawn: { x: number; y: number };
   doors: Door[];
+  /** Areas that run a script when stepped in */
+  triggers: Trigger[];
   /** Story timeline (outside map only, shared by interiors) */
   story: Step[];
   /** Side quests, each with steps in `story` (outside map only, shared by interiors) */
@@ -185,9 +248,11 @@ export function blank({ width = 40, height = 30, ground = 0, name = "New Town", 
     height,
     layers: { ground: new Array(size).fill(ground), decor: new Array(size).fill(0), above: new Array(size).fill(0) },
     solid: new Array(size).fill(0),
+    behavior: new Array(size).fill(0),
     zone: new Array(size).fill(0),
     gate: new Array(size).fill(0),
     doors: [],
+    triggers: [],
     story: [],
     quests: [],
     interiors: [],
@@ -225,10 +290,14 @@ export function resize(city: City, width: number, height: number) {
     city.layers[layer] = grid(city.layers[layer]);
   }
   city.solid = grid(city.solid);
+  city.behavior = grid(city.behavior);
   city.zone = grid(city.zone);
   city.gate = grid(city.gate);
   city.npcs = city.npcs.filter(({ x, y }) => x < width && y < height);
   city.doors = city.doors.filter(({ x, y }) => x < width && y < height);
+  city.triggers = city.triggers
+    .filter(({ x, y }) => x < width && y < height)
+    .map((trigger) => ({ ...trigger, w: Math.min(trigger.w, width - trigger.x), h: Math.min(trigger.h, height - trigger.y) }));
   city.width = width;
   city.height = height;
   city.spawn.x = Math.min(city.spawn.x, width - 1);
@@ -247,6 +316,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
     city.layers[layer] = grid(raw.layers[layer]);
   }
   city.solid = grid(raw.solid);
+  city.behavior = grid(raw.behavior).map((value) => (isBehavior(value) ? value : 0));
   city.zone = grid(raw.zone);
   city.gate = grid(raw.gate);
   //Tall grass used to be painted on the ground, where its see-through edges showed black: it now stands on grass as an object
@@ -261,6 +331,12 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.spawn = raw.spawn ?? city.spawn;
   city.doors = Array.isArray(raw.doors) ? raw.doors.filter((door) => door && Number.isFinite(door.x) && Number.isFinite(door.y)) : [];
   city.story = Array.isArray(raw.story) ? raw.story.filter((step) => step && step.id) : [];
+  city.triggers = triggers(raw.triggers, city);
+  for (const npc of city.npcs) {
+    if (npc?.script) {
+      npc.script = { actions: cleanActions(npc.script.actions), once: npc.script.once !== false };
+    }
+  }
   if (weathers.some(({ key }) => key === raw.weather) && raw.weather !== "clear") {
     city.weather = raw.weather;
   }
@@ -294,6 +370,32 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.author = `${raw.author ?? ""}`.slice(0, 40);
   city.updated = Number(raw.updated) || Date.now();
   return city;
+}
+
+/** Valid triggers of an imported map (kept inside it) */
+function triggers(raw: unknown, city: City): Trigger[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const int = (value: unknown, min: number, max: number) => Math.max(min, Math.min(max, Math.round(Number(value) || 0)));
+  return raw
+    .filter((trigger) => trigger && typeof trigger === "object")
+    .map((trigger: Partial<Trigger>) => {
+      const x = int(trigger.x, 0, city.width - 1),
+        y = int(trigger.y, 0, city.height - 1);
+      return {
+        id: `${trigger.id ?? uid()}`,
+        x,
+        y,
+        w: int(trigger.w || 1, 1, city.width - x),
+        h: int(trigger.h || 1, 1, city.height - y),
+        name: `${trigger.name ?? "Event"}`.slice(0, 40),
+        once: trigger.once !== false,
+        ...(trigger.after ? { after: `${trigger.after}` } : {}),
+        ...(trigger.until ? { until: `${trigger.until}` } : {}),
+        actions: cleanActions(trigger.actions),
+      };
+    });
 }
 
 /** Make an interior share the root zones, story, tilesets and music (not serialized twice) */

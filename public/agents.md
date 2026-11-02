@@ -67,10 +67,12 @@ type City = {
     above: number[];          // drawn over the player: tree tops, roofs the player walks behind
   };
   solid: number[];            // 1 = can't walk there, 0 = walkable (separate from the tiles!)
+  behavior: number[];         // tile behaviors: ledges, surf water, ice, push tiles (2.4); 0 = normal
   zone: number[];             // 0 = no wild Pokémon, n = zones[n - 1]
   gate: number[];             // 0 = open, n = blocked until the story step whose `n` is n is done
-  npcs: Npc[];                // people, Pokémon and signs on this map
+  npcs: Npc[];                // people, Pokémon, signs and items on this map
   doors: Door[];
+  triggers: Trigger[];        // event areas that play a cutscene when stepped in (6.1)
   spawn: { x: number; y: number };  // where visitors arrive (outside map only)
   weather?: "rain" | "snow" | "fog" | "sandstorm";  // leave out for clear
   time?: "evening" | "night";                       // leave out for day
@@ -89,8 +91,8 @@ type Map = {
   name: string;               // up to 40 characters
   width: number; height: number;
   layers: { ground: number[]; decor: number[]; above: number[] };
-  solid: number[]; zone: number[]; gate: number[];
-  npcs: Npc[]; doors: Door[];
+  solid: number[]; behavior: number[]; zone: number[]; gate: number[];
+  npcs: Npc[]; doors: Door[]; triggers: Trigger[];
   spawn: { x: number; y: number };
   weather?: "rain" | "snow" | "fog" | "sandstorm";
   time?: "evening" | "night";
@@ -105,6 +107,19 @@ type Map = {
 Tile numbers only decide what is **drawn**. Whether the player can walk somewhere is decided only by the `solid` grid. When you place a building, a tree trunk, water, a fence or a rock, **also set `solid` to 1 on those tiles**. Tall grass, flowers and paths stay walkable (`solid` 0). A **door tile must be walkable** even though it's part of a building.
 
 Tile values are *tileset frame + 1*, and `0` means empty. Use the values below; they're already +1.
+
+### 2.4 Tile behaviors
+
+The `behavior` grid gives tiles a special effect, on top of `solid`:
+
+| Value | Tile | Notes |
+| --- | --- | --- |
+| `1` `2` `3` `4` | Ledge jumped down, up, left, right | Walking onto it in its direction jumps over it to the tile beyond (which must be free). Blocked from every other side. Put them along a route so players hop down a shortcut and take the long way back |
+| `5` | Surf water | Crossed by surfing once a party Pokémon is Water type; `solid` is ignored on it. Paint it on water tiles (which stay `solid` 1) and keep the shore walkable |
+| `6` | Ice | The player slides until something stops them or they leave the ice. Needs `solid` 0 |
+| `7` `8` `9` `10` | Push tile up, down, left, right | Moves the player along until a normal tile. Needs `solid` 0 |
+
+People and Pokémon on the map never walk onto ledges or surf water. Without a Water type in the party, surf water is just a wall, so don't put the main path behind it.
 
 ---
 
@@ -204,11 +219,13 @@ type Npc = {
   dir: "up" | "down" | "left" | "right";          // facing; trainers see in this direction
   name: string;                      // shown with their dialogue (up to 24 characters)
   dialogue: string;                  // what they say. An empty line ("\n\n") starts a new page
-  role: "talk" | "trainer" | "healer" | "shop" | "wild";
+  role: "talk" | "trainer" | "healer" | "shop" | "wild" | "item";
   wander: boolean;                   // walk around near their spot
   path?: { points: { x: number; y: number }[]; loop: boolean; run: boolean; pause: number };  // a patrol instead
   approach?: boolean;                // walks up and talks the first time they see the player (a cutscene)
-  gift?: { item: ItemId; count: number };          // handed over the first time they talk, once per player
+  gift?: { item: ItemId; count: number };          // handed over the first time they talk, once per player (role "item": what the item holds)
+  hidden?: boolean;                  // role "item": hidden on the ground instead of a ball
+  script?: { actions: Action[]; once: boolean };   // a cutscene played instead of their usual part (6.1)
   shop?: ItemId[];                   // role "shop": what they sell (everything when left out)
   trainer?: { team: { species: number; level: number }[]; gym: boolean; badge: string; defeat: string };
   portrait?: string;                 // "sprite:<name>" to show another sprite beside their dialogue
@@ -232,6 +249,7 @@ Pick looks that fit the role: `hiker` in caves, `fisher` and `sailor` by the wat
 | `healer` | Says their dialogue and heals the whole party. In a city with no shop, Nurses also refill Poké Balls and Potions to 5 each |
 | `shop` | Says their dialogue, then opens the Poké Mart with the `shop` items |
 | `wild` | A Pokémon standing on the map (`creature` set) that battles as a wild Pokémon: beat it or catch it, then it's gone for that player. Great for legendaries and rare encounters |
+| `item` | An item on the ground (`sprite: ""`, `gift` set): a Poké Ball the player picks up, or with `hidden: true` nothing shows and the player finds it by facing the tile and pressing Space. Once per player. An item ball blocks its tile until picked up |
 
 ### 5.3 Items
 
@@ -247,7 +265,11 @@ Pick looks that fit the role: `hiker` in caves, `fisher` and `sailor` by the wat
 
 A sign is a person with `sprite: ""`, no `creature`, and the sign text as `dialogue`. Put the **sign post tile (206) on decor** at the same spot and make it solid, so players see something to read. Every town and route should have one at its entrance.
 
-### 5.5 Writing dialogue
+### 5.5 Item balls
+
+Scatter 2 to 4 items per route: an item ball at the end of a dead end, a hidden item behind a tree or where a sign hints. They reward exploring. Put them on walkable tiles.
+
+### 5.6 Writing dialogue
 
 - Short pages: one or two sentences each, separated by an empty line (`"\n\n"`).
 - Give everyone a reason to exist: a tip, a joke, local lore, a hint about the next step.
@@ -297,6 +319,46 @@ How it plays:
 - **Side quests** stay hidden until their first step is done. Make step 1 the moment someone asks for help (talking to them completes it).
 - Rewards of `species` add a Pokémon to the party (a great way to give a second partner).
 - Every step needs someone who completes it, or it can never happen.
+
+### 6.1 Events and scripts (cutscenes)
+
+A script is a list of actions played in order while the player can't move. A person plays their `script` when talked to, **instead of** their usual part (with `once: true`, only the first time). A trigger plays its `actions` when the player **steps onto** one of its tiles.
+
+```ts
+type Trigger = {
+  id: string;
+  x: number; y: number; w: number; h: number;  // the area, in tiles
+  name: string;
+  once: boolean;              // plays only the first time, per player
+  after?: string;             // only once this step is done
+  until?: string;             // no more once this step is done
+  actions: Action[];
+};
+
+// `who` is someone's index in the same map's `npcs` array, or "player"
+type Action =
+  | { do: "say"; text: string; who?: number }   // no who: narration
+  | { do: "come"; who: number }                 // notices the player ("!") and walks up next to them
+  | { do: "move"; who: number | "player"; steps: ("up" | "down" | "left" | "right")[] }
+  | { do: "face"; who: number | "player"; dir: "up" | "down" | "left" | "right" }
+  | { do: "back"; who: number }                 // walks back to where they stand in `npcs`
+  | { do: "wait"; seconds: number }             // 0 to 10
+  | { do: "battle"; who: number }               // a trainer (or role "wild" Pokémon) of the map; stops the script if the player loses
+  | { do: "give"; item: ItemId; count: number }
+  | { do: "pokemon"; species: number; level: number }
+  | { do: "money"; amount: number }
+  | { do: "heal" }
+  | { do: "step"; step: string }                // completes a story step (counts as "someone completes it")
+  | { do: "warp"; to: string; x: number; y: number };  // map id ("" = outside) and tile; ends the script
+```
+
+Good uses:
+
+- **The rival runs up**: a trigger across the path out of town with `come`, `say`, `battle`, `say`, `back`, `step`. Give the rival `story.until` that step so they leave afterwards.
+- **Someone stops the player**: a one-tile trigger in front of an exit, `once: false`, `until` the step that allows leaving, with a `say` and a `move` of the player one step back.
+- **A welcome**: a trigger just inside a building, `once: true`, where someone walks up and explains.
+
+Draw triggers across the **whole** width of a path so players can't walk around them. Only people of the same map can act in it.
 
 ---
 
@@ -371,6 +433,8 @@ Set `weather` and `time` on any map. Use them for mood: a misty route at dawn (`
 - [ ] Nobody stands on a solid tile or outside their map.
 - [ ] Every trainer has a team, every talker has dialogue, every sign has text.
 - [ ] Every story step is completed by someone, and gates cover the whole opening.
+- [ ] Every script `who` is a real index in that map's `npcs` (not an item), and every `step` action names a real step.
+- [ ] Ledge landings are free, and nothing required sits behind surf water.
 - [ ] Every outdoor map touches another map, with walkable, unroofed tiles facing each other on the shared edge.
 - [ ] Every painted zone has creatures.
 - [ ] At most 40 interiors and outdoor maps together.
@@ -381,7 +445,7 @@ After import, the editor's **Problems** list (bottom bar) checks most of this to
 
 ## 10. The builder script
 
-Copy this into `build-town.mjs`, keep part 1, replace part 2 with your game, and run `node build-town.mjs > my-game.city.json`. Part 2 here is a complete small game you can import as is: **Mistwood Town**, with a house, a lab, a Pokémon Center, a Poké Mart, a gym, Route 101 to the north, a rival, a three-step story and a side quest.
+Copy this into `build-town.mjs`, keep part 1, replace part 2 with your game, and run `node build-town.mjs > my-game.city.json`. Part 2 here is a complete small game you can import as is: **Mistwood Town**, with a house, a lab, a Pokémon Center, a Poké Mart, a gym, Route 101 to the north (with a ledge shortcut and two items), a rival, a three-step story, a side quest and a small cutscene in the lab.
 
 ```js
 // build-town.mjs: makes a DreamMist city file. Run: node build-town.mjs > my-town.city.json
@@ -425,8 +489,8 @@ export function map(name, width, height, ground = T.grass) {
   return {
     id: uid("map"), name, width, height,
     layers: { ground: new Array(size).fill(ground), decor: new Array(size).fill(0), above: new Array(size).fill(0) },
-    solid: new Array(size).fill(0), zone: new Array(size).fill(0), gate: new Array(size).fill(0),
-    npcs: [], doors: [], spawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
+    solid: new Array(size).fill(0), behavior: new Array(size).fill(0), zone: new Array(size).fill(0), gate: new Array(size).fill(0),
+    npcs: [], doors: [], triggers: [], spawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
   };
 }
 
@@ -436,7 +500,7 @@ export function city(name, author, width, height) {
 }
 
 const inside = (m, x, y) => (x >= 0) && (y >= 0) && (x < m.width) && (y < m.height);
-/** Set one cell of a grid ("ground", "decor", "above", "solid", "zone" or "gate") */
+/** Set one cell of a grid ("ground", "decor", "above", "solid", "behavior", "zone" or "gate") */
 export function set(m, grid, x, y, value) {
   if (inside(m, x, y)) {
     (grid in m.layers ? m.layers[grid] : m[grid])[y * m.width + x] = value;
@@ -451,11 +515,19 @@ export function fill(m, grid, x, y, w, h, value) {
 }
 /** Walkable ground: sand, gravel or pavement paths */
 export const path = (m, x, y, w, h, tile = T.sand) => fill(m, "ground", x, y, w, h, tile);
-/** Water (blocked: there is no surfing). Clears objects over it, like a grass patch drawn first */
-export function water(m, x, y, w, h) {
+/** Water (blocked, or crossed by surfing with `surf`). Clears objects over it, like a grass patch drawn first */
+export function water(m, x, y, w, h, surf = false) {
   fill(m, "ground", x, y, w, h, T.water);
   fill(m, "decor", x, y, w, h, 0);
   fill(m, "solid", x, y, w, h, 1);
+  if (surf) fill(m, "behavior", x, y, w, h, B.surf);
+}
+/** Tile behaviors (the behavior grid) */
+export const B = { ledgeDown: 1, ledgeUp: 2, ledgeLeft: 3, ledgeRight: 4, surf: 5, ice: 6, pushUp: 7, pushDown: 8, pushLeft: 9, pushRight: 10 };
+/** Give a rectangle of tiles a behavior (ice and push tiles are made walkable) */
+export function behave(m, x, y, w, h, value) {
+  fill(m, "behavior", x, y, w, h, value);
+  if (value >= B.ice) fill(m, "solid", x, y, w, h, 0);
 }
 /** Tall grass with an encounter zone (zone = index returned by `zone()`) */
 export function tallGrass(m, x, y, w, h, zoneIndex) {
@@ -527,6 +599,22 @@ export function sign(m, x, y, text) {
   m.npcs.push({ x, y, sprite: "", dir: "down", name: "Sign", dialogue: text, role: "talk", wander: false });
 }
 
+/** An item ball the player picks up (or an item hidden on the ground) */
+export function item(m, x, y, id, count = 1, hidden = false) {
+  const npc = { x, y, sprite: "", dir: "down", name: "", dialogue: "", role: "item", wander: false, gift: { item: id, count }, ...(hidden ? { hidden: true } : {}) };
+  m.npcs.push(npc);
+  set(m, "solid", x, y, 0);
+  return npc;
+}
+/** Index of someone in their map's npcs, for script actions */
+export const who = (m, npc) => m.npcs.indexOf(npc);
+/** An event area that plays a cutscene when the player steps in: trigger(m, { x, y, w, h, name, once, after, until, actions }) */
+export function trigger(m, { after, until, ...fields }) {
+  const t = { id: uid("event"), w: 1, h: 1, name: "Event", once: true, actions: [], ...fields, ...(after ? { after: after.id } : {}), ...(until ? { until: until.id } : {}) };
+  m.triggers.push(t);
+  return t;
+}
+
 /** An encounter zone, returns its index for tallGrass() */
 export function zone(c, name, creatures, rate = 0.12) {
   c.zones.push({ name, rate, color: [0x2ecc40, 0x0074d9, 0xff851b, 0xb10dc9, 0xffdc00, 0x39cccc][c.zones.length % 6], creatures });
@@ -582,7 +670,8 @@ export function finish(c) {
   const problems = [];
   for (const m of maps) {
     const size = m.width * m.height;
-    for (const grid of ["solid", "zone", "gate"]) if (m[grid].length !== size) problems.push(`${m.name}: ${grid} has the wrong length`);
+    for (const grid of ["solid", "behavior", "zone", "gate"]) if (m[grid].length !== size) problems.push(`${m.name}: ${grid} has the wrong length`);
+    for (const t of m.triggers) for (const a of t.actions) if ((typeof a.who === "number") && !m.npcs[a.who]) problems.push(`${m.name}: event ${t.name} is about someone who isn't there`);
     for (const layer of ["ground", "decor", "above"]) if (m.layers[layer].length !== size) problems.push(`${m.name}: ${layer} has the wrong length`);
     for (const d of m.doors) if (!ids.has(d.to)) problems.push(`${m.name}: door at ${d.x},${d.y} leads to a missing map`);
     for (const p of m.npcs) {
@@ -660,7 +749,12 @@ person(house, { x: 5, y: 4, sprite: "mom", name: "Mom", dialogue: "Off on your a
 // The lab
 const labRoom = interior(town, "Birch Lab", town, lab, { width: 16, height: 12, floor: "stone" });
 person(labRoom, { x: 8, y: 4, sprite: "scientist", name: "Prof. Birch", dialogue: "Ah, there you are! The world is full of Pokémon.\n\nTake these Poké Balls and go explore Route 101!", story: { completes: meetProf.id, reward: { balls: 5 }, done: "Have you met Wally yet? He went north." } });
-person(labRoom, { x: 4, y: 6, sprite: "generic_f2", name: "Aide", dialogue: "The Professor studies how Pokémon live in the wild.", wander: true });
+const aide = person(labRoom, { x: 4, y: 6, sprite: "generic_f2", name: "Aide", dialogue: "The Professor studies how Pokémon live in the wild.", wander: true });
+// A small cutscene: the first time the player walks in, the aide comes over (the row just inside the door)
+trigger(labRoom, { x: 1, y: 9, w: 14, h: 1, name: "Welcome to the lab", until: meetProf, actions: [
+  { do: "come", who: who(labRoom, aide) },
+  { do: "say", who: who(labRoom, aide), text: "Oh, you must be the new trainer!\n\nThe Professor is waiting for you at the back." },
+] });
 
 // Pokémon Center and Mart
 const centerRoom = interior(town, "Pokémon Center", town, center, { floor: "stone" });
@@ -684,6 +778,11 @@ tallGrass(route, 3, 8, 5, 6, routeGrass);
 tallGrass(route, 12, 20, 5, 7, routeGrass);
 tallGrass(route, 3, 28, 5, 5, routeGrass);
 sign(route, 8, 37, "Route 101\n\nNorth: Petalburg City");
+// A ledge shortcut west of the path: hop down going south, walk around going north
+behave(route, 2, 18, 7, 1, B.ledgeDown);
+// Items: a ball in the east grass, one hidden by the trees
+item(route, 15, 31, "super-potion");
+item(route, 2, 36, "great-ball", 2, true);
 person(route, { x: 13, y: 14, sprite: "youngster", name: "Youngster Joey", dir: "left", dialogue: "My Zigzagoon is in the top percentage!", role: "trainer", trainer: { team: [{ species: 263, level: 5 }], gym: false, badge: "", defeat: "Aww, my Zigzagoon..." } });
 pokemon(route, 5, 26, 300, 5, { dialogue: "Mew?", story: { after: askHelp.id, completes: findSkitty.id, done: "Skitty went home to Lily." } });
 route.time = "evening";
@@ -698,9 +797,10 @@ finish(town);
 | --- | --- |
 | `city(name, author, w, h)` | The city with its outside map |
 | `map(name, w, h, ground)` | A blank map (used by the others) |
-| `set / get / fill(m, grid, …)` | Any grid: `"ground"`, `"decor"`, `"above"`, `"solid"`, `"zone"`, `"gate"` |
+| `set / get / fill(m, grid, …)` | Any grid: `"ground"`, `"decor"`, `"above"`, `"solid"`, `"behavior"`, `"zone"`, `"gate"` |
 | `path(m, x, y, w, h, tile)` | Paths (sand by default) |
-| `water(m, x, y, w, h)` | Water, solid |
+| `water(m, x, y, w, h, surf)` | Water, solid (crossed by surfing with `surf: true`) |
+| `behave(m, x, y, w, h, B.value)` | Ledges, surf water, ice and push tiles (2.4) |
 | `tallGrass(m, x, y, w, h, zone)` | Tall grass with encounters |
 | `flowers(m, x, y, w, h)` | Flowers |
 | `object(m, x, y, tile)` | One solid object (fence, rock, small tree…) |
@@ -711,6 +811,9 @@ finish(town);
 | `person(m, fields)` | A person (section 5) |
 | `pokemon(m, x, y, species, level, fields)` | A Pokémon on the map |
 | `sign(m, x, y, text)` | A sign post you can read |
+| `item(m, x, y, id, count, hidden)` | An item ball, or a hidden item |
+| `trigger(m, { x, y, w, h, name, once, after, until, actions })` | An event area playing a cutscene (6.1); `after`/`until` take steps |
+| `who(m, npc)` | Someone's index in their map, for script actions |
 | `zone(c, name, creatures, rate)` | An encounter zone; returns its number |
 | `interior(c, name, fromMap, door, { width, height, floor })` | A room with walls and a two-way door |
 | `link(c, mapA, tileA, mapB, tileB)` | Two-way doors between any two maps |

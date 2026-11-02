@@ -1,0 +1,81 @@
+---
+title: Events and scripts
+description: Cutscenes that play when the player steps somewhere or talks to someone.
+---
+
+A **script** is a short list of actions played in order, like a small cutscene: someone walks up, says something, hands over a gift, starts a battle, and the story moves on. The player can't move while it plays.
+
+Scripts run in two places:
+
+- **Event areas** on the Events layer play their script when the player steps in.
+- **People, Pokémon and signs** can have a script that plays when the player talks to them.
+
+## Event areas
+
+Select the **Events** layer in the side panel and drag over the map to draw an area. It opens for editing right away. Click an area to edit it, drag it to move it, and set its exact position and size in the panel.
+
+| Setting                   | What it does                                              |
+| ------------------------- | --------------------------------------------------------- |
+| Name                      | Shown on the map in the editor, and in problems.          |
+| X, Y, Width, Height       | Where the area is, in tiles.                              |
+| Plays only the first time | On: once per player. Off: every time the player steps in. |
+| Starts after              | Only plays once this story step is done.                  |
+| Stops after               | Never plays again once this story step is done.           |
+
+Draw an area across a whole path, like a row of 5 tiles from one fence to the other, so the player can't walk around it.
+
+<Callout>An area plays when the player **steps onto** one of its tiles. Starting Play on top of one doesn't play it.</Callout>
+
+## Scripts on people
+
+Open someone on the People layer and press **Add a script** in their **Script** section. It starts with them saying their dialogue.
+
+A person's script plays **instead of** their usual part: their dialogue, battle, healing, shop or gift. With **Plays only the first time** on, they go back to their usual part afterwards. Their story settings still apply: they show up and leave with the story, wait for **Needs first**, and their **completes** step is done when the script ends.
+
+## Actions
+
+Press **Add action** to add one at the end, and use the arrows to reorder.
+
+| Action       | What it does                                                                                        |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| Say          | Shows a message. Pick who says it for their name and portrait, or **Nobody** for narration.         |
+| Walk up      | Someone notices the player (**!**) and walks to the tile next to them, then they face each other.   |
+| Walk         | Someone, or the player, walks some steps. Steps that are blocked are skipped.                       |
+| Face         | Someone, or the player, turns to face a direction.                                                  |
+| Walk back    | Someone walks back to where they stand on the map.                                                  |
+| Wait         | Pauses, up to 10 seconds.                                                                           |
+| Battle       | Battles a trainer of the map, or a wild Pokémon placed on it. The script stops if the player loses. |
+| Give item    | Puts items in the bag.                                                                              |
+| Give Pokémon | Adds a Pokémon to the party (or the PC box when the party is full).                                 |
+| Give money   | Adds money.                                                                                         |
+| Heal         | Heals the whole party.                                                                              |
+| Story step   | Completes a story step: its banner shows, people come and go and gates open.                        |
+| Warp         | Takes the player to a tile of another map. The script ends there.                                   |
+
+Scripts only move people of the **same map**, and only those present at that point of the story. Removing someone from the map removes the actions about them (their messages stay, as narration).
+
+## Recipe: the rival runs up
+
+1. In the Story layer, add a step **Meet the rival**.
+2. On the People layer, add the rival standing out of the way. In their Story settings, set **Leaves** to _Meet the rival_.
+3. On the Events layer, drag an area across the path out of town.
+4. Add these actions:
+   - **Walk up**: the rival
+   - **Say**: the rival, "Hey! You're the new trainer? Let's see what you've got!"
+   - **Battle**: the rival (make them a trainer with a team first)
+   - **Say**: the rival, "Not bad… See you around!"
+   - **Walk back**: the rival
+   - **Story step**: Meet the rival
+
+The rival runs up, battles, walks off and fades away. The area plays once, and the next step of the story starts.
+
+## Recipe: Mom stops you at the door
+
+Draw a one-tile area in front of the door, set **Stops after** to the step where the player gets their first Pokémon, and turn off **Plays only the first time**:
+
+- **Say**: Mom, "Wait! It's dangerous to go out without a Pokémon."
+- **Walk**: the player, one step back up
+
+Every time the player tries to leave too early they're stopped, until they get a Pokémon.
+
+See [Story and events](/docs/story) for steps and gates, and [Collision](/docs/collision#tile-behaviors) for ledges, water and ice.

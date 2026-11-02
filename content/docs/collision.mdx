@@ -26,12 +26,32 @@ Common fixes:
 
 <Callout>The map border always blocks, so the player can never walk off the map.</Callout>
 
+## Tile behaviors
+
+The Collision panel has more brushes than **Blocked**. Each one gives tiles a behavior, drawn on the map with its own color and arrow while the Collision layer is selected:
+
+| Brush         | What the tile does                                                                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ledge ↓ ↑ ← → | Walking onto it in the arrow's direction jumps over it, landing on the tile beyond. It can't be climbed from any other side.                  |
+| Surf          | Deep water. Crossed by surfing once a Pokémon in the party is Water type. The first step in says "Mudkip used Surf!" and the player rides it. |
+| Ice           | The player slides the way they were going until something stops them, or they slide off the ice.                                              |
+| Push ↑ ↓ ← →  | Pushes the player along in the arrow's direction until they reach a normal tile. Chain them to make spinning-tile puzzles.                    |
+
+Paint them with the Brush, Rectangle or Fill tool like blocked tiles. The **Eraser** clears both blocked tiles and behaviors.
+
+Tips:
+
+- **Ledges**: paint them on the ledge tiles of a route, so players can hop down a shortcut but have to take the long way back. The landing tile must be free.
+- **Surf**: paint it on the water itself. Water is usually blocked already, and surfing ignores that. Keep the shore walkable so players can get off. People and Pokémon of the map never walk onto water or ledges.
+- **Ice and push tiles** make the tile walkable when painted. Leave a blocked tile or a normal tile where the player should stop.
+
 ## What else blocks the player
 
 - **People** block the tile they stand on. People who wander move around their starting tile, up to two tiles away.
 - **Story gates** block until their step is done. See [Story and events](/docs/story).
 - **Pokémon** on the map block their tile too.
 - **Signs** don't block. A new sign gets a sign post under it, which does.
+- **Item balls** block their tile until they're picked up. Hidden items don't block.
 
 ## Spawn
 

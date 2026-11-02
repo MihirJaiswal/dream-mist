@@ -183,7 +183,7 @@ export function LayersPane() {
             {locked ? <Lock size={14} /> : <LockOpen size={14} />}
           </button>
         </span>
-        <kbd className="w-4 text-center font-mono text-[10px] text-subtle-fg">{index + 1}</kbd>
+        <kbd className="w-4 text-center font-mono text-[10px] text-subtle-fg">{index < 9 ? index + 1 : ""}</kbd>
       </div>
     );
   };
@@ -191,7 +191,7 @@ export function LayersPane() {
     <Pane title="Layers" hint="drawn top to bottom">
       <div className="grid gap-0.5">{(["above", "decor", "ground"] as Target[]).map(row)}</div>
       <p className="mb-1 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Gameplay</p>
-      <div className="grid gap-0.5">{(["solid", "zone", "story", "door", "npc", "spawn"] as Target[]).map(row)}</div>
+      <div className="grid gap-0.5">{(["solid", "zone", "story", "event", "door", "npc", "spawn"] as Target[]).map(row)}</div>
     </Pane>
   );
 }

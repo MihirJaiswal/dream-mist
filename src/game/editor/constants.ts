@@ -7,17 +7,18 @@ export const targets = [
   { key: "ground", label: "Ground", hint: "Grass, paths, water, floors" },
   { key: "decor", label: "Objects", hint: "Buildings, trees, fences (drawn below player)" },
   { key: "above", label: "Above", hint: "Roofs and tree tops (drawn over the player)" },
-  { key: "solid", label: "Collision", hint: "Red tiles block movement" },
+  { key: "solid", label: "Collision", hint: "Blocked tiles, ledges, water, ice and push tiles" },
   { key: "zone", label: "Encounters", hint: "Where wild Pokémon appear" },
   { key: "story", label: "Story", hint: "Timeline of events, paint gates that open later" },
   { key: "door", label: "Doors", hint: "Click to place doors into houses and buildings" },
   { key: "npc", label: "People", hint: "Click to add or select people, Pokémon and signs" },
   { key: "spawn", label: "Spawn", hint: "Click to set where visitors arrive" },
+  { key: "event", label: "Events", hint: "Drag an area that plays a cutscene when the player steps in" },
 ] as const;
 export type Target = (typeof targets)[number]["key"];
 
 /** Targets that place things instead of painting (only the brush and select tools apply) */
-export const placing = ["npc", "spawn", "door"] as readonly Target[];
+export const placing = ["npc", "spawn", "door", "event"] as readonly Target[];
 
 /** Painting tools */
 export const tools = [
@@ -34,8 +35,8 @@ export type Tool = (typeof tools)[number]["key"];
 export type Stamp = { w: number; h: number; tiles: number[] } & Partial<Brush>;
 
 /** Grids copied by the select tool */
-export const grids = ["ground", "decor", "above", "solid", "zone", "gate"] as const;
-export type Grid = Layer | "solid" | "zone" | "gate";
+export const grids = ["ground", "decor", "above", "solid", "behavior", "zone", "gate"] as const;
+export type Grid = Layer | "solid" | "behavior" | "zone" | "gate";
 
 /** Clipboard (every layer of a rectangular area) */
 export type Clip = { w: number; h: number; grids: Record<(typeof grids)[number], number[]> };
@@ -61,16 +62,17 @@ export const templates = [
 export type Template = (typeof templates)[number]["key"];
 
 /** What can be placed on the People layer */
-export type Kind = "person" | "pokemon" | "sign";
+export type Kind = "person" | "pokemon" | "sign" | "item";
 export const kinds = {
   person: { label: "Person", title: "Villagers, trainers and nurses", hint: "Click an empty tile to add a person." },
   pokemon: { label: "Pokémon", title: "A Pokémon to talk to or battle", hint: "Click an empty tile to place a Pokémon. Pick which one after." },
   sign: { label: "Sign", title: "A sign visitors can read", hint: "Click a tile to put up a sign. A sign post is drawn there if the tile is empty." },
+  item: { label: "Item", title: "An item ball, or an item hidden on the ground", hint: "Click an empty tile to drop an item ball." },
 } as const;
 
 /** Kind of someone on the map */
 export function kindOf(npc: Npc): Kind {
-  return npc.creature ? "pokemon" : npc.sprite ? "person" : "sign";
+  return npc.role === "item" ? "item" : npc.creature ? "pokemon" : npc.sprite ? "person" : "sign";
 }
 
 /** Turn someone into another kind, keeping where they stand and their story */
@@ -79,7 +81,15 @@ export function convert(npc: Npc, kind: Kind, city: string) {
   delete npc.trainer;
   delete npc.portrait;
   delete npc.hidePortrait;
-  if (kind === "pokemon") {
+  delete npc.hidden;
+  if (npc.role === "item") {
+    delete npc.gift;
+  }
+  if (kind === "item") {
+    Object.assign(npc, { sprite: "", name: "", dialogue: "", role: "item", wander: false, gift: { item: "potion", count: 1 } });
+    delete npc.path;
+    delete npc.script;
+  } else if (kind === "pokemon") {
     Object.assign(npc, { sprite: "", creature: { species: 25, level: 5 }, name: "Pikachu", dialogue: "Pika pika!", role: "talk", wander: true });
   } else if (kind === "sign") {
     Object.assign(npc, { sprite: "", name: "Sign", dialogue: `Welcome to ${city}!`, role: "talk", wander: false });

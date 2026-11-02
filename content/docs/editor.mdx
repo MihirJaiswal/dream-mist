@@ -22,11 +22,12 @@ Press <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd> on Windows), or 
 
 ## Problems
 
-The status bar counts what looks broken in your town. Click it for the list, then click a problem to go straight to it: the editor opens the right map and layer, selects the person, door or story step, and centers on it. It checks:
+The status bar counts what looks broken in your town. Click it for the list, then click a problem to go straight to it: the editor opens the right map and layer, selects the person, door, event or story step, and centers on it. It checks:
 
 - **Doors** that lead nowhere yet, or to a deleted map.
 - **Interiors** nobody can get into, or that have no door back out, and **routes or towns** nobody can walk into.
-- **People** with nothing to say, blank signs, and trainers with no Pokémon.
+- **People** with nothing to say, blank signs, trainers with no Pokémon, and items that hold nothing.
+- **Events and scripts** that do nothing yet, or are about someone who left the map, a deleted story step or a deleted map.
 - **Visitors** arriving on a blocked tile.
 - **Encounter zones** painted on the map but with no Pokémon.
 - **Story steps** that can never happen, because nobody completes them or whoever does waits for a step that never happens, plus gates and people left from deleted steps.
@@ -46,7 +47,7 @@ Tools work on the selected layer. On gameplay layers like Collision and Encounte
 
 ## Layers
 
-Select a layer in the side panel or with <kbd>1</kbd> to <kbd>9</kbd>. Hover a layer to show two buttons:
+Select a layer in the side panel or with <kbd>1</kbd> to <kbd>9</kbd> (the Events layer has no number). Hover a layer to show two buttons:
 
 - **Eye**: hide the layer while you edit. Visitors always see every layer.
 - **Lock**: prevent painting on it by mistake.

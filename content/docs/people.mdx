@@ -3,17 +3,18 @@ title: People, Pokémon and signs
 description: Villagers, nurses, shop clerks, Pokémon standing on the map, wild encounters and signs.
 ---
 
-Select the **People** layer (<kbd>8</kbd>). At the top of the panel, **Add to the map** has three tabs:
+Select the **People** layer (<kbd>8</kbd>). At the top of the panel, **Add to the map** has four tabs:
 
 | Tab     | What a click places                                                                            |
 | ------- | ---------------------------------------------------------------------------------------------- |
 | Person  | A villager, trainer, nurse or Poké Mart clerk.                                                 |
 | Pokémon | A Pokémon standing on the map, to talk to or to battle.                                        |
 | Sign    | An invisible sign visitors can read. A sign post is drawn on the tile if nothing is there yet. |
+| Item    | An item ball, or an item hidden on the ground.                                                 |
 
 Pick a tab, then click an empty tile. The new one opens for editing right away. Click anyone on the map to edit them, and drag to move them. **On this map** lists everyone with a tag for their role, like _trainer_, _nurse_, _Poké Mart_ or _wild · Lv 30_.
 
-While editing, the arrow goes back to the list and the trash button removes them. The three tabs also turn someone into another kind: they keep their place and story settings.
+While editing, the arrow goes back to the list and the trash button removes them. The tabs also turn someone into another kind: they keep their place and story settings.
 
 Players talk to anyone by facing them and pressing <kbd>Space</kbd>, <kbd>Enter</kbd>, <kbd>Z</kbd> or <kbd>E</kbd>.
 
@@ -121,6 +122,19 @@ A sign has only **Text**: what visitors read when they face its tile. An empty l
 
 Good uses for signs: town names, route directions, hints and a bit of lore.
 
+## Items
+
+An item holds one kind of item, from 1 to 99 of it. Players pick it up by facing its tile and pressing <kbd>Space</kbd>: "May found 2 Potions!". Each player finds it once.
+
+- An **item ball** is drawn on the map and blocks its tile until it's picked up.
+- Turn on **Hidden on the ground** and nothing shows: players have to guess where to look. Hide them at the end of dead ends, behind trees, or where a sign hints.
+
+Items have story settings too: one can show up only after a step, and finding it can complete a step.
+
+## Scripts
+
+People, Pokémon and signs can play a small cutscene when talked to: walk around, talk with others, hand over gifts and start battles. See [Events and scripts](/docs/events).
+
 ## Story settings
 
 People, Pokémon and signs all have a **Story** section to show up later, leave, wait for a step, complete a step and hand out a reward. It appears once your city has at least one story step.
@@ -131,5 +145,7 @@ People, Pokémon and signs all have a **Story** section to show up later, leave,
 | Trainer                    | The player beats them              |
 | Pokémon with a wild battle | The player beats or catches it     |
 | Pokémon that cries, sign   | The player talks to it or reads it |
+| Item                       | The player finds it                |
+| Anyone with a script       | Their script ends                  |
 
 See [Story and events](/docs/story) and the [Snorlax recipe](/docs/recipes#the-sleeping-snorlax).

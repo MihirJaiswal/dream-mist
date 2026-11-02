@@ -5,6 +5,7 @@ import {
   Eraser,
   Eyedropper,
   FlagBanner,
+  FilmSlate,
   type Icon,
   MapPin,
   PaintBrush,
@@ -39,4 +40,5 @@ export const targetIcons: Record<Target, Icon> = {
   door: DoorOpen,
   npc: Users,
   spawn: MapPin,
+  event: FilmSlate,
 };

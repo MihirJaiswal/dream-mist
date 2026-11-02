@@ -29,6 +29,15 @@ describe("agent guide", () => {
     expect(city.quests).toHaveLength(1);
   });
 
+  test("its example uses ledges, items and a cutscene", () => {
+    const city = sanitize(build());
+    const route = city.interiors.find(({ name }) => name === "Route 101")!;
+    expect(route.behavior.filter((value) => value === 1)).toHaveLength(7);
+    expect(route.npcs.filter(({ role }) => role === "item").map(({ hidden }) => Boolean(hidden))).toEqual([false, true]);
+    const lab = city.interiors.find(({ name }) => name === "Birch Lab")!;
+    expect(lab.triggers[0].actions.map((action) => action.do)).toEqual(["come", "say"]);
+  });
+
   test("its route can be walked to from the town", () => {
     const city = sanitize(build());
     expect([...reachable(city)].map(({ name }) => name)).toContain("Route 101");
