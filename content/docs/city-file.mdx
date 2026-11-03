@@ -116,10 +116,21 @@ type Npc = {
     pause: number; // seconds at each stop
   };
   trainer?: {
-    team: { species: number; level: number; held?: ItemId }[]; // national Pokédex numbers, 1 to 1025, and a held item
+    team: {
+      species: number; // national Pokédex numbers, 1 to 1025
+      level: number;
+      held?: ItemId;
+      moves?: string[]; // up to 4 move keys from its level-up list ("rock-throw"), automatic when not set
+      ability?: string; // one of its species' abilities ("sturdy"), random when not set
+      nature?: string; // "adamant"…, random when not set
+      nickname?: string;
+      shiny?: boolean;
+    }[];
     gym: boolean;
     badge: string;
     defeat: string;
+    lines?: { last?: string; low?: string }; // said mid-battle: sending out their last Pokémon, and when it's low on HP
+    rules?: { difficulty?: "easy" | "normal" | "hard"; weather?: "clear" | "rain" | "sandstorm" | "snow"; scene?: string; noItems?: boolean }; // over the town's and map's
   };
   story?: {
     after?: string; // Shows up (step id)

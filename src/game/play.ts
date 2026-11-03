@@ -7,9 +7,9 @@ import { arrow, ICE, ledge, WATER } from "./behaviors";
 import { period } from "./atmosphere";
 import { pool, roll } from "./encounters";
 import { type CityMap, drawBall } from "./map";
-import { Battle, battleWeather } from "./battle";
+import { Battle, battleWeather, trainerRules } from "./battle";
 import { creatureImage, scaleOf } from "./sprites";
-import { create, trainer } from "./trainer";
+import { create, teamOf, trainer } from "./trainer";
 import { bestRod, itemCount, items, sold } from "./items";
 import { milestone, open } from "./story";
 import { sound } from "./audio";
@@ -1312,10 +1312,11 @@ export class Play {
   /** Battle a trainer of the map (returns the outcome) */
   async #fight(data: Npc, index: number) {
     const voice = { speaker: data.name, portrait: portraitOf(data) };
-    const team = data
-      .trainer!.team.filter(({ species: id }) => species(id))
-      .map(({ species: id, level, held }) => create(id, level, { shiny: false, held: held && held in items ? held : undefined }));
-    const outcome = await new Battle({ opponent: { name: data.name || "Trainer", sprite: data.sprite, team }, rules: this.#rules() }).start();
+    const { team, lines, rules } = data.trainer!;
+    const outcome = await new Battle({
+      opponent: { name: data.name || "Trainer", sprite: data.sprite, team: teamOf(team), lines },
+      rules: trainerRules(this.#rules(), rules),
+    }).start();
     if (outcome === "win") {
       trainer.profile!.defeated.push(this.#key(index));
       if (data.trainer!.gym) {

@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { sanitize } from "@/game/data";
 import { problems } from "@/game/problems";
 import { reachable } from "@/game/region";
+import { teamOf } from "@/game/trainer";
 
 /** The builder script inside the agent guide (public/agents.md), run the way an agent would */
 function build() {
@@ -36,6 +37,16 @@ describe("agent guide", () => {
     expect(route.npcs.filter(({ role }) => role === "item").map(({ hidden }) => Boolean(hidden))).toEqual([false, true]);
     const lab = city.interiors.find(({ name }) => name === "Birch Lab")!;
     expect(lab.triggers[0].actions.map((action) => action.do)).toEqual(["come", "say"]);
+  });
+
+  test("its gym leader has a designed battle", () => {
+    const city = sanitize(build());
+    const gym = city.interiors.find(({ name }) => name === "Mistwood Gym")!;
+    const leader = gym.npcs.find(({ trainer }) => trainer?.gym)!;
+    const team = teamOf(leader.trainer!.team);
+    expect(team[1]).toMatchObject({ nickname: "Bubbles", ability: "huge-power", nature: "adamant", held: "oran-berry" });
+    expect(team[1].moves.map(({ key }) => key)).toEqual(["water-gun", "tackle", "defense-curl"]);
+    expect(leader.trainer!.rules).toEqual({ scene: "pond_water", weather: "rain" });
   });
 
   test("its route can be walked to from the town", () => {

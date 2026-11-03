@@ -1,15 +1,57 @@
 ---
 title: Trainers and gyms
-description: Teams, line of sight, prize money and badges.
+description: Teams, the battle designer, test battles, line of sight, prize money and badges.
 ---
 
 Add a person in the **People** layer and set **Role** to **Trainer (battles)**. Trainer settings appear under it.
 
-## Team
+## Team and the battle designer
 
-A trainer has one to six Pokémon. For each one, type its name and set its level (1 to 100). They are sent out in order, so put the strongest last.
+A trainer has one to six Pokémon, sent out in order, so put the strongest last. The side panel shows the team; press **Design the battle** to open the battle designer and plan everything about it.
 
-Trainer Pokémon know the last four moves they would have learned by that level, from their real level-up moves. They are never shiny.
+### Each Pokémon
+
+| Setting  | What it does                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Species  | Type its name or browse.                                                                                               |
+| Level    | 1 to 100.                                                                                                              |
+| Nickname | Shown in battle ("Foe Nosey"). Its species name when empty.                                                            |
+| Shiny    | Shiny colors.                                                                                                          |
+| Moves    | Up to four of the moves it learns by leveling up, at any level. **Automatic** uses the last four learned by its level. |
+| Ability  | One of its species' abilities, or **Random**.                                                                          |
+| Nature   | One of the 25 natures, or **Random**.                                                                                  |
+| Item     | A held item, like an Oran Berry or Leftovers. See [Held items](/docs/battles#held-items).                              |
+
+Choosing one move switches that Pokémon to chosen moves, starting from its automatic ones. **Back to automatic moves** undoes it.
+
+### Mid-battle lines
+
+Like in later games, a trainer can slide in mid-battle and say something, once per battle:
+
+- **Sending out their last Pokémon**: "You've pushed me this far…"
+- **Their last Pokémon is low on HP** (a quarter or less): "Hang in there!"
+
+Leave them empty to stay quiet. An empty line in the text starts a new page.
+
+### Battle rules
+
+| Rule    | What it does                                                                                                        |
+| ------- | ------------------------------------------------------------------------------------------------------------------- |
+| Trainer | Easy, Normal or Hard, instead of the town's difficulty. See [Trainer difficulty](/docs/battles#trainer-difficulty). |
+| Weather | Clear, rain, sandstorm or snow, instead of the map's weather.                                                       |
+| Scene   | One of the Emerald battle scenes, instead of the map's background.                                                  |
+| Bag     | **No items**: the player can't use the bag in this battle.                                                          |
+
+A Hard trainer with Rain and Swift Swim Pokémon, or a mountain gym with Sandstorm and no items, makes a memorable fight.
+
+### Test battle
+
+**Test battle** fights the trainer right away, without leaving the editor:
+
+- **With your party in Play**: a healed copy of your trainer's party.
+- **With a test team**: any Pokémon and levels you pick (it's remembered in this browser). By default, the three Hoenn starters at the trainer's top level.
+
+Nothing is saved: your party, items, money and progress stay as they are. The designer opens again afterwards, so you can adjust and test again.
 
 ## Line of sight
 

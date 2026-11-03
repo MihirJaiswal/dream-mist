@@ -1,8 +1,9 @@
 //Imports
 import { assets, species } from "./assets";
 import { storage } from "./data";
-import { type ItemId, itemIds } from "./items";
-import { type Nature, natureMultiplier, randomNature } from "./natures";
+import { type ItemId, itemIds, items } from "./items";
+import { type Nature, natureMultiplier, natures, randomNature } from "./natures";
+import type { Member } from "./data";
 
 /** Conditions that last after a battle until cured (sleep wears off on its own) */
 export type Status = "sleep" | "poison" | "paralysis" | "burn";
@@ -93,7 +94,7 @@ export function experience(level: number) {
 const damaging = (key: string) => (assets.moves[key]?.power ?? 0) > 0;
 
 /** Moves known at a given level: the last four learned, with at least one that deals damage */
-function learned(id: number, level: number) {
+export function learned(id: number, level: number) {
   const moves = [
     ...new Set(
       species(id)
@@ -182,6 +183,28 @@ export function evolve(creature: Creature, into: number) {
   return messages;
 }
 
+/** A trainer's team, ready to battle: chosen moves (known moves only), ability (one of the species'), nature, item, nickname and shine */
+export function teamOf(members: Member[]) {
+  return members
+    .filter(({ species: id }) => species(id))
+    .map(({ species: id, level, held, moves, ability, nature, nickname, shiny }) => {
+      const creature = create(id, level, {
+        shiny: Boolean(shiny),
+        ...(nature && nature in natures ? { nature } : {}),
+        ...(ability && species(id).abilities?.includes(ability) ? { ability } : {}),
+        ...(held && held in items ? { held } : {}),
+      });
+      const chosen = (moves ?? []).filter((key) => key in assets.moves).slice(0, 4);
+      if (chosen.length) {
+        creature.moves = chosen.map((key) => ({ key, pp: assets.moves[key].pp }));
+      }
+      if (nickname?.trim()) {
+        creature.nickname = nickname.trim().slice(0, 12);
+      }
+      return creature;
+    });
+}
+
 /** Ability of a creature (older ones without one use their species' first) */
 export function abilityOf(creature: Creature) {
   return creature.ability ?? species(creature.species).abilities?.[0] ?? "";
@@ -245,10 +268,29 @@ export const trainer = {
   /** Save listener (cloud sync) */
   onsave: null as null | ((profile: Trainer | null) => void),
 
+  /** A test battle is running with a stand-in profile: nothing is saved */
+  testing: false,
+
   /** Persist profile */
   save() {
+    if (this.testing) {
+      return;
+    }
     storage.set("trainer", this.profile);
     this.onsave?.(this.profile);
+  },
+
+  /** Run something (a test battle) with a stand-in profile, then put the real one back untouched */
+  async sandbox<T>(stand: Trainer, fn: () => Promise<T>) {
+    const real = this.profile;
+    this.profile = stand;
+    this.testing = true;
+    try {
+      return await fn();
+    } finally {
+      this.profile = real;
+      this.testing = false;
+    }
   },
 
   /** Register a creature as seen */

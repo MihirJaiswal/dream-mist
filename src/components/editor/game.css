@@ -287,6 +287,26 @@
   left: 25%;
   top: 104%;
 }
+/* An opponent trainer sliding in from the right to say something mid-battle */
+.battle .slide {
+  position: absolute;
+  right: 4%;
+  top: 8%;
+  z-index: 4;
+  display: grid;
+  place-items: end center;
+  padding: 6px 14px 0;
+  border-radius: 50% 50% 0 0 / 30% 30% 0 0;
+  background: radial-gradient(ellipse at 50% 100%, rgb(0 0 0 / 0.28), transparent 70%);
+  animation: slide-in 0.35s ease-out;
+  image-rendering: pixelated;
+}
+@keyframes slide-in {
+  from {
+    translate: 120% 0;
+    opacity: 0;
+  }
+}
 /* Uploaded backgrounds with their own platforms drawn in */
 .battle .stage.bare .platform {
   display: none;

@@ -2,7 +2,9 @@
 
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { Button } from "@/components/ui/button";
-import { artwork, battleSprite } from "@/game/assets";
+import { artwork, battleSprite, npc as texture, preview } from "@/game/assets";
+import { CanvasView } from "@/components/editor/widgets";
+import { scaleOf } from "@/game/sprites";
 import { Battle, type BattleSide, statusLabels } from "@/game/battle";
 import { hour } from "@/game/atmosphere";
 import { cloud } from "@/game/cloud";
@@ -254,8 +256,8 @@ export function BattleScreen() {
   const tint = overlays.map((key) => `linear-gradient(${tints[key]}, ${tints[key]})`).join(", ") || "none";
   //The map's own battle background, else the outside map's (the city default), else the built-in scene
   const chosen = session.area?.battle ?? session.city?.battle;
-  //An Emerald scene (chosen, or picked by the kind of place), or an uploaded picture
-  const scene = chosen ? sceneOf(chosen.image) : session.area ? autoScene(session.area, session.city, { water: battle.water }) : "tall_grass";
+  //The battle's own Emerald scene, the map's (chosen, or picked by the kind of place), or an uploaded picture
+  const scene = battle.scene ?? (chosen ? sceneOf(chosen.image) : session.area ? autoScene(session.area, session.city, { water: battle.water }) : "tall_grass");
   const background = scene ? { image: scenePicture(scene), platforms: false } : chosen!;
   return (
     <div className={cn("battle", view.phase === "intro" && "intro", view.phase === "outro" && "outro")}>
@@ -267,6 +269,11 @@ export function BattleScreen() {
           <Side side="ally" view={view.ally} foe={false} />
           <Info view={view.foe} foe />
           <Info view={view.ally} foe={false} />
+          {view.slide ? (
+            <div key={view.slide.key} className="slide" aria-hidden="true">
+              <CanvasView make={() => preview(texture(view.slide!.sprite, "down"), 6 * scaleOf(view.slide!.sprite))} deps={[view.slide.sprite]} />
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="panel">

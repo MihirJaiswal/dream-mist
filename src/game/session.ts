@@ -31,7 +31,8 @@ import type { Problem } from "./problems";
 import { type Edit, type Peer, Room } from "./room";
 import { frameOf, layouts, load as loadSprites, type Sprite } from "./sprites";
 import { dataURL, load as loadTilesets, prepare, range } from "./tilesets";
-import { type Creature, cure, hp, type Trainer, trainer, upgrade } from "./trainer";
+import { type Creature, cure, hp, teamOf, type Trainer, trainer, upgrade } from "./trainer";
+import { Battle, battleWeather, trainerRules } from "./battle";
 import { type ItemId, items } from "./items";
 import type { Daytime, Weather } from "./atmosphere";
 import { type SignInReason, ui } from "./ui-bridge";
@@ -1184,6 +1185,39 @@ export class Session {
     trainer.save();
     this.notify();
     return true;
+  }
+
+  /** Battle a trainer from the editor with a test party: nothing is saved, the real trainer stays as it was */
+  async testBattle(npc: Npc, party: Creature[]) {
+    const data = npc.trainer;
+    if (!data?.team.length || !party.length) {
+      return null;
+    }
+    const real = trainer.profile;
+    const stand: Trainer = {
+      name: real?.name ?? "You",
+      sprite: real?.sprite ?? "may",
+      party,
+      box: [],
+      items: { "poke-ball": 5, potion: 5, "super-potion": 3, "full-heal": 3 },
+      money: 0,
+      badges: [],
+      defeated: [],
+      seen: [],
+      caught: [],
+    };
+    const base = { difficulty: this.city.rules?.difficulty, weather: battleWeather(this.area.weather) };
+    const outcome = await trainer.sandbox(stand, () =>
+      new Battle({
+        opponent: { name: npc.name || "Trainer", sprite: npc.sprite, team: teamOf(data.team), lines: data.lines },
+        rules: trainerRules(base, data.rules),
+      }).start(),
+    );
+    //Battles end with the town music, which only belongs in Play
+    if (this.mode === "edit") {
+      sound.stop();
+    }
+    return outcome;
   }
 
   /** Change the town's battle rules: how smart trainers are, and the level caps by badges */

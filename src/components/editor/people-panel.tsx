@@ -4,6 +4,7 @@ import { removeSprite } from "@/components/editor/city-dialogs";
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
 import { ScriptEditor } from "@/components/editor/script-editor";
+import { battleDesigner } from "@/components/editor/battle-designer";
 import { CanvasView, Field, Hint, NumberInput, Removable, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,13 +17,13 @@ import { artwork, assets, npc as texture, portrait, preview, species } from "@/g
 import type { Npc, NpcStory } from "@/game/data";
 import { type Kind, kindOf, kinds } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
-import { holdable, type ItemId, itemIds, items, sellable, sold } from "@/game/items";
+import { type ItemId, itemIds, items, sellable, sold } from "@/game/items";
 import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { itemCount } from "@/game/items";
 import { lanes } from "@/game/story";
 import { cn } from "@/lib/utils";
-import { ArrowCounterClockwise, CaretLeft, Check, Eyedropper, PencilSimple, Plus, Eye, Trash, UploadSimple, UserSquare, X } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CaretLeft, Check, Eye, Eyedropper, PencilSimple, Plus, Sword, Trash, UploadSimple, UserSquare } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -494,7 +495,11 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
         placeholder="Leave an empty line to start a new page"
         onCommit={(text) => update(() => (npc.dialogue = text))}
       />
-      {npc.role === "trainer" && npc.trainer ? <TrainerForm npc={npc} update={update} city={editor.city.name} /> : <Gift npc={npc} update={update} />}
+      {npc.role === "trainer" && npc.trainer ? (
+        <TrainerForm npc={npc} index={editor.selected} update={update} city={editor.city.name} />
+      ) : (
+        <Gift npc={npc} update={update} />
+      )}
     </>
   );
 }
@@ -555,53 +560,37 @@ function Gift({ npc, update }: { npc: Npc; update: Update }) {
   );
 }
 
-function TrainerForm({ npc, update, city }: { npc: Npc; update: Update; city: string }) {
+function TrainerForm({ npc, index, update, city }: { npc: Npc; index: number; update: Update; city: string }) {
   const trainer = npc.trainer!;
   return (
     <div className="grid grid-cols-1 gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Team ({trainer.team.length}/6)</p>
-      {trainer.team.map((member, i) => (
-        <div key={i} className="flex items-center gap-1.5">
-          <SpeciesInput value={member.species} onChange={(id) => update(() => (member.species = id))} />
-          <span className="text-xs text-subtle-fg">Lv</span>
-          <NumberInput value={member.level} onCommit={(value) => update(() => (member.level = value))} className="w-14" />
-          <Select value={member.held ?? "none"} onValueChange={(held) => update(() => (held === "none" ? delete member.held : (member.held = held as ItemId)))}>
-            <SelectTrigger className="h-8 w-24 shrink-0 px-2 text-xs" aria-label="Held item" title="Held item">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No item</SelectItem>
-              {holdable.map((id) => (
-                <SelectItem key={id} value={id}>
-                  {items[id].name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <button
-            aria-label="Remove from the team"
-            title="Remove from the team"
-            disabled={trainer.team.length <= 1}
-            onClick={() => update(() => trainer.team.splice(i, 1))}
-            className="grid size-7 shrink-0 place-items-center rounded text-subtle-fg hover:text-destructive disabled:opacity-30"
+      <div className="grid grid-cols-3 gap-1">
+        {trainer.team.map((member, i) => (
+          <div
+            key={i}
+            title={[member.nickname || species(member.species)?.name, member.held ? `holds ${items[member.held].name}` : ""].filter(Boolean).join(", ")}
+            className="flex items-center gap-1 rounded-md bg-muted/50 px-1 py-0.5 text-[11px] text-muted-foreground"
           >
-            <X size={13} />
-          </button>
-        </div>
-      ))}
-      {trainer.team.length < 6 ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="justify-start text-muted-foreground"
-          onClick={() =>
-            update(() => trainer.team.push({ species: 1 + Math.floor(Math.random() * assets.pokedex.length), level: trainer.team.at(-1)?.level ?? 5 }))
-          }
-        >
-          <Plus />
-          Add Pokémon
-        </Button>
-      ) : null}
+            <CanvasView className="h-[24px] w-[28px] shrink-0 overflow-hidden" make={() => portrait(member.species, 0.8)} deps={[member.species]} />
+            Lv {member.level}
+          </div>
+        ))}
+      </div>
+      <Button variant="secondary" size="sm" onClick={() => battleDesigner(index)}>
+        <Sword />
+        Design the battle
+      </Button>
+      <p className="text-xs text-subtle-fg">
+        {[
+          trainer.team.some(({ moves }) => moves?.length) ? "chosen moves" : "",
+          trainer.lines?.last || trainer.lines?.low ? "mid-battle lines" : "",
+          trainer.rules?.difficulty ? `${trainer.rules.difficulty} trainer` : "",
+          trainer.rules?.noItems ? "no items" : "",
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Moves, abilities, natures, items, lines, rules and a test battle."}
+      </p>
       <Label className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
         <Checkbox checked={trainer.gym} onCheckedChange={(value) => update(() => (trainer.gym = value === true))} />
         Gym leader (gives a badge)

@@ -241,7 +241,19 @@ type Npc = {
   hidden?: boolean;                  // role "item": hidden on the ground instead of a ball
   script?: { actions: Action[]; once: boolean };   // a cutscene played instead of their usual part (6.1)
   shop?: ItemId[];                   // role "shop": what they sell (everything when left out)
-  trainer?: { team: { species: number; level: number; held?: ItemId }[]; gym: boolean; badge: string; defeat: string };
+  trainer?: {
+    team: {
+      species: number; level: number;
+      held?: ItemId;
+      moves?: string[];      // up to 4 move keys it learns by leveling up ("rock-throw"); leave out for automatic
+      ability?: string;      // one of its species' abilities ("sturdy"); leave out for random
+      nature?: string;       // "adamant", "timid"…; leave out for random
+      nickname?: string; shiny?: boolean;
+    }[];
+    gym: boolean; badge: string; defeat: string;
+    lines?: { last?: string; low?: string };   // mid-battle: sending out their last Pokémon, and their last one low on HP
+    rules?: { difficulty?: "easy" | "normal" | "hard"; weather?: "clear" | "rain" | "sandstorm" | "snow"; scene?: string; noItems?: boolean };
+  };
   portrait?: string;                 // "sprite:<name>" to show another sprite beside their dialogue
   hidePortrait?: boolean;
   story?: NpcStory;                  // section 6
@@ -286,6 +298,7 @@ Poké Mart clerks without a `shop` list sell only the first five. Add held items
 
 - Every Pokémon gets a random nature and one of its species' abilities. Abilities like Intimidate, Levitate, Static, Overgrow and Swift Swim work in battle.
 - `rules.difficulty`: `"easy"` trainers pick moves at random, `"hard"` ones always pick the best move. Use hard for gyms in a challenge game.
+- Gym leaders deserve a designed team: chosen `moves` that cover their weaknesses, a `held` berry on the ace, `lines.last` for their ace, and `rules` like `{ difficulty: "hard", scene: "rock", weather: "sandstorm" }` for a rock gym. Move keys are PokeAPI names (lowercase, dashes); only moves the species learns by leveling up work.
 - `rules.caps`: highest level for 0, 1, 2… badges earned in this town, like `[14, 20, 26, 32]`. Keeps the player from outleveling the gyms.
 - Battle backgrounds are automatic Emerald scenes (grass outdoors, building indoors, cave for `type: "cave"`, sea when surfing). Set a map's `battle` to `{ image: "/game/battle/sand.png", platforms: false }` for another scene: `tall_grass`, `long_grass`, `sand`, `rock`, `cave`, `water`, `pond_water`, `underwater`, `sky`, `building`, `stadium`.
 - People can also use every Emerald overworld sprite, with the `em_` prefix (on top of the looks in 5.1): `em_anabel`, `em_aqua_member_f`, `em_aqua_member_m`, `em_archie`, `em_artist`, `em_beauty`, `em_black_belt`, `em_boy_1`, `em_boy_2`, `em_boy_3`, `em_brandon`, `em_brawly`, `em_brendan`, `em_bug_catcher`, `em_cameraman`, `em_camper`, `em_contest_judge`, `em_cook`, `em_devon_employee`, `em_drake`, `em_expert_f`, `em_expert_m`, `em_fat_man`, `em_fisherman`, `em_flannery`, `em_gameboy_kid`, `em_gentleman`, `em_girl_1`, `em_girl_2`, `em_girl_3`, `em_glacia`, `em_greta`, `em_hex_maniac`, `em_hiker`, `em_hot_springs_old_woman`, `em_juan`, `em_lass`, `em_leaf`, `em_link_receptionist`, `em_little_boy`, `em_little_girl`, `em_liza`, `em_lucy`, `em_magma_member_f`, `em_magma_member_m`, `em_man_1`, `em_man_2`, `em_man_3`, `em_man_4`, `em_man_5`, `em_maniac`, `em_mart_employee`, `em_mauville_old_man_1`, `em_mauville_old_man_2`, `em_maxie`, `em_may`, `em_mom`, `em_mystery_event_deliveryman`, `em_ninja_boy`, `em_noland`, `em_norman`, `em_old_man`, `em_old_woman`, `em_phoebe`, `em_picnicker`, `em_pokefan_f`, `em_pokefan_m`, `em_prof_birch`, `em_psychic_m`, `em_red`, `em_reporter_f`, `em_reporter_m`, `em_rich_boy`, `em_rooftop_sale_woman`, `em_roxanne`, `em_rs_little_boy`, `em_running_triathlete_f`, `em_running_triathlete_m`, `em_sailor`, `em_school_kid_m`, `em_scientist_1`, `em_scientist_2`, `em_scott`, `em_sidney`, `em_spenser`, `em_steven`, `em_swimmer_f`, `em_swimmer_m`, `em_tate`, `em_teala`, `em_tuber_f`, `em_tuber_m`, `em_tuber_m_swimming`, `em_tucker`, `em_twin`, `em_union_room_attendant`, `em_wallace`, `em_wally`, `em_wattson`, `em_winona`, `em_woman_1`, `em_woman_2`, `em_woman_3`, `em_woman_4`, `em_woman_5`, `em_youngster`.
@@ -801,7 +814,7 @@ person(martRoom, { x: 7, y: 3, sprite: "shopkeeper_m", name: "Clerk", role: "sho
 
 // The gym: its leader waits for the rival battle
 const gymRoom = interior(town, "Mistwood Gym", town, gym, { width: 14, height: 14, floor: "brick" });
-person(gymRoom, { x: 7, y: 3, sprite: "roxanne", name: "Iris", dialogue: "So you're the trainer everyone talks about. Show me!", role: "trainer", trainer: { team: [{ species: 280, level: 9 }, { species: 183, level: 10 }], gym: true, badge: "Mist Badge", defeat: "Beautiful! The Mist Badge is yours." }, story: { requires: beatRival.id, locked: "Beat your rival Wally first, then come back.", completes: winBadge.id, done: "Keep training, champion." } });
+person(gymRoom, { x: 7, y: 3, sprite: "roxanne", name: "Iris", dialogue: "So you're the trainer everyone talks about. Show me!", role: "trainer", trainer: { team: [{ species: 280, level: 9, moves: ["confusion", "growl"] }, { species: 183, level: 10, nickname: "Bubbles", moves: ["water-gun", "tackle", "defense-curl"], ability: "huge-power", nature: "adamant", held: "oran-berry" }], gym: true, badge: "Mist Badge", defeat: "Beautiful! The Mist Badge is yours.", lines: { last: "The mist thickens... Bubbles, it's up to you!" }, rules: { scene: "pond_water", weather: "rain" } }, story: { requires: beatRival.id, locked: "Beat your rival Wally first, then come back.", completes: winBadge.id, done: "Keep training, champion." } });
 person(gymRoom, { x: 4, y: 8, sprite: "lass", name: "Lass Mia", dir: "right", dialogue: "You won't reach Iris that easily!", role: "trainer", trainer: { team: [{ species: 298, level: 7 }], gym: false, badge: "", defeat: "Iris is way tougher than me." } });
 
 // Route 101: an outdoor map right above the town, joined at the gap in the trees

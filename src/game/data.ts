@@ -8,6 +8,7 @@
 import { type Daytime, daytimes, type Period, type Weather, weathers } from "./atmosphere";
 import { frames } from "./brushes";
 import type { ItemId } from "./items";
+import type { Nature } from "./natures";
 import type { Tileset } from "./tilesets";
 import type { Sprite } from "./sprites";
 import { isBehavior } from "./behaviors";
@@ -74,6 +75,31 @@ export type Quest = {
   name: string;
   /** Starts once this step is done (main story or another quest): its steps can't happen before */
   after?: string;
+};
+
+/** A trainer's Pokémon: species and level, and anything else chosen for it (the rest is automatic) */
+export type Member = {
+  species: number;
+  level: number;
+  held?: ItemId;
+  /** Up to four moves (the last ones learned by its level when not set) */
+  moves?: string[];
+  /** One of its species' abilities, and a nature (random when not set) */
+  ability?: string;
+  nature?: Nature;
+  nickname?: string;
+  shiny?: boolean;
+};
+
+/** Weathers a battle can be fought in */
+export const battleWeathers = ["clear", "rain", "sandstorm", "snow"] as const;
+
+/** Rules of one trainer's battle: how they pick moves, the weather and scene (the map's when not set), and whether the bag can be used */
+export type BattleRules = {
+  difficulty?: Difficulty;
+  weather?: (typeof battleWeathers)[number];
+  scene?: Scene;
+  noItems?: boolean;
 };
 
 /** How hard trainers battle */
@@ -250,10 +276,14 @@ export type Npc = {
   /** Talk without any picture beside the dialogue box */
   hidePortrait?: boolean;
   trainer?: {
-    team: { species: number; level: number; held?: ItemId }[];
+    team: Member[];
     gym: boolean;
     badge: string;
     defeat: string;
+    /** What they say in the middle of the battle */
+    lines?: { last?: string; low?: string };
+    /** Rules of their battle, over the town's and the map's */
+    rules?: BattleRules;
   };
   story?: NpcStory;
 };

@@ -4,14 +4,20 @@ import { abilityOf, type Creature, cure, evolution, evolve, grow, hp, named, sta
 import { sound } from "./audio";
 import { type ItemId, items } from "./items";
 import { abilityName, absorbs, contact, guards, pinch, shields, swimmers } from "./abilities";
-import type { Difficulty } from "./data";
+import type { BattleRules, Difficulty, Scene } from "./data";
 import type { Weather } from "./atmosphere";
 
 /** Battle outcome */
 export type Outcome = "win" | "lose" | "run" | "caught";
 
 /** Opponent trainer */
-export type Opponent = { name: string; sprite: string; team: Creature[] };
+export type Opponent = {
+  name: string;
+  sprite: string;
+  team: Creature[];
+  /** What they say mid-battle: sending out their last Pokémon, and when it's low on HP */
+  lines?: { last?: string; low?: string };
+};
 
 /** Type colors */
 export const colors = {
@@ -58,6 +64,17 @@ const immune: Record<Status, string[]> = { poison: ["poison", "steel"], burn: ["
 /** Can a creature get a condition (its types and ability can prevent it) */
 export function canGet(creature: Creature, status: Status) {
   return !creature.status && !species(creature.species).types.some((type) => immune[status].includes(type)) && shields[abilityOf(creature)] !== status;
+}
+
+/** A trainer's own battle rules over those of the town and the map ("clear" weather means none, whatever the map's) */
+export function trainerRules<T extends { difficulty?: Difficulty; weather?: BattleWeather }>(base: T, own: BattleRules = {}) {
+  return {
+    ...base,
+    ...(own.difficulty ? { difficulty: own.difficulty } : {}),
+    ...(own.weather ? { weather: own.weather === "clear" ? null : own.weather } : {}),
+    ...(own.scene ? { scene: own.scene } : {}),
+    ...(own.noItems ? { noItems: true } : {}),
+  };
 }
 
 /** Battle weather: the map's rain, sandstorm or snow */
@@ -203,6 +220,8 @@ export type BattleView = {
   orb: null | { from: "ally" | "foe"; color: string; key: number };
   /** Poké Ball thrown at the foe */
   ball: null | { state: "throw" | "shake" | "caught"; key: number };
+  /** Opponent trainer sliding in to say something mid-battle */
+  slide: null | { sprite: string; key: number };
 };
 
 /** Catch formula values (gen 3, simplified): a >= 255 always catches, otherwise each shake passes when random * 65536 < b. Better balls and conditions help */
@@ -244,6 +263,15 @@ export class Battle {
 
   /** Fought on water (surfing or fishing), for the battle scene */
   readonly water: boolean;
+
+  /** Emerald scene chosen for this battle (the map's background otherwise) */
+  readonly scene: Scene | null;
+
+  /** The bag can't be used */
+  readonly #noItems: boolean;
+
+  /** Mid-battle lines already said */
+  readonly #said = new Set<string>();
 
   /** Pending menu choice */
   #choose = null as null | ((index: number) => void);
@@ -301,9 +329,11 @@ export class Battle {
   }: {
     wild?: Creature;
     opponent?: Opponent | null;
-    rules?: { difficulty?: Difficulty; cap?: number; weather?: BattleWeather; water?: boolean };
+    rules?: { difficulty?: Difficulty; cap?: number; weather?: BattleWeather; water?: boolean; scene?: Scene; noItems?: boolean };
   }) {
     this.water = rules.water ?? false;
+    this.scene = rules.scene ?? null;
+    this.#noItems = rules.noItems ?? false;
     this.#opponent = opponent;
     this.#difficulty = rules.difficulty ?? "normal";
     this.#cap = rules.cap ?? 100;
@@ -312,7 +342,7 @@ export class Battle {
     this.#foe = this.#foes[0];
     this.#ally = trainer.lead!;
     const side = (creature: Creature): BattleSide => ({ creature, entered: 0, fx: "", fxKey: 0, info: false });
-    this.view = { phase: "intro", foe: side(this.#foe), ally: side(this.#ally), log: "", menu: null, orb: null, ball: null };
+    this.view = { phase: "intro", foe: side(this.#foe), ally: side(this.#ally), log: "", menu: null, orb: null, ball: null, slide: null };
   }
 
   /** Send a creature out on a side (replays its entrance when animated) */
@@ -437,7 +467,7 @@ export class Battle {
     await this.#say(`What will ${named(this.#ally)} do?`, 0);
     const action = await this.#menu([
       { label: "FIGHT", value: "fight", color: "#e8505a" },
-      { label: "BAG", value: "bag", color: "#e0a030" },
+      { label: "BAG", value: "bag", color: "#e0a030", disabled: this.#noItems },
       { label: "POKéMON", value: "party", color: "#58b048" },
       { label: "RUN", value: "run", color: "#4890d8", disabled: Boolean(this.#opponent) },
     ]);
@@ -662,6 +692,24 @@ export class Battle {
     }
   }
 
+  /** The opponent trainer slides in to say one of their lines (each once) */
+  async #line(key: "last" | "low") {
+    const text = this.#opponent?.lines?.[key]?.trim();
+    if (!text || this.#said.has(key)) {
+      return;
+    }
+    this.#said.add(key);
+    this.view.slide = { sprite: this.#opponent!.sprite, key: (this.view.slide?.key ?? 0) + 1 };
+    this.#emit();
+    await wait(350);
+    for (const page of text.split(/\n\s*\n/)) {
+      await this.#say(`${this.#opponent!.name}: ${page}`, 1400);
+    }
+    this.view.slide = null;
+    this.#emit();
+    await wait(250);
+  }
+
   /** Opponent move choice: wild Pokémon pick at random, trainers by the town's difficulty */
   #pick(attacker: Creature, defender: Creature): Move {
     const chosen = choose(attacker, defender, this.#opponent ? this.#difficulty : "easy", this.#weather);
@@ -762,6 +810,10 @@ export class Battle {
       return this.#fainted(target);
     }
     await this.#berry(defender);
+    //Their last Pokémon is low on HP
+    if (target === "foe" && defender.hp * 4 <= hp(defender) && this.#foes.filter(({ hp }) => hp > 0).length === 1) {
+      await this.#line("low");
+    }
     //Abilities that hurt or afflict whoever hits them with a physical move
     if (physical && multiplier > 0) {
       const ability = abilityOf(defender);
@@ -910,6 +962,10 @@ export class Battle {
       this.#participants.clear();
       this.#participants.add(this.#ally);
       trainer.see(next.species);
+      //Sending out their last Pokémon
+      if (this.#foes.filter(({ hp }) => hp > 0).length === 1) {
+        await this.#line("last");
+      }
       await this.#say(`${this.#opponent!.name} sent out ${named(next)}!`, 400);
       this.#render("foe", true);
       await this.#enter(next);
