@@ -16,7 +16,7 @@ import { artwork, assets, npc as texture, portrait, preview, species } from "@/g
 import type { Npc, NpcStory } from "@/game/data";
 import { type Kind, kindOf, kinds } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
-import { type ItemId, itemIds, items } from "@/game/items";
+import { holdable, type ItemId, itemIds, items, sellable, sold } from "@/game/items";
 import { imageTypes, message, session } from "@/game/session";
 import { creatureImage, key as spriteKey, scaleOf } from "@/game/sprites";
 import { itemCount } from "@/game/items";
@@ -501,16 +501,16 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
 
 /** What a Poké Mart clerk sells */
 function ShopStock({ npc, update }: { npc: Npc; update: Update }) {
-  const stock = npc.shop?.length ? npc.shop : itemIds;
+  const stock = npc.shop?.length ? npc.shop : sold;
   const toggle = (id: ItemId, on: boolean) =>
     update(() => {
-      const next = on ? itemIds.filter((other) => other === id || stock.includes(other)) : stock.filter((other) => other !== id);
+      const next = on ? sellable.filter((other) => other === id || stock.includes(other)) : stock.filter((other) => other !== id);
       npc.shop = next.length ? next : [id];
     });
   return (
     <Field label="Sells" hint="Players buy these with money earned by beating trainers.">
       <div className="grid gap-1">
-        {itemIds.map((id) => (
+        {sellable.map((id) => (
           <label key={id} className="flex items-center gap-2 text-sm">
             <Checkbox checked={stock.includes(id)} onCheckedChange={(on) => toggle(id, on === true)} />
             <span className="flex-1">{items[id].name}</span>
@@ -565,6 +565,19 @@ function TrainerForm({ npc, update, city }: { npc: Npc; update: Update; city: st
           <SpeciesInput value={member.species} onChange={(id) => update(() => (member.species = id))} />
           <span className="text-xs text-subtle-fg">Lv</span>
           <NumberInput value={member.level} onCommit={(value) => update(() => (member.level = value))} className="w-14" />
+          <Select value={member.held ?? "none"} onValueChange={(held) => update(() => (held === "none" ? delete member.held : (member.held = held as ItemId)))}>
+            <SelectTrigger className="h-8 w-24 shrink-0 px-2 text-xs" aria-label="Held item" title="Held item">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No item</SelectItem>
+              {holdable.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {items[id].name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <button
             aria-label="Remove from the team"
             title="Remove from the team"

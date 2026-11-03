@@ -1,6 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
-import { Atmosphere, type Daytime, type Weather } from "./atmosphere";
+import { Atmosphere, type Daytime, hour, type Weather } from "./atmosphere";
 import { size, sprite } from "./assets";
 import { type City, type Layer, layers } from "./data";
 import { neighbors } from "./region";
@@ -105,7 +105,7 @@ export class CityMap {
 
   /** Show weather and time of day over the map (nothing when clear and day) */
   sky(weather: Weather = "clear", time: Daytime = "day") {
-    if (weather === "clear" && time === "day") {
+    if (weather === "clear" && hour(time) === "day") {
       this.#atmosphere?.destroy();
       this.#atmosphere = null;
       return;

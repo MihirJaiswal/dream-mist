@@ -1,6 +1,6 @@
 ---
 title: Wild Pokémon
-description: Encounter zones, the Pokémon in them, levels and rates.
+description: Encounter zones, Pokémon met walking, surfing and fishing, times of day, levels and rates.
 ---
 
 Wild Pokémon live in **encounter zones**. Each zone is a list of Pokémon and an encounter rate, painted on the tiles where it applies.
@@ -11,7 +11,7 @@ Select the **Encounters** layer (<kbd>5</kbd>). Each zone has a color. Click a z
 
 The **Tall grass** stamp does both at once: it paints the grass and its zone. Erasing tall grass removes the zone too.
 
-Zones work on any tile, not just grass. Paint one over a cave floor, a sandy beach or water you can't reach to make it a fishing spot for later.
+Zones work on any tile, not just grass: a cave floor, a sandy beach, or water for surfing and fishing.
 
 ## Zone settings
 
@@ -19,18 +19,47 @@ Zones work on any tile, not just grass. Paint one over a cave floor, a sandy bea
 | -------------- | ---------------------------------------------------------------------------------------------- |
 | Name           | Shown only in the editor, like _Tall grass_ or _Cave_.                                         |
 | Encounter rate | The chance of a battle on each step, from 1% to 40%. Around 10% feels like the original games. |
-| Pokémon        | Each one has a level range. Type a name to pick it.                                            |
+| Pokémon        | Listed by how they're met: **Walking**, **Surfing** and **Fishing**. Each has a level range.   |
 
-Press **+ Add Pokémon** to add more, and **+ New zone** for another zone, like a cave with Zubat and Geodude next to a grassy route.
+Press **+ Add Pokémon** under a list to add one there, and **+ New zone** for another zone, like a cave with Zubat and Geodude next to a grassy route.
+
+## Walking, surfing and fishing
+
+One zone painted on a pond can hold all three lists:
+
+- **Walking**: met on the zone's tiles on foot, like tall grass, caves and sand.
+- **Surfing**: met while surfing on the zone's water. Paint the water with the **Surf** behavior on the Collision layer so players can surf there (see [Collision](/docs/collision#tile-behaviors)).
+- **Fishing**: hooked by facing the zone's water and pressing <kbd>Space</kbd> with a rod in the bag. Any water tile works, surfable or not.
+
+Each fishing Pokémon needs a rod: **Any rod**, **Good Rod or better**, or **Super Rod**. Players fish with the best rod they have, so a Super Rod also hooks what the Old Rod does. Rods are never sold: hand them out with a person's gift, an item ball or a script.
+
+Fishing gets a bite three times out of four ("Oh! A bite!"), and "Not even a nibble…" otherwise, or when nothing lives there.
+
+## Times of day
+
+Each Pokémon can appear at **Any time**, or only in the **morning**, **daytime** or at **night**. The part of the day is the map's **time of day** (City settings):
+
+| Map time of day   | Pokémon of                                                                    |
+| ----------------- | ----------------------------------------------------------------------------- |
+| Morning           | Mornings                                                                      |
+| Day, Evening      | Daytime                                                                       |
+| Night             | Nights                                                                        |
+| Follows the clock | The player's own clock: mornings 4 to 10, daytime until 20 (evenings from 17) |
+
+With **Follows the clock**, a route changes all day long: Hoothoot at night, Ledyba in the morning.
+
+## Pokémon here
+
+In Play, press <kbd>N</kbd> (or the paw button in the top bar) to see the wild Pokémon of the current map, like the DexNav: walking, surfing and fishing. Pokémon the player hasn't seen yet are silhouettes, caught ones have a red dot, and those of another part of the day are faded.
 
 ## How an encounter is picked
 
-On every step inside a zone:
+On every step inside a zone (walking or surfing):
 
 1. The encounter rate decides if a battle starts.
-2. One Pokémon of the list is picked, each with the same chance. Add a Pokémon twice to make it twice as common.
+2. One Pokémon of the list for that way of moving and that part of the day is picked, each with the same chance. Add a Pokémon twice to make it twice as common.
 3. Its level is picked between the minimum and the maximum.
-4. It has a 1 in 128 chance of being shiny.
+4. It has a 1 in 128 chance of being shiny, and gets a random nature and one of its species' abilities.
 
 Players with no Pokémon able to fight don't meet wild Pokémon.
 

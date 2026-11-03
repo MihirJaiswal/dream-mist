@@ -6,7 +6,7 @@ import { useSession } from "@/components/editor/hooks";
 import { publish, room, share } from "@/components/editor/share-dialogs";
 import { openSearch } from "@/components/editor/shortcuts";
 import { startTour } from "@/components/editor/tour";
-import { card, journalDialog, party } from "@/components/editor/trainer-dialogs";
+import { card, journalDialog, party, wildDialog } from "@/components/editor/trainer-dialogs";
 import { TextInput, Tip } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -31,6 +31,7 @@ import {
   MagnifyingGlass,
   MapTrifold,
   Notebook,
+  PawPrint,
   PencilSimple,
   Play,
   Plus,
@@ -248,6 +249,13 @@ export function Topbar() {
           <Tip label="Journal" description="What to do next, and your side quests (J)">
             <Button variant="ghost" size="icon" aria-label="Journal" onClick={() => journalDialog()}>
               <Notebook size={17} />
+            </Button>
+          </Tip>
+        ) : null}
+        {mode === "play" ? (
+          <Tip label="Pokémon here" description="Wild Pokémon living on this map (N)">
+            <Button variant="ghost" size="icon" aria-label="Pokémon here" onClick={() => wildDialog()}>
+              <PawPrint size={17} />
             </Button>
           </Tip>
         ) : null}

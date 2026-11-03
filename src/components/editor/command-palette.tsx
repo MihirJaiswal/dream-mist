@@ -7,7 +7,7 @@ import { publish, share } from "@/components/editor/share-dialogs";
 import { shortcutsSheet } from "@/components/editor/shortcuts";
 import { timeline } from "@/components/editor/story-timeline";
 import { startTour } from "@/components/editor/tour";
-import { journalDialog } from "@/components/editor/trainer-dialogs";
+import { journalDialog, wildDialog } from "@/components/editor/trainer-dialogs";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut } from "@/components/ui/command";
 import { species } from "@/game/assets";
 import { brushes, terrains } from "@/game/brushes";
@@ -32,6 +32,7 @@ import {
   Notebook,
   PaintBrush,
   Path,
+  PawPrint,
   PencilSimple,
   Play,
   Plus,
@@ -106,6 +107,7 @@ export function CommandPalette() {
           {building ? item("redo", "Redo", <ArrowArcRight />, () => editor.redo(), "⇧⌘Z") : null}
           {building ? item("grid", "Show or hide the grid", <GridFour />, () => editor.toggleGrid(), "G") : null}
           {session.mode === "play" ? item("journal", "Journal", <Notebook />, () => journalDialog(), "J", ["quests", "story", "objective"]) : null}
+          {session.mode === "play" ? item("wild", "Pokémon here", <PawPrint />, () => wildDialog(), "N", ["dexnav", "wild", "encounters", "fishing"]) : null}
           {building ? item("region", "Region map", <GlobeHemisphereWest />, () => regionMap(), undefined, ["routes", "towns", "world", "connect"]) : null}
           {building ? item("route", "New route", <Path />, () => addOutdoor("route"), undefined, ["map", "outdoor", "road"]) : null}
           {building ? item("town", "New town", <MapTrifold />, () => addOutdoor("town"), undefined, ["map", "outdoor", "city"]) : null}

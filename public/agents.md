@@ -74,8 +74,12 @@ type City = {
   doors: Door[];
   triggers: Trigger[];        // event areas that play a cutscene when stepped in (6.1)
   spawn: { x: number; y: number };  // where visitors arrive (outside map only)
-  weather?: "rain" | "snow" | "fog" | "sandstorm";  // leave out for clear
-  time?: "evening" | "night";                       // leave out for day
+  weather?: "rain" | "snow" | "fog" | "sandstorm";  // leave out for clear. Rain, sandstorm and snow also change battles
+  time?: "morning" | "evening" | "night" | "clock"; // leave out for day; "clock" follows the player's real time
+  type?: "outdoor" | "indoor" | "cave";             // kind of place (picks the battle scene); leave out for outdoor
+  dark?: true;                                      // dark until the player has HM05 Flash
+  song?: string;                                    // an uploaded music url for this map; leave out for the town music
+  rules?: { difficulty?: "easy" | "hard"; caps?: number[] };  // trainer difficulty (normal by default), level caps by badges earned here
   battle?: { image: string; platforms: boolean };   // optional battle background picture (url), default for every map
   zones: Zone[];              // shared by every map
   story: Step[];              // shared by every map
@@ -95,7 +99,10 @@ type Map = {
   npcs: Npc[]; doors: Door[]; triggers: Trigger[];
   spawn: { x: number; y: number };
   weather?: "rain" | "snow" | "fog" | "sandstorm";
-  time?: "evening" | "night";
+  time?: "morning" | "evening" | "night" | "clock";
+  type?: "outdoor" | "indoor" | "cave";   // leave out: outdoor for outdoor maps, indoor for interiors. Caves: "cave"
+  dark?: true;
+  song?: string;
   battle?: { image: string; platforms: boolean };   // optional battle background for this map only
   outdoor?: true;                       // a route or town joined by its edges, not by doors
   region?: { x: number; y: number };    // outdoor maps: top-left corner on the region grid
@@ -186,12 +193,19 @@ type Zone = {
   name: string;               // shown in the editor, e.g. "Route 101 grass"
   rate: number;               // chance of an encounter per step, 0 to 1. Tall grass: 0.1 to 0.15
   color: number;              // editor overlay color, e.g. 0x2ecc40
-  creatures: { species: number; min: number; max: number }[];  // national Pokédex number, level range
+  creatures: {
+    species: number; min: number; max: number;  // national Pokédex number, level range
+    method?: "surf" | "fish";                   // leave out for walking (grass, caves)
+    time?: "morning" | "day" | "night";         // leave out for any time
+    rod?: "good" | "super";                     // fishing only: the weakest rod that hooks it (leave out: any rod)
+  }[];
 };
 ```
 
-- Paint the zone's number (1 for the first zone) on the `zone` grid wherever encounters can happen, and draw tall grass on those tiles so players see where they are. **Encounters happen on every tile with a zone, grass or not.**
-- Each step on a zone tile has `rate` chance of a battle, and each listed Pokémon is equally likely. List a common Pokémon twice to make it more frequent.
+- Paint the zone's number (1 for the first zone) on the `zone` grid wherever encounters can happen, and draw tall grass on those tiles so players see where they are. **Walking encounters happen on every tile with a zone, grass or not.**
+- Each step on a zone tile has `rate` chance of a battle, and each listed Pokémon for that way of moving and part of the day is equally likely. List a common Pokémon twice to make it more frequent.
+- **Water**: paint the same zone on a pond or the sea, with `method: "surf"` Pokémon (met while surfing on tiles with behavior 5, see 2.4) and `method: "fish"` ones (hooked by facing the water with a rod). Give out the rods (`old-rod`, `good-rod`, `super-rod`) as gifts or item balls: they're never sold.
+- **Time**: `time` uses the map's `time` (`evening` counts as day; `clock` follows the player's clock: mornings 4 to 10, nights 20 to 4). Hoothoot 163 at night and Ledyba 165 in the morning make a route feel alive.
 - Early areas: levels 2 to 5. Then raise levels by about 3 per route.
 
 Good Hoenn Pokémon by place (national Pokédex numbers):
@@ -227,7 +241,7 @@ type Npc = {
   hidden?: boolean;                  // role "item": hidden on the ground instead of a ball
   script?: { actions: Action[]; once: boolean };   // a cutscene played instead of their usual part (6.1)
   shop?: ItemId[];                   // role "shop": what they sell (everything when left out)
-  trainer?: { team: { species: number; level: number }[]; gym: boolean; badge: string; defeat: string };
+  trainer?: { team: { species: number; level: number; held?: ItemId }[]; gym: boolean; badge: string; defeat: string };
   portrait?: string;                 // "sprite:<name>" to show another sprite beside their dialogue
   hidePortrait?: boolean;
   story?: NpcStory;                  // section 6
@@ -260,6 +274,21 @@ Pick looks that fit the role: `hiker` in caves, `fisher` and `sailor` by the wat
 | `potion` | Potion | ₽300 | +20 HP |
 | `super-potion` | Super Potion | ₽700 | +50 HP |
 | `full-heal` | Full Heal | ₽600 | Cures sleep, poison, paralysis, burn |
+| `old-rod`, `good-rod`, `super-rod` | Fishing rods | key item | Fish facing water (section 4). Never sold: hand them out |
+| `hm-flash` | HM05 Flash | key item | Lights up `dark` maps. Hand it out before the first dark cave |
+| `oran-berry`, `sitrus-berry`, `lum-berry` | Berries | ₽100 to 500 | Held: heal at half HP, or cure a condition, once |
+| `leftovers`, `quick-claw` | Held items | ₽2000 to 4000 | Held: heal a little each turn; sometimes move first |
+| `charcoal`, `mystic-water`, `miracle-seed`, `magnet`, `silk-scarf` | Type boosters | ₽1000 | Held: Fire, Water, Grass, Electric, Normal moves ×1.2 |
+
+Poké Mart clerks without a `shop` list sell only the first five. Add held items to a clerk's `shop` to sell them. Trainers' team members can hold one (`held`).
+
+### 5.3b Battles
+
+- Every Pokémon gets a random nature and one of its species' abilities. Abilities like Intimidate, Levitate, Static, Overgrow and Swift Swim work in battle.
+- `rules.difficulty`: `"easy"` trainers pick moves at random, `"hard"` ones always pick the best move. Use hard for gyms in a challenge game.
+- `rules.caps`: highest level for 0, 1, 2… badges earned in this town, like `[14, 20, 26, 32]`. Keeps the player from outleveling the gyms.
+- Battle backgrounds are automatic Emerald scenes (grass outdoors, building indoors, cave for `type: "cave"`, sea when surfing). Set a map's `battle` to `{ image: "/game/battle/sand.png", platforms: false }` for another scene: `tall_grass`, `long_grass`, `sand`, `rock`, `cave`, `water`, `pond_water`, `underwater`, `sky`, `building`, `stadium`.
+- People can also use every Emerald overworld sprite, with the `em_` prefix (on top of the looks in 5.1): `em_anabel`, `em_aqua_member_f`, `em_aqua_member_m`, `em_archie`, `em_artist`, `em_beauty`, `em_black_belt`, `em_boy_1`, `em_boy_2`, `em_boy_3`, `em_brandon`, `em_brawly`, `em_brendan`, `em_bug_catcher`, `em_cameraman`, `em_camper`, `em_contest_judge`, `em_cook`, `em_devon_employee`, `em_drake`, `em_expert_f`, `em_expert_m`, `em_fat_man`, `em_fisherman`, `em_flannery`, `em_gameboy_kid`, `em_gentleman`, `em_girl_1`, `em_girl_2`, `em_girl_3`, `em_glacia`, `em_greta`, `em_hex_maniac`, `em_hiker`, `em_hot_springs_old_woman`, `em_juan`, `em_lass`, `em_leaf`, `em_link_receptionist`, `em_little_boy`, `em_little_girl`, `em_liza`, `em_lucy`, `em_magma_member_f`, `em_magma_member_m`, `em_man_1`, `em_man_2`, `em_man_3`, `em_man_4`, `em_man_5`, `em_maniac`, `em_mart_employee`, `em_mauville_old_man_1`, `em_mauville_old_man_2`, `em_maxie`, `em_may`, `em_mom`, `em_mystery_event_deliveryman`, `em_ninja_boy`, `em_noland`, `em_norman`, `em_old_man`, `em_old_woman`, `em_phoebe`, `em_picnicker`, `em_pokefan_f`, `em_pokefan_m`, `em_prof_birch`, `em_psychic_m`, `em_red`, `em_reporter_f`, `em_reporter_m`, `em_rich_boy`, `em_rooftop_sale_woman`, `em_roxanne`, `em_rs_little_boy`, `em_running_triathlete_f`, `em_running_triathlete_m`, `em_sailor`, `em_school_kid_m`, `em_scientist_1`, `em_scientist_2`, `em_scott`, `em_sidney`, `em_spenser`, `em_steven`, `em_swimmer_f`, `em_swimmer_m`, `em_tate`, `em_teala`, `em_tuber_f`, `em_tuber_m`, `em_tuber_m_swimming`, `em_tucker`, `em_twin`, `em_union_room_attendant`, `em_wallace`, `em_wally`, `em_wattson`, `em_winona`, `em_woman_1`, `em_woman_2`, `em_woman_3`, `em_woman_4`, `em_woman_5`, `em_youngster`.
 
 ### 5.4 Signs
 
@@ -701,7 +730,13 @@ const routeGrass = zone(town, "Route 101 grass", [
   { species: 261, min: 3, max: 4 }, // Poochyena
   { species: 280, min: 4, max: 5 }, // Ralts (rare in the mix)
 ]);
-const pondGrass = zone(town, "Pond grass", [{ species: 270, min: 3, max: 5 }, { species: 183, min: 3, max: 5 }], 0.1);
+const pondGrass = zone(town, "Pond", [
+  { species: 270, min: 3, max: 5 }, // Lotad in the grass by the pond
+  { species: 183, min: 3, max: 5 }, // Marill
+  { species: 129, min: 5, max: 10, method: "fish" }, // Magikarp, any rod
+  { species: 118, min: 8, max: 12, method: "fish", rod: "good" }, // Goldeen, Good Rod or better
+  { species: 163, min: 4, max: 6, time: "night" }, // Hoothoot, only at night
+], 0.1);
 
 // The story
 const meetProf = step(town, { name: "Meet the Professor", goal: "Visit Professor Birch in his lab", blocked: "A small tree blocks the road north. Maybe the Professor knows the way.", blocker: "object", tile: T.smallTree });
@@ -718,7 +753,9 @@ path(town, 19, 0, 2, 26);
 path(town, 4, 15, 32, 2);
 patch(town, "meadow", 26, 19, 9, 6);
 water(town, 28, 21, 5, 3);
+fill(town, "zone", 28, 21, 5, 3, pondGrass); // the pond's fish
 tallGrass(town, 27, 24, 7, 2, pondGrass);
+item(town, 27, 20, "old-rod"); // an Old Rod by the pond: face the water and press Space
 flowers(town, 14, 12, 2, 1);
 flowers(town, 23, 12, 3, 1);
 flowers(town, 6, 20, 2, 1);

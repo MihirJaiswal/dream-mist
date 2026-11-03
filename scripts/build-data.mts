@@ -3,16 +3,18 @@
  *
  *   npm run data              build everything that is missing
  *   npm run data -- --force   rebuild everything
- *   npm run data -- maps      build only some steps (assets, tilesets, maps, pokedex, tiles)
+ *   npm run data -- maps      build only some steps (assets, tilesets, maps, pokedex, tiles, pret)
  *
  * Sources: maps/ (Tiled maps of Hoenn), copyrighted/ (textures and audio) and PokeAPI data,
- * downloaded once into .cache/api-data (a sparse clone of only the folders used here).
+ * downloaded once into .cache/api-data (a sparse clone of only the folders used here),
+ * and Gen 3 graphics from pret/pokeemerald, cloned the same way into .cache/pret (see pret.mts).
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { XMLParser } from "fast-xml-parser";
 import { PNG } from "pngjs";
+import { pret as gen3 } from "./pret.mts";
 
 /** Output folder */
 const out = process.env.DATA_OUT ?? "public/game";
@@ -126,6 +128,7 @@ function pokeapi() {
       "data/api/v2/location",
       "data/api/v2/location-area",
       "data/api/v2/evolution-chain",
+      "data/api/v2/ability",
     ],
     { cwd: cache, stdio: "inherit" },
   );
@@ -405,6 +408,16 @@ function pokedex({ force = false }) {
   const moves = {} as {
     [name: string]: { name: string; type: string; power: number; accuracy: number; pp: number; class: string; priority: number; effect?: Json };
   };
+  //Abilities: English name and a one-line description of each one a Pokémon can have
+  const abilities = {} as { [key: string]: { name: string; about: string } };
+  const ability = (key: string, url: string) => {
+    if (!(key in abilities)) {
+      const data = read(`${cache}/data${url.replace(/\/$/, "")}/index.json`);
+      const about = data.effect_entries.find(({ language }: Json) => language.name === "en")?.short_effect ?? "";
+      abilities[key] = { name: english(data.names, key), about: about.replace(/\s+/g, " ").trim() };
+    }
+    return key;
+  };
   const dex = [];
   for (let id = 1; id <= creatures; id++) {
     const pokemon = read(`${api}/pokemon/${id}/index.json`);
@@ -451,6 +464,8 @@ function pokedex({ force = false }) {
       stats: pokemon.stats.map(({ base_stat }: Json) => base_stat),
       xp: pokemon.base_experience ?? 64,
       capture: species.capture_rate,
+      //Regular abilities (not hidden ones), one is picked for each Pokémon
+      abilities: pokemon.abilities.filter(({ is_hidden }: Json) => !is_hidden).map(({ ability: { name, url } }: Json) => ability(name, url)),
       learnset,
       ...(evolves ? { evolves } : {}),
     });
@@ -464,7 +479,7 @@ function pokedex({ force = false }) {
   for (const name of Object.keys(moves).filter((name) => !used.has(name))) {
     delete moves[name];
   }
-  save("data/city/pokedex.json", { pokedex: dex, moves, types });
+  save("data/city/pokedex.json", { pokedex: dex, moves, types, abilities });
 }
 
 /**
@@ -566,7 +581,16 @@ function tiles({ force = false }) {
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 const only = args.filter((arg) => !arg.startsWith("--"));
-const steps = { assets, tilesets, maps, pokedex, tiles } as { [name: string]: (options: { force: boolean }) => void };
+/** Gen 3 battle backgrounds, overworld people and Emerald tilesets (built only when asked for, or when missing) */
+function pret({ force = false }) {
+  if (!force && built("battle/tall_grass.png")) {
+    return;
+  }
+  step("building Gen 3 graphics from pret/pokeemerald");
+  gen3(out, (text) => step(`  ${text}`));
+}
+
+const steps = { assets, tilesets, maps, pokedex, tiles, pret } as { [name: string]: (options: { force: boolean }) => void };
 for (const name of only.length ? only : Object.keys(steps)) {
   if (!(name in steps)) {
     throw new Error(`Unknown step "${name}" (expected one of: ${Object.keys(steps).join(", ")})`);

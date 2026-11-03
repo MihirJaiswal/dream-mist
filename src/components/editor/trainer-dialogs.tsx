@@ -11,11 +11,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { assets, npc as texture, portrait, preview, species } from "@/game/assets";
 import { colors, statusLabels } from "@/game/battle";
-import { type ItemId, itemCount, items } from "@/game/items";
+import { bestRod, type ItemId, itemCount, items } from "@/game/items";
+import { period } from "@/game/atmosphere";
+import { living } from "@/game/encounters";
 import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
 import { type Entry, goal, journal } from "@/game/story";
-import { type Creature, hp, named, starters, type Status, trainer } from "@/game/trainer";
+import { abilityOf, type Creature, hp, named, starters, type Status, trainer } from "@/game/trainer";
+import { abilityAbout, abilityName } from "@/game/abilities";
+import { natureLabel } from "@/game/natures";
 import { cn } from "@/lib/utils";
 import { Flag, Medal, Minus, Plus, Scroll, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -31,6 +35,8 @@ export function onboarding() {
 function Onboarding({ close }: { close: () => void }) {
   const looks = [
     "may",
+    "em_brendan",
+    "em_may",
     "wally",
     "youngster",
     "lass",
@@ -130,6 +136,33 @@ export function StatusBadge({ status }: { status: Status }) {
   );
 }
 
+/** Give a Pokémon an item from the bag to hold in battle, or take it back */
+function HoldItem({ creature }: { creature: Creature }) {
+  const held = creature.held;
+  const options = trainer.bag.filter(({ id }) => items[id].kind === "hold" && id !== held);
+  if (!held && !options.length) {
+    return null;
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline">
+          {held ? "Item" : "Give item"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {held ? <DropdownMenuItem onSelect={() => session.hold(creature, null)}>Take the {items[held].name}</DropdownMenuItem> : null}
+        {options.map(({ id, count }) => (
+          <DropdownMenuItem key={id} onSelect={() => session.hold(creature, id)}>
+            {held ? `Swap for ${items[id].name}` : items[id].name}
+            <span className="ml-auto pl-4 text-xs text-muted-foreground">x{count}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /** Use a Potion or a cure from the bag on a Pokémon */
 function UseItem({ creature }: { creature: Creature }) {
   const usable = trainer.bag.filter(({ id }) => {
@@ -188,6 +221,11 @@ function CreatureRow({ creature, children }: { creature: Creature; children: Rea
         <small className="block truncate text-[11px] text-subtle-fg">
           HP {creature.hp}/{hp(creature)} · {creature.moves.map(({ key }) => assets.moves[key]?.name ?? key).join(", ")}
         </small>
+        <small className="block truncate text-[11px] text-subtle-fg">
+          <span title={abilityAbout(abilityOf(creature))}>{abilityName(abilityOf(creature)) || "No ability"}</span>
+          {creature.nature ? ` · ${natureLabel(creature.nature)}` : ""}
+          {creature.held ? ` · holds ${items[creature.held].name}` : ""}
+        </small>
       </div>
       {children}
     </div>
@@ -214,6 +252,7 @@ function Party({ close }: { close: () => void }) {
           {profile.party.map((creature, i) => (
             <CreatureRow key={i} creature={creature}>
               <UseItem creature={creature} />
+              <HoldItem creature={creature} />
               {i ? (
                 <Button size="sm" variant="outline" title="Send first in battle" onClick={() => session.moveCreature("lead", i)}>
                   Lead
@@ -377,6 +416,80 @@ function Journal({ close }: { close: () => void }) {
           </>
         ) : null}
         {page.main || page.active.length ? null : <Hint>Talk to people around town: some of them need your help.</Hint>}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+//=================================================================================================
+// Pokémon here (like the DexNav): the wild Pokémon of the current map
+
+export function wildDialog() {
+  return openDialog<void>((close) => <WildHere close={close} />);
+}
+
+function WildHere({ close }: { close: () => void }) {
+  const map = session.area;
+  const profile = trainer.profile;
+  const now = period(map.time);
+  const found = living(map);
+  const seen = new Set(profile?.seen ?? []),
+    caught = new Set(profile?.caught ?? []);
+  const groups = [
+    { key: "walk", label: "In the grass and on foot", list: found.walk },
+    { key: "surf", label: "Surfing", list: found.surf },
+    { key: "fish", label: "Fishing", list: found.fish },
+  ] as const;
+  const times = { morning: "Mornings", day: "Daytime", night: "Nights" };
+  const rodNames = { good: "Good Rod", super: "Super Rod" };
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Pokémon here</DialogTitle>
+          <DialogDescription>
+            {map.name} · it&apos;s {now === "morning" ? "morning" : now === "night" ? "night" : "daytime"}
+          </DialogDescription>
+        </DialogHeader>
+        {groups.every(({ list }) => !list.length) ? <Hint>No wild Pokémon live on this map.</Hint> : null}
+        {groups
+          .filter(({ list }) => list.length)
+          .map(({ key, label, list }) => (
+            <div key={key} className="grid gap-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{label}</p>
+              <ul className="grid grid-cols-2 gap-1.5">
+                {list.map((wild, i) => {
+                  const known = seen.has(wild.species) || caught.has(wild.species);
+                  const out = Boolean(wild.time && wild.time !== now);
+                  return (
+                    <li
+                      key={i}
+                      className={cn("flex items-center gap-2 rounded-md border border-border bg-card p-1.5", out && "opacity-50")}
+                      title={out ? `Only ${times[wild.time!].toLowerCase()}` : undefined}
+                    >
+                      <CanvasView
+                        className={cn("h-[30px] w-[34px] shrink-0 overflow-hidden", !known && "brightness-0 opacity-60")}
+                        make={() => portrait(wild.species, 1)}
+                        deps={[wild.species]}
+                      />
+                      <span className="grid min-w-0 flex-1">
+                        <span className="flex items-center gap-1 truncate text-sm">
+                          {known ? species(wild.species)?.name : "???"}
+                          {caught.has(wild.species) ? <span className="size-2 shrink-0 rounded-full bg-red-500" title="Caught" /> : null}
+                        </span>
+                        <span className="truncate text-[11px] text-subtle-fg">
+                          Lv {wild.min === wild.max ? wild.min : `${wild.min}–${wild.max}`}
+                          {wild.time ? ` · ${times[wild.time]}` : ""}
+                          {wild.rod ? ` · ${rodNames[wild.rod]}` : ""}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        {found.fish.length && !bestRod((id) => trainer.count(id)) ? <Hint>You need a fishing rod to hook the Pokémon in the water.</Hint> : null}
       </DialogContent>
     </Dialog>
   );

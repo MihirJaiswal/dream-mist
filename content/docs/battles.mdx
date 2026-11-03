@@ -1,6 +1,6 @@
 ---
 title: Battles
-description: How turns, damage, conditions, catching, experience and evolution work, so you can balance your game.
+description: How turns, damage, abilities, natures, held items, weather, trainer difficulty and level caps work, so you can balance your game.
 ---
 
 DreamMist battles follow the Generation 3 rules, simplified to one-on-one battles. Knowing the numbers helps when you set levels for your trainers and wild Pokémon.
@@ -9,16 +9,26 @@ DreamMist battles follow the Generation 3 rules, simplified to one-on-one battle
 
 Pokémon appear as animated, full-body sprites standing on their platforms (still pictures for Pokémon after #649).
 
-By default, battles happen in a built-in scene that follows the map: a sky, distant trees and a grass field outdoors, a wall and a floor indoors. The map's time of day and weather tint it, so a battle at night is dark and a battle in the evening is orange.
+By default, battles happen in a scene from Pokémon Emerald that fits the map, with its battle bases drawn in:
 
-### Your own battle backgrounds
+| Where                        | Scene    |
+| ---------------------------- | -------- |
+| Outdoors                     | Grass    |
+| Outdoors in a sandstorm      | Sand     |
+| Surfing, or a Pokémon hooked | Sea      |
+| Indoors                      | Building |
+| A cave                       | Cave     |
 
-In **City settings**, **Battle background** shows what the open map uses. Press **Upload** to use your own picture instead:
+The map's **Kind of place** (City settings) decides outdoors, indoors or cave. Time of day and weather tint the scene outdoors, so a battle at night is dark and a battle in the evening is orange.
+
+### Choosing a scene, or your own picture
+
+In **City settings**, **Battle background** shows what the open map uses. Pick one of the 11 Emerald scenes (grass, long grass, sand, mountain, cave, sea, pond, underwater, sky, building, stadium), or press **Upload** to use your own picture:
 
 - On the **outside map**, the picture becomes the town's default: every map without its own uses it.
 - On an **interior** or **route**, the picture is only for that map, like a cave, a beach or a gym arena. Open the map first, then upload.
 - **Shadows under the Pokémon** draws soft shadows where they stand. Turn it off when your picture already has platforms drawn in.
-- The cross button goes back to the default.
+- The cross button goes back to the automatic scene.
 
 Wide pictures (16:9) work best. Without an account, pictures up to 512 KB are stored inside the city; with one, up to 4 MB are uploaded to your account.
 
@@ -47,8 +57,82 @@ Damage uses the Generation 3 formula with the attacker's level, the move's power
 | No effect                        | × 0                               |
 | Critical hit (1 in 16)           | × 2                               |
 | Random spread                    | × 0.85 to × 1                     |
+| Abilities, held items, weather   | See below                         |
 
-Moves can miss based on their accuracy. Opponents pick moves at random, but favour strong, effective moves that match their own type, and sometimes use a move that puts you to sleep or lowers your stats.
+Moves can miss based on their accuracy. Wild Pokémon pick their moves at random; trainers pick by the town's difficulty (see [Trainer difficulty](#trainer-difficulty)).
+
+## Natures
+
+Every Pokémon has one of the 25 natures. Most raise one stat by 10% and lower another by 10%, like **Adamant** (+Attack, −Sp. Atk) or **Timid** (+Speed, −Attack); five (Hardy, Docile, Serious, Bashful, Quirky) change nothing. The party screen shows each Pokémon's nature. Pokémon caught before natures existed keep neutral stats.
+
+## Abilities
+
+Every Pokémon has one of its species' real abilities, shown on the party screen. These change battles:
+
+| Ability                                              | What it does                                                                |
+| ---------------------------------------------------- | --------------------------------------------------------------------------- |
+| Overgrow, Blaze, Torrent, Swarm                      | Moves of its type × 1.5 at 1/3 HP or less                                   |
+| Intimidate                                           | Lowers the opponent's Attack when it comes out                              |
+| Levitate, Flash Fire                                 | No damage from Ground moves (Levitate) or Fire moves (Flash Fire)           |
+| Water Absorb, Volt Absorb                            | Water or Electric moves heal it by 1/4 instead                              |
+| Static, Flame Body, Poison Point, Effect Spore       | 30% chance to paralyze, burn, poison or put to sleep who hits it physically |
+| Rough Skin                                           | Who hits it physically loses 1/16 of their HP                               |
+| Huge Power, Pure Power                               | Attack × 2                                                                  |
+| Guts                                                 | Attack × 1.5 with a condition, and burns don't halve it                     |
+| Thick Fat                                            | Fire and Ice moves do half damage                                           |
+| Sturdy                                               | Survives a knockout hit from full HP with 1 HP                              |
+| Insomnia, Vital Spirit, Limber, Immunity, Water Veil | Can't fall asleep, be paralyzed, poisoned or burned                         |
+| Clear Body, White Smoke, Hyper Cutter, Keen Eye      | Stops stats (or Attack, or accuracy) from being lowered                     |
+| Swift Swim, Sand Rush, Slush Rush                    | Speed × 2 in rain, sandstorm or snow                                        |
+| Sand Veil, Snow Cloak                                | Harder to hit in a sandstorm or snow                                        |
+| Compound Eyes                                        | Accuracy × 1.3                                                              |
+| Speed Boost                                          | Speed +1 at the end of each turn                                            |
+| Shed Skin                                            | 1 in 3 chance to cure its condition at the end of each turn                 |
+| Natural Cure                                         | Cures its condition when it switches out                                    |
+| Run Away                                             | Always escapes wild battles                                                 |
+
+The other abilities are shown but don't change battles yet.
+
+## Held items
+
+On the party screen, **Give item** hands a Pokémon an item from the bag to hold; it goes back in the bag when you take it or swap it. Trainers' Pokémon can hold one too: pick it next to each team member.
+
+| Item                                                     | What it does                                       |
+| -------------------------------------------------------- | -------------------------------------------------- |
+| Oran Berry                                               | Restores 10 HP once, when HP falls to half         |
+| Sitrus Berry                                             | Restores 1/4 of HP once, when HP falls to half     |
+| Lum Berry                                                | Cures any condition once                           |
+| Leftovers                                                | Restores 1/16 of HP at the end of each turn        |
+| Quick Claw                                               | 1 in 5 chance to move first                        |
+| Charcoal, Mystic Water, Miracle Seed, Magnet, Silk Scarf | Fire, Water, Grass, Electric or Normal moves × 1.2 |
+
+Berries are used up. Poké Mart clerks sell held items only when you add them to their list.
+
+## Weather
+
+The map's weather comes into its battles:
+
+| Weather   | In battle                                                                     |
+| --------- | ----------------------------------------------------------------------------- |
+| Rain      | Water moves × 1.5, Fire moves × 0.5                                           |
+| Sandstorm | Every Pokémon but Rock, Ground and Steel types loses 1/16 of its HP each turn |
+| Snow      | Every Pokémon but Ice types loses 1/16 of its HP each turn                    |
+
+Fog and clear skies change nothing.
+
+## Trainer difficulty
+
+In **City settings**, **Battles**, **Trainers** sets how trainers of the whole town choose their moves:
+
+| Difficulty | Trainers                                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Easy       | Pick at random                                                                                                                             |
+| Normal     | Favor strong, effective moves of their own type, and sometimes a move that puts you to sleep or lowers your stats                          |
+| Hard       | Always use the move that takes the most of your HP (a knockout first), never a move you're immune to, and status moves only when they help |
+
+## Level caps
+
+**Level caps** (City settings, Battles) stop Pokémon from outleveling your game, like Pokémon Unbound and Emerald hacks do. Write the highest level for 0 badges, then 1 badge, and so on: `15, 20, 26, 32`. Badges count only when earned in this town. Past the end of the list, the last cap stays. A Pokémon at the cap gains no experience ("can't grow past Lv. 15 until the next badge") until the player earns the next badge.
 
 ## Stat changes
 
@@ -74,7 +158,7 @@ A Pokémon has one condition at a time. It stays after the battle until a Nurse 
 
 ## Stats
 
-Stats come from the real base stats of each Pokémon at its level, with the same average genes for every Pokémon and no training. Two Pokémon of the same species and level always have the same stats.
+Stats come from the real base stats of each Pokémon at its level and its nature, with the same average genes for every Pokémon and no training.
 
 ## Moves
 

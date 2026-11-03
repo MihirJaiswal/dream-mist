@@ -21,9 +21,12 @@ export const sound = {
   /** Custom tracks of the current city */
   custom: {} as { town?: string; battle?: string },
 
+  /** Music of the map being played (an uploaded track), in place of the town music */
+  song: "",
+
   /** Play a music track (loops) */
   music(name: keyof typeof tracks) {
-    const url = this.custom[name] || tracks[name];
+    const url = (name === "town" && this.song) || this.custom[name] || tracks[name];
     if (this.track === url) {
       return;
     }

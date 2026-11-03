@@ -2,6 +2,7 @@
 import { assets, species } from "./assets";
 import { storage } from "./data";
 import { type ItemId, itemIds } from "./items";
+import { type Nature, natureMultiplier, randomNature } from "./natures";
 
 /** Conditions that last after a battle until cured (sleep wears off on its own) */
 export type Status = "sleep" | "poison" | "paralysis" | "burn";
@@ -20,6 +21,11 @@ export type Creature = {
   /** Condition, and the turns of sleep left */
   status?: Status;
   sleep?: number;
+  /** Nature (raises one stat, lowers another) and ability; older Pokémon without them are neutral and use their species' first ability */
+  nature?: Nature;
+  ability?: string;
+  /** Item held in battle */
+  held?: ItemId;
 };
 
 /** Trainer profile (shared across all visited cities) */
@@ -31,7 +37,8 @@ export type Trainer = {
   /** Items in the bag, and money to buy more */
   items: Partial<Record<ItemId, number>>;
   money: number;
-  badges: { city: string; name: string; badge: string; date: number }[];
+  /** Badges earned (`world` is the id of the town they belong to) */
+  badges: { city: string; name: string; badge: string; date: number; world?: string }[];
   /** Defeated trainers ("city id:npc index") */
   defeated: string[];
   seen: number[];
@@ -69,7 +76,7 @@ export function stat(creature: Creature, index: number) {
   if (index === 0) {
     return Math.floor(((2 * base + iv) * creature.level) / 100) + creature.level + 10;
   }
-  return Math.floor(((2 * base + iv) * creature.level) / 100) + 5;
+  return Math.floor((Math.floor(((2 * base + iv) * creature.level) / 100) + 5) * natureMultiplier(creature.nature, index));
 }
 
 /** Max HP */
@@ -116,14 +123,22 @@ function learn(creature: Creature, key: string, messages: string[]) {
 }
 
 /** Create a new creature */
-export function create(id: number, level: number, { shiny = Math.random() < 1 / 128 } = {}): Creature {
-  const creature = {
+export function create(
+  id: number,
+  level: number,
+  { shiny = Math.random() < 1 / 128, nature = randomNature(), ability = "", held }: { shiny?: boolean; nature?: Nature; ability?: string; held?: ItemId } = {},
+): Creature {
+  const abilities = species(id).abilities ?? [];
+  const creature: Creature = {
     species: id,
     level,
     exp: experience(level),
     hp: 0,
     moves: learned(id, level).map((key) => ({ key, pp: assets.moves[key]?.pp ?? 10 })),
     shiny,
+    nature,
+    ...(ability || abilities.length ? { ability: ability || abilities[Math.floor(Math.random() * abilities.length)] } : {}),
+    ...(held ? { held } : {}),
   };
   creature.hp = hp(creature);
   return creature;
@@ -167,11 +182,20 @@ export function evolve(creature: Creature, into: number) {
   return messages;
 }
 
-/** Grant experience, returns messages to display (level ups, new moves) */
-export function grow(creature: Creature, amount: number) {
+/** Ability of a creature (older ones without one use their species' first) */
+export function abilityOf(creature: Creature) {
+  return creature.ability ?? species(creature.species).abilities?.[0] ?? "";
+}
+
+/** Grant experience, returns messages to display (level ups, new moves). A level cap stops leveling (experience stays below the next level) */
+export function grow(creature: Creature, amount: number, cap = 100) {
   const messages = [] as string[];
   creature.exp += amount;
-  while (creature.level < 100 && creature.exp >= experience(creature.level + 1)) {
+  const top = Math.max(creature.level, Math.min(100, cap));
+  if (creature.level >= top) {
+    creature.exp = Math.min(creature.exp, experience(top + 1) - 1);
+  }
+  while (creature.level < top && creature.exp >= experience(creature.level + 1)) {
     const before = hp(creature);
     creature.level++;
     creature.hp += hp(creature) - before;
@@ -181,6 +205,9 @@ export function grow(creature: Creature, amount: number) {
         learn(creature, key, messages);
       }
     }
+  }
+  if (creature.level >= top && top < 100) {
+    creature.exp = Math.min(creature.exp, experience(top + 1) - 1);
   }
   return messages;
 }

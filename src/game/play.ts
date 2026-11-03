@@ -1,14 +1,16 @@
 //Imports
 import * as PIXI from "pixi.js";
-import { artwork, creatureSprite, npc as texture, preview, size, species } from "./assets";
+import { artwork, assets, creatureSprite, npc as texture, preview, size, species } from "./assets";
 import { frames } from "./brushes";
-import type { Action, City, Direction, Door, Npc, Trigger } from "./data";
+import { type Action, type City, type Direction, type Door, levelCap, type Npc, type Trigger } from "./data";
 import { arrow, ICE, ledge, WATER } from "./behaviors";
+import { period } from "./atmosphere";
+import { pool, roll } from "./encounters";
 import { type CityMap, drawBall } from "./map";
-import { Battle } from "./battle";
+import { Battle, battleWeather } from "./battle";
 import { creatureImage, scaleOf } from "./sprites";
 import { create, trainer } from "./trainer";
-import { itemCount, itemIds, items } from "./items";
+import { bestRod, itemCount, items, sold } from "./items";
 import { milestone, open } from "./story";
 import { sound } from "./audio";
 import { type Portrait, ui } from "./ui-bridge";
@@ -206,6 +208,8 @@ export class Play {
   #scene = false;
   /** Item balls lying on the map */
   readonly #balls = [] as { index: number; graphic: PIXI.Graphics }[];
+  /** Darkness of a dark map, with a little light around the player (gone once Flash is used) */
+  #dark = null as null | PIXI.Sprite;
 
   constructor(
     map: CityMap,
@@ -327,6 +331,9 @@ export class Play {
     if (this.#behavior(spawn.x, spawn.y) === WATER && this.#swimmer()) {
       this.#mounted(true);
     }
+    if (this.#city.dark) {
+      this.#darken();
+    }
     this.#map.done = (step) => this.#done(step);
     this.#map.drawBlockers();
     this.#map.pannable = false;
@@ -334,6 +341,8 @@ export class Play {
     this.#listen("keydown", (event) => this.#keydown(event as KeyboardEvent));
     this.#listen("keyup", (event) => this.#keyup(event as KeyboardEvent));
     this.#map.app.ticker.add(this.#ticker);
+    //Each map can have its own music (the town music otherwise)
+    sound.song = this.#city.song ?? "";
     sound.music("town");
   }
 
@@ -347,6 +356,8 @@ export class Play {
     this.#npcs.forEach(({ actor, bubble }) => (actor.destroy(), bubble?.destroy()));
     this.#balls.forEach(({ graphic }) => graphic.destroy());
     this.#mount?.destroy();
+    this.#dark?.destroy();
+    this.#dark = null;
     this.#map.pannable = true;
     this.#map.done = () => false;
     this.#map.drawBlockers();
@@ -415,6 +426,43 @@ export class Play {
       this.#hold(keys[key], false);
     } else if (key === "shift") {
       this.#running = false;
+    }
+  }
+
+  /** Cover a dark map, leaving a little light around the player, then use Flash if the player has it */
+  #darken() {
+    const canvas = Object.assign(document.createElement("canvas"), { width: 512, height: 512 });
+    const context = canvas.getContext("2d")!;
+    const light = context.createRadialGradient(256, 256, 6, 256, 256, 15);
+    light.addColorStop(0, "rgba(0, 0, 0, 0)");
+    light.addColorStop(1, "rgba(4, 4, 12, 0.94)");
+    context.fillStyle = light;
+    context.fillRect(0, 0, 512, 512);
+    //Each pixel covers 4 of the map, so the darkness reaches far past the screen
+    const dark = this.#map.containers.overlay.addChild(new PIXI.Sprite(PIXI.Texture.from(canvas)));
+    dark.anchor.set(0.5);
+    dark.scale.set(4);
+    this.#dark = dark;
+    const lead = trainer.lead;
+    if (lead && trainer.count("hm-flash") > 0) {
+      this.#busy = true;
+      void ui.say(`${lead.nickname || species(lead.species).name} used Flash!`).then(() => {
+        const start = performance.now();
+        const fade = () => {
+          const t = Math.min(1, (performance.now() - start) / 500);
+          if (this.#dark === dark) {
+            dark.alpha = 1 - t;
+          }
+          if (t < 1) {
+            requestAnimationFrame(fade);
+          } else if (this.#dark === dark) {
+            dark.destroy();
+            this.#dark = null;
+          }
+        };
+        requestAnimationFrame(fade);
+        this.#busy = false;
+      });
     }
   }
 
@@ -570,6 +618,7 @@ export class Play {
         this.#stepped();
       }
     }
+    this.#dark?.position.set(player.x * size + size / 2, player.y * size + size / 2);
     if (this.#mount) {
       //The Pokémon carrying the player bobs on the water
       this.#mount.position.set(player.x * size + size / 2, (player.y + 1) * size + 3 + Math.sin(now / 250));
@@ -720,23 +769,65 @@ export class Play {
       }
     }
 
-    //Wild encounters
+    //Wild encounters: walking, or surfing on water
     const { x, y } = this.#player;
-    const zone = this.#city.zones[this.#city.zone[y * this.#city.width + x] - 1];
-    if (zone?.creatures.length && Math.random() < zone.rate && trainer.lead) {
-      const total = zone.creatures.length;
-      const { species: id, min, max } = zone.creatures[Math.floor(Math.random() * total)];
-      if (!species(id)) {
-        return;
-      }
+    const zone = this.#zoneAt(x, y);
+    const wild = roll(pool(zone, this.#surfing ? "surf" : "walk", period(this.#city.time)));
+    if (wild && Math.random() < zone!.rate && trainer.lead && species(wild.species)) {
       this.#busy = true;
       this.#held.length = 0;
       this.#tap = null;
-      const level = Math.max(1, Math.min(100, min + Math.floor(Math.random() * (Math.max(min, max) - min + 1))));
-      const outcome = await new Battle({ wild: create(id, level) }).start();
-      await this.#after(outcome);
+      await this.#wild(wild);
       this.#busy = false;
     }
+  }
+
+  /** Battle rules here: the town's difficulty, the level cap for the badges earned in this town, and the map's weather */
+  #rules({ water = this.#surfing } = {}) {
+    const badges = trainer.profile?.badges.filter(({ world }) => world === this.#world.id).length ?? 0;
+    return { difficulty: this.#world.rules?.difficulty, cap: levelCap(this.#world.rules, badges), weather: battleWeather(this.#city.weather), water };
+  }
+
+  /** Encounter zone of a tile */
+  #zoneAt(x: number, y: number) {
+    return this.#city.zones[this.#city.zone[y * this.#city.width + x] - 1];
+  }
+
+  /** Battle a wild Pokémon met on the map (hooked ones fight on the water) */
+  async #wild({ species: id, level }: { species: number; level: number }, { water = this.#surfing } = {}) {
+    const outcome = await new Battle({ wild: create(id, level), rules: this.#rules({ water }) }).start();
+    await this.#after(outcome);
+  }
+
+  /** Is a tile water a rod can be cast into */
+  #water(x: number, y: number) {
+    if (!this.#map.inside({ x, y })) {
+      return false;
+    }
+    const ground = this.#city.layers.ground[y * this.#city.width + x] - 1;
+    return this.#behavior(x, y) === WATER || (ground >= 0 && assets.water.has(ground));
+  }
+
+  /** Fish into the water in front of the player with their best rod */
+  async #fish(x: number, y: number) {
+    const rod = bestRod((id) => trainer.count(id))!;
+    const profile = trainer.profile!;
+    const wild = roll(
+      pool(this.#zoneAt(x, y), "fish", period(this.#city.time), ({ "old-rod": "old", "good-rod": "good", "super-rod": "super" } as const)[rod]),
+    );
+    await ui.say(`${profile.name} used the ${items[rod].name}!`);
+    //A bite comes most of the time, and never where nothing lives
+    await new Promise((solve) => setTimeout(solve, 600 + Math.random() * 1200));
+    if (!wild || !species(wild.species) || Math.random() < 0.25) {
+      await ui.say("Not even a nibble…");
+      return;
+    }
+    await ui.say("Oh! A bite!");
+    if (!trainer.lead) {
+      await ui.say("Your Pokémon are too tired to battle. It got away…");
+      return;
+    }
+    await this.#wild(wild, { water: true });
   }
 
   /** Is trainer already defeated by current player */
@@ -961,7 +1052,7 @@ export class Play {
           return (await this.#fight(data, action.who)) !== "lose";
         }
         if (data.role === "wild" && data.creature && species(data.creature.species) && !this.#defeated(action.who)) {
-          const outcome = await new Battle({ wild: create(data.creature.species, data.creature.level, { shiny: false }) }).start();
+          const outcome = await new Battle({ wild: create(data.creature.species, data.creature.level, { shiny: false }), rules: this.#rules() }).start();
           if (outcome === "win" || outcome === "caught") {
             profile.defeated.push(this.#key(action.who));
             trainer.save();
@@ -1007,6 +1098,14 @@ export class Play {
       return actor ? Math.round(actor.x) === x && Math.round(actor.y) === y : data.x === x && data.y === y;
     });
     if (index < 0) {
+      //Facing water with a rod in the bag: fish
+      if (this.#water(x, y) && bestRod((id) => trainer.count(id))) {
+        this.#busy = true;
+        this.#held.length = 0;
+        this.#tap = null;
+        await this.#fish(x, y);
+        this.#busy = false;
+      }
       return;
     }
     this.#busy = true;
@@ -1157,7 +1256,7 @@ export class Play {
       if (data.name && data.name !== species(id).name) {
         wild.nickname = data.name;
       }
-      const outcome = await new Battle({ wild }).start();
+      const outcome = await new Battle({ wild, rules: this.#rules() }).start();
       if (outcome === "win" || outcome === "caught") {
         trainer.profile!.defeated.push(this.#key(index));
         trainer.save();
@@ -1194,7 +1293,7 @@ export class Play {
     }
     if (data.role === "shop") {
       await ui.shop(
-        (data.shop?.length ? data.shop : itemIds).filter((id) => id in items),
+        (data.shop?.length ? data.shop : sold).filter((id) => id in items),
         voice,
       );
     }
@@ -1213,13 +1312,15 @@ export class Play {
   /** Battle a trainer of the map (returns the outcome) */
   async #fight(data: Npc, index: number) {
     const voice = { speaker: data.name, portrait: portraitOf(data) };
-    const team = data.trainer!.team.filter(({ species: id }) => species(id)).map(({ species: id, level }) => create(id, level, { shiny: false }));
-    const outcome = await new Battle({ opponent: { name: data.name || "Trainer", sprite: data.sprite, team } }).start();
+    const team = data
+      .trainer!.team.filter(({ species: id }) => species(id))
+      .map(({ species: id, level, held }) => create(id, level, { shiny: false, held: held && held in items ? held : undefined }));
+    const outcome = await new Battle({ opponent: { name: data.name || "Trainer", sprite: data.sprite, team }, rules: this.#rules() }).start();
     if (outcome === "win") {
       trainer.profile!.defeated.push(this.#key(index));
       if (data.trainer!.gym) {
         const badge = data.trainer!.badge || `${this.#city.name} Badge`;
-        trainer.profile!.badges.push({ city: this.#city.name, name: data.name, badge, date: Date.now() });
+        trainer.profile!.badges.push({ city: this.#city.name, name: data.name, badge, date: Date.now(), world: this.#world.id });
         trainer.give("poke-ball", 5);
         trainer.save();
         await ui.say(`${data.trainer!.defeat || "You beat me fair and square!"}\n\n${trainer.profile!.name} received the ${badge}!`, voice);

@@ -21,6 +21,9 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── atmosphere.ts     Weather and time of day drawn over the map in play mode
 │   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers, tile behaviors, scripts
 │   │   ├── behaviors.ts      Tile behaviors painted on the Collision layer: ledges, surf water, ice, push tiles
+│   │   ├── encounters.ts     Wild Pokémon a zone offers: walking, surfing or fishing, by part of the day and rod
+│   │   ├── abilities.ts      Abilities that change battles (Intimidate, Levitate, Static…)
+│   │   ├── natures.ts        The 25 natures and the stats they raise and lower
 │   │   ├── scripts.ts        Event script actions: their names, checking imported ones, fixing them when people are removed
 │   │   ├── battle.ts         Battles: damage, stat changes, conditions, catching, turns. Keeps a `view` the React battle screen draws
 │   │   ├── story.ts          Story lanes: main story and side quests, the Journal and progress banners
@@ -55,7 +58,9 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │
 ├── public/
 │   ├── game/                 Files the game loads (built by `npm run data`, committed)
-│   │   ├── textures/         Sprite sheets for tiles, people and Pokémon
+│   │   ├── textures/         Sprite sheets for tiles, people and Pokémon (people.* is every Emerald overworld person)
+│   │   ├── battle/           Emerald battle scenes (built from pret/pokeemerald)
+│   │   ├── tilesets/emerald/ Every Emerald tileset as a 16px tile sheet, and index.json (built from pret/pokeemerald)
 │   │   ├── data/             Pokédex, walkable tiles, tile animations, Hoenn map sections
 │   │   ├── audio/            Default music and sound effects
 │   │   └── images/           Logo and loading art used by the editor
@@ -65,7 +70,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 ├── maps/                     Source Hoenn maps made with Tiled (.tmx), placed by hoenn.world
 ├── copyrighted/              Source textures and audio from the Pokémon games
 ├── scripts/
-│   └── build-data.mts        Builds public/game from maps/, copyrighted/ and PokeAPI data
+│   ├── build-data.mts        Builds public/game from maps/, copyrighted/, PokeAPI data and pret graphics
+│   └── pret.mts              Turns pret/pokeemerald graphics (GBA tiles, tile maps, palettes) into battle scenes, people and tilesets
 │
 ├── supabase/migrations/      Database schema: tables, row level security, functions, storage bucket, version history.
 │                             Run new files in order in the Supabase SQL Editor
@@ -98,7 +104,9 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 | Walking, talking, doors, encounters      | `src/game/play.ts`                                                                                                |
 | Ledges, surf, ice and push tiles         | `src/game/behaviors.ts` (values), `src/game/play.ts` (movement), `drawBehaviors` in `src/game/map.ts`             |
 | Event script actions                     | `src/game/scripts.ts`, `#act` in `src/game/play.ts`, `src/components/editor/script-editor.tsx`                    |
-| Battle rules                             | `src/game/battle.ts` and `src/game/trainer.ts`                                                                    |
+| Battle rules                             | `src/game/battle.ts`, `src/game/trainer.ts`, `src/game/abilities.ts` and `src/game/natures.ts`                    |
+| Wild encounters, fishing                 | `src/game/encounters.ts`, `#stepped` and `#fish` in `src/game/play.ts`, `src/components/editor/zones-panel.tsx`   |
+| Emerald graphics (pret)                  | `scripts/pret.mts`, rebuilt with `npm run data -- pret --force`                                                   |
 | The city file format                     | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`)                                          |
 | Saving, accounts, Explore                | `src/game/cloud.ts` and `supabase/migrations/`                                                                    |
 | Live rooms                               | `src/game/room.ts`                                                                                                |

@@ -40,8 +40,12 @@ type City = {
   sprites?: Sprite[]; // custom looks for people and Pokémon
   music?: { town?: string; battle?: string };
   weather?: "rain" | "snow" | "fog" | "sandstorm"; // per map, clear when not set
-  time?: "evening" | "night"; // per map, day when not set
-  battle?: { image: string; platforms: boolean }; // per map battle background (picture url); maps without one use the outside map's, then the built-in scene
+  time?: "morning" | "evening" | "night" | "clock"; // per map, day when not set; "clock" follows the player's clock
+  type?: "outdoor" | "indoor" | "cave"; // per map, picks the automatic battle scene (outdoor for the outside and outdoor maps, indoor for interiors)
+  dark?: boolean; // per map: dark until the player has HM05 Flash
+  song?: string; // per map: its own music (an uploaded track url), the town music when not set
+  rules?: { difficulty?: "easy" | "hard"; caps?: number[] }; // outside map only: trainer difficulty (normal when not set), level caps by badges
+  battle?: { image: string; platforms: boolean }; // per map battle background: a picture url, or an Emerald scene "/game/battle/<scene>.png" (tall_grass, long_grass, sand, rock, cave, water, pond_water, underwater, sky, building, stadium); maps without one use the outside map's, then the automatic scene
   updated: number; // timestamp in milliseconds
 };
 ```
@@ -112,7 +116,7 @@ type Npc = {
     pause: number; // seconds at each stop
   };
   trainer?: {
-    team: { species: number; level: number }[]; // national Pokédex numbers, 1 to 1025
+    team: { species: number; level: number; held?: ItemId }[]; // national Pokédex numbers, 1 to 1025, and a held item
     gym: boolean;
     badge: string;
     defeat: string;
@@ -128,7 +132,9 @@ type Npc = {
   };
 };
 
-// "poke-ball" | "great-ball" | "potion" | "super-potion" | "full-heal"
+// Sold: "poke-ball" | "great-ball" | "potion" | "super-potion" | "full-heal"
+// Key items (given, not sold): "old-rod" | "good-rod" | "super-rod" | "hm-flash"
+// Held items: "oran-berry" | "sitrus-berry" | "lum-berry" | "leftovers" | "quick-claw" | "charcoal" | "mystic-water" | "miracle-seed" | "magnet" | "silk-scarf"
 type ItemId = string;
 ```
 
@@ -170,9 +176,16 @@ type Action =
 ```ts
 type Zone = {
   name: string;
-  rate: number; // 0.01 to 0.4, chance per step
+  rate: number; // 0.01 to 0.4, chance per step (walking and surfing)
   color: number; // editor overlay color, like 0x2ecc40
-  creatures: { species: number; min: number; max: number }[];
+  creatures: {
+    species: number;
+    min: number;
+    max: number;
+    method?: "surf" | "fish"; // walking when not set
+    time?: "morning" | "day" | "night"; // any time when not set
+    rod?: "good" | "super"; // fishing: the weakest rod that hooks it (any rod when not set)
+  }[];
 };
 
 type Door = {

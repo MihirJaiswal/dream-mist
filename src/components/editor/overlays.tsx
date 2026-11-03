@@ -4,7 +4,9 @@ import { useEditor, useSession } from "@/components/editor/hooks";
 import { Button } from "@/components/ui/button";
 import { artwork, battleSprite } from "@/game/assets";
 import { Battle, type BattleSide, statusLabels } from "@/game/battle";
+import { hour } from "@/game/atmosphere";
 import { cloud } from "@/game/cloud";
+import { autoScene, type Scene, sceneOf, scenePicture, typeOf } from "@/game/data";
 import { session } from "@/game/session";
 import { hp, named } from "@/game/trainer";
 import type { Banner, Portrait } from "@/game/ui-bridge";
@@ -139,6 +141,7 @@ export function DialogueBox() {
 /** One side of the battle */
 /** Battle background tints for the map's time of day and weather (the Pokémon keep their colors) */
 const tints: Record<string, string> = {
+  morning: "rgb(255 210 160 / 0.14)",
   evening: "rgb(255 106 32 / 0.22)",
   night: "rgb(11 24 64 / 0.5)",
   rain: "rgb(80 112 160 / 0.18)",
@@ -147,21 +150,11 @@ const tints: Record<string, string> = {
   snow: "rgb(220 235 255 / 0.18)",
 };
 
-/** Where the battle happens: the map's uploaded background, or the built-in scene (sky, trees and grass outdoors, wall and floor indoors), tinted by the map's time and weather */
-function Scene({ overlays, picture }: { overlays: string[]; picture?: string }) {
-  const area = session.area;
-  const indoor = Boolean(area) && area !== session.city && !area.outdoor;
+/** Where the battle happens: an Emerald scene (widened with its edge colors) or an uploaded picture, tinted by the map's time and weather */
+function Scene({ overlays, picture, scene }: { overlays: string[]; picture: string; scene: Scene | null }) {
   return (
-    <div className={cn("scene", indoor ? "indoor" : "field", area?.time === "night" && "night")} aria-hidden="true">
-      {picture ? (
-        <div className="picture" style={{ backgroundImage: `url("${picture}")` }} />
-      ) : (
-        <>
-          <div className="sky" />
-          {indoor ? null : <div className="treeline" />}
-          <div className="ground" />
-        </>
-      )}
+    <div className="scene" aria-hidden="true" style={scene ? { backgroundImage: `url("/game/battle/${scene}-edge.png")` } : undefined}>
+      <div className="picture" style={{ backgroundImage: `url("${picture}")` }} />
       {overlays.map((key) => (
         <div key={key} className="tint" style={{ background: tints[key] }} />
       ))}
@@ -255,15 +248,20 @@ export function BattleScreen() {
     return null;
   }
   //The scene's tints also fall on the platforms (through --tint), not on the Pokémon
-  const overlays = [session.area?.time, session.area?.weather].filter((key) => key && tints[key]) as string[];
+  //Caves and rooms have no sky: only the time of day outdoors tints them
+  const outdoors = !session.area || typeOf(session.area, session.city) === "outdoor";
+  const overlays = [outdoors ? hour(session.area?.time) : "", session.area?.weather].filter((key) => key && tints[key]) as string[];
   const tint = overlays.map((key) => `linear-gradient(${tints[key]}, ${tints[key]})`).join(", ") || "none";
   //The map's own battle background, else the outside map's (the city default), else the built-in scene
-  const background = session.area?.battle ?? session.city?.battle;
+  const chosen = session.area?.battle ?? session.city?.battle;
+  //An Emerald scene (chosen, or picked by the kind of place), or an uploaded picture
+  const scene = chosen ? sceneOf(chosen.image) : session.area ? autoScene(session.area, session.city, { water: battle.water }) : "tall_grass";
+  const background = scene ? { image: scenePicture(scene), platforms: false } : chosen!;
   return (
     <div className={cn("battle", view.phase === "intro" && "intro", view.phase === "outro" && "outro")}>
       <div className="flash" />
-      <div className={cn("stage", background && (background.platforms ? "picture" : "bare"))} style={{ ["--tint" as string]: tint }}>
-        <Scene overlays={overlays} picture={background?.image} />
+      <div className={cn("stage", scene ? "gen3" : background.platforms ? "picture" : "bare")} style={{ ["--tint" as string]: tint }}>
+        <Scene overlays={overlays} picture={background.image} scene={scene} />
         <div className="arena">
           <Side side="foe" view={view.foe} foe />
           <Side side="ally" view={view.ally} foe={false} />

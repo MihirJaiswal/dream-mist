@@ -4,8 +4,14 @@ import * as PIXI from "pixi.js";
 /** Weather of a map */
 export type Weather = "clear" | "rain" | "snow" | "fog" | "sandstorm";
 
-/** Time of day of a map */
-export type Daytime = "day" | "evening" | "night";
+/** Time of day of a map ("clock" follows the player's own clock) */
+export type Daytime = "morning" | "day" | "evening" | "night" | "clock";
+
+/** Time of day shown, once the clock is read */
+export type Hour = Exclude<Daytime, "clock">;
+
+/** Part of the day wild Pokémon go by: evenings count as day */
+export type Period = "morning" | "day" | "night";
 
 export const weathers: { key: Weather; label: string }[] = [
   { key: "clear", label: "Clear" },
@@ -16,16 +22,39 @@ export const weathers: { key: Weather; label: string }[] = [
 ];
 
 export const daytimes: { key: Daytime; label: string }[] = [
+  { key: "morning", label: "Morning" },
   { key: "day", label: "Day" },
   { key: "evening", label: "Evening" },
   { key: "night", label: "Night" },
+  { key: "clock", label: "Follows the clock" },
 ];
 
+/** Time of day right now on the player's clock: morning 4 to 10, day until 17, evening until 20, then night */
+export function clock(date = new Date()): Hour {
+  const hour = date.getHours();
+  return hour >= 4 && hour < 10 ? "morning" : hour >= 10 && hour < 17 ? "day" : hour >= 17 && hour < 20 ? "evening" : "night";
+}
+
+/** Time of day shown on a map (reads the clock when the map follows it) */
+export function hour(time: Daytime = "day", date = new Date()): Hour {
+  return time === "clock" ? clock(date) : time;
+}
+
+/** Part of the day for wild Pokémon */
+export function period(time: Daytime = "day", date = new Date()): Period {
+  const now = hour(time, date);
+  return now === "evening" ? "day" : now;
+}
+
 /** Tint of each time of day, and of weathers that color the air */
-const tints = { evening: [0xff6a20, 0.26], night: [0x0b1840, 0.48], rain: [0x5070a0, 0.12], fog: [0xdfe6ec, 0.32], sandstorm: [0xc8a060, 0.22] } as Record<
-  string,
-  [number, number]
->;
+const tints = {
+  morning: [0xffd2a0, 0.12],
+  evening: [0xff6a20, 0.26],
+  night: [0x0b1840, 0.48],
+  rain: [0x5070a0, 0.12],
+  fog: [0xdfe6ec, 0.32],
+  sandstorm: [0xc8a060, 0.22],
+} as Record<string, [number, number]>;
 
 /** One falling raindrop, snowflake, grain of sand or patch of fog */
 type Particle = { x: number; y: number; speed: number; size: number; phase: number };
@@ -57,7 +86,7 @@ export class Atmosphere {
   /** Change the weather and time of day */
   set(weather: Weather = "clear", time: Daytime = "day") {
     this.#weather = weather;
-    this.#time = time;
+    this.#time = hour(time);
     const count = { clear: 0, rain: 140, snow: 90, fog: 7, sandstorm: 120 }[weather] ?? 0;
     const { width, height } = this.#app.screen;
     this.#drops = Array.from({ length: count }, () => ({

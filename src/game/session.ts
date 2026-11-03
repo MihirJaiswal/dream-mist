@@ -5,7 +5,24 @@ import { sound } from "./audio";
 import { frames, template } from "./brushes";
 import { type Card, cloud, isCloudId } from "./cloud";
 import { crossing, walkable } from "./region";
-import { area, blank, type City, decode, type Direction, type Door, library, type Npc, resize, sanitize, storage, uid } from "./data";
+import {
+  area,
+  blank,
+  type City,
+  decode,
+  type Direction,
+  type Door,
+  library,
+  type MapType,
+  type Npc,
+  type Rules,
+  type Scene,
+  scenePicture,
+  resize,
+  sanitize,
+  storage,
+  uid,
+} from "./data";
 import { EditorEngine } from "./editor/engine";
 import { load as hoenn, type Section } from "./hoenn";
 import { CityMap } from "./map";
@@ -246,9 +263,9 @@ export class Session {
     const parsed = JSON.parse(town);
     const { interiors: _, ...fields } = sanitize(parsed);
     //Clear weather, day time and the built-in battle scene are stored as no field at all, which assigning wouldn't remove
-    delete this.city.weather;
-    delete this.city.time;
-    delete this.city.battle;
+    for (const key of ["weather", "time", "battle", "type", "dark", "song", "rules"] as const) {
+      delete this.city[key];
+    }
     Object.assign(this.city, fields);
     this.city.interiors = (Array.isArray(parsed.interiors) ? parsed.interiors : []).map((map: City) => sanitize(map, this.city));
     this.area = area(this.city, id) ?? this.city;
@@ -896,10 +913,13 @@ export class Session {
   }
 
   /** Draw platforms on the open map's battle background, or remove the background (null) */
-  setBattle(battle: null | { platforms: boolean }) {
+  setBattle(battle: null | { platforms: boolean } | { scene: Scene }) {
     this.#undoable(() => {
       if (!battle) {
         delete this.area.battle;
+      } else if ("scene" in battle) {
+        //An Emerald scene has its battle bases drawn in
+        this.area.battle = { image: scenePicture(battle.scene), platforms: false };
       } else if (this.area.battle) {
         this.area.battle = { ...this.area.battle, ...battle };
       }
@@ -919,6 +939,39 @@ export class Session {
       this.changed();
     });
     this.notify();
+  }
+
+  /** Change the open map's details: what kind of place it is, whether it's dark, its music ("" = the town music) */
+  setMapDetails({ type, dark, song }: { type?: MapType | "auto"; dark?: boolean; song?: string }) {
+    this.#undoable(() => {
+      const map = this.area;
+      if (type !== undefined) {
+        //Outdoors for the outside and outdoor maps, indoors for interiors, is the default and stays unset
+        const auto = map === this.city || map.outdoor ? "outdoor" : "indoor";
+        if (type === "auto" || type === auto) delete map.type;
+        else map.type = type;
+      }
+      if (dark !== undefined) {
+        if (dark) map.dark = true;
+        else delete map.dark;
+      }
+      if (song !== undefined) {
+        if (song) map.song = song;
+        else delete map.song;
+      }
+      this.broadcastCity();
+      this.changed();
+    });
+    this.notify();
+  }
+
+  /** Upload the open map's own music (needs an account) */
+  async uploadSong(file: File) {
+    if (!cloud.user) {
+      throw new Error(cloud.available ? "Log in to upload music" : "Music uploads need online features to be set up");
+    }
+    const { url } = await cloud.upload(file, "music", file.name);
+    this.setMapDetails({ song: url });
   }
 
   /** Upload town or battle music (needs an account) */
@@ -979,6 +1032,27 @@ export class Session {
       this.notify();
       return sheet;
     });
+  }
+
+  /** Add a tileset of Pokémon Emerald (built from pret/pokeemerald, served with the game); returns its index among the city's tilesets */
+  async addEmeraldTileset({ name, file }: { name: string; file: string }) {
+    const url = `/game/tilesets/emerald/${file}`;
+    const existing = (this.city.tilesets ?? []).findIndex((sheet) => sheet.url === url);
+    if (existing >= 0) {
+      return existing;
+    }
+    await this.#undoable(async () => {
+      const words = name.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+      const sheet = { id: uid(), name: `Emerald ${words}`.slice(0, 30), url, tile: 16, columns: 0, rows: 0 };
+      const loaded = await prepare(sheet);
+      Object.assign(sheet, { columns: loaded.columns, rows: loaded.rows });
+      this.city.tilesets = [...(this.city.tilesets ?? []), sheet];
+      await this.rerender();
+      this.room?.meta({ tilesets: this.city.tilesets });
+      this.changed();
+      this.notify();
+    });
+    return this.city.tilesets!.length - 1;
   }
 
   /** How many tiles are painted with a custom tileset, across every map of the city */
@@ -1092,6 +1166,38 @@ export class Session {
     trainer.save();
     this.notify();
     return true;
+  }
+
+  /** Give a Pokémon an item from the bag to hold (null takes it back); the item it held goes back in the bag */
+  hold(creature: Creature, id: ItemId | null) {
+    if (id && !trainer.take(id)) {
+      return false;
+    }
+    if (creature.held) {
+      trainer.give(creature.held, 1);
+    }
+    if (id) {
+      creature.held = id;
+    } else {
+      delete creature.held;
+    }
+    trainer.save();
+    this.notify();
+    return true;
+  }
+
+  /** Change the town's battle rules: how smart trainers are, and the level caps by badges */
+  setRules(rules: Rules) {
+    this.#undoable(() => {
+      const next = { ...this.city.rules, ...rules };
+      if (!next.difficulty || next.difficulty === "normal") delete next.difficulty;
+      if (!next.caps?.length) delete next.caps;
+      if (Object.keys(next).length) this.city.rules = next;
+      else delete this.city.rules;
+      this.broadcastCity();
+      this.changed();
+    });
+    this.notify();
   }
 
   /** Buy items at a Poké Mart (false when there isn't enough money) */

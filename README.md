@@ -94,3 +94,5 @@ Free Supabase projects pause after a week without visits. Open the dashboard and
 ## Assets
 
 Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a private, non-commercial fan project.
+
+Emerald battle scenes, overworld people and tilesets are extracted from the [pret/pokeemerald](https://github.com/pret/pokeemerald) decompilation by `npm run data -- pret`. Pokédex data comes from [PokeAPI](https://github.com/PokeAPI/api-data).

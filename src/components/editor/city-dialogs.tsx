@@ -14,6 +14,7 @@ import { type Daytime, daytimes, type Weather, weathers } from "@/game/atmospher
 import { type Card, cloud } from "@/game/cloud";
 import { label, type Section, sections } from "@/game/hoenn";
 import { imageTypes, message, session } from "@/game/session";
+import { autoScene, type Difficulty, type MapType, sceneOf, scenePicture, scenes, typeOf } from "@/game/data";
 import { frameOf, image as loadImage, layouts } from "@/game/sprites";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +23,7 @@ import {
   ClockCounterClockwise,
   Copy,
   Image as ImageIcon,
+  Moon,
   MusicNotes,
   Plus,
   Sparkle,
@@ -380,6 +382,133 @@ function History({ close }: { close: () => void }) {
   );
 }
 
+/** The open map's kind of place, darkness and own music */
+function MapDetails({ update }: { update: () => void }) {
+  const area = session.area;
+  const city = session.city;
+  const row = "flex items-center gap-3 rounded-md border border-border p-2.5";
+  //Tracks already in the town, to reuse without uploading again
+  const songs = new Map<string, string>();
+  if (city.music?.town) songs.set(city.music.town, "Town music");
+  for (const map of [city, ...city.interiors]) {
+    if (map.song && !songs.has(map.song)) songs.set(map.song, `${map === city ? city.name : map.name}'s music`);
+  }
+  const upload = async () => {
+    if (!cloud.user) {
+      return cloud.available
+        ? toast.warning("Log in to upload music", {
+            description: "Music files are stored in your account.",
+            action: { label: "Log in", onClick: () => void signIn("upload") },
+          })
+        : toast.error("Music uploads need online features to be set up");
+    }
+    const file = await pick("audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/wav,audio/webm,audio/aac,.mp3,.m4a,.ogg,.wav");
+    if (file) {
+      await session.uploadSong(file).then(
+        () => (toast.success("Music uploaded"), update()),
+        (error) => toast.error(message(error)),
+      );
+    }
+  };
+  return (
+    <section className="grid grid-cols-1 gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{area === city ? "This map" : area.name}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Kind of place">
+          <Select value={typeOf(area, city)} onValueChange={(type) => (session.setMapDetails({ type: type as MapType }), update())}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="outdoor">Outdoors</SelectItem>
+              <SelectItem value="indoor">Indoors</SelectItem>
+              <SelectItem value="cave">Cave</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Music">
+          <Select
+            value={area.song ?? "town"}
+            onValueChange={(song) => (song === "upload" ? void upload() : (session.setMapDetails({ song: song === "town" ? "" : song }), update()))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="town">Same as the town</SelectItem>
+              {[...songs].map(([url, name]) =>
+                url === city.music?.town ? null : (
+                  <SelectItem key={url} value={url}>
+                    {name}
+                  </SelectItem>
+                ),
+              )}
+              <SelectItem value="upload">Upload a track…</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <label className={cn(row, "cursor-pointer")}>
+        <Moon size={16} />
+        <div className="min-w-0 flex-1">
+          <b className="block text-sm">Dark</b>
+          <small className="text-xs text-subtle-fg">Only a little light around the player, until they have HM05 Flash</small>
+        </div>
+        <Switch checked={Boolean(area.dark)} onCheckedChange={(dark) => (session.setMapDetails({ dark }), update())} />
+      </label>
+      <Hint>The kind of place picks the automatic battle scene: grass outdoors, a building indoors, rock in caves.</Hint>
+    </section>
+  );
+}
+
+/** Battle rules of the whole town: trainer difficulty and level caps */
+function BattleRules({ update }: { update: () => void }) {
+  const rules = session.city.rules ?? {};
+  const [caps, setCaps] = useState((rules.caps ?? []).join(", "));
+  const commit = () => {
+    const values = caps
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((value) => value > 0)
+      .map((value) => Math.min(100, Math.round(value)));
+    setCaps(values.join(", "));
+    session.setRules({ caps: values });
+    update();
+  };
+  return (
+    <section className="grid grid-cols-1 gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Battles</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Trainers">
+          <Select value={rules.difficulty ?? "normal"} onValueChange={(difficulty) => (session.setRules({ difficulty: difficulty as Difficulty }), update())}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="easy">Easy: random moves</SelectItem>
+              <SelectItem value="normal">Normal: favor strong moves</SelectItem>
+              <SelectItem value="hard">Hard: always the best move</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Level caps">
+          <Input
+            value={caps}
+            placeholder="None, e.g. 12, 18, 25"
+            onChange={(event) => setCaps(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => event.key === "Enter" && commit()}
+          />
+        </Field>
+      </div>
+      <Hint>
+        Level caps are the highest level with 0 badges, then 1 badge, and so on (badges of this town). Pokémon at the cap stop gaining experience until the next
+        badge. Leave empty for no caps.
+      </Hint>
+    </section>
+  );
+}
+
 /** Battle background of the open map: the built-in scene, the town's picture, or its own uploaded picture */
 function BattleBackground({ update }: { update: () => void }) {
   const area = session.area,
@@ -387,6 +516,9 @@ function BattleBackground({ update }: { update: () => void }) {
   const own = area.battle;
   const inherited = area === city ? undefined : city.battle;
   const shown = own ?? inherited;
+  //Emerald scene in use: chosen here, chosen for the town, or picked by the kind of place
+  const scene = shown ? sceneOf(shown.image) : autoScene(area, city);
+  const uploaded = own && !sceneOf(own.image);
   const [busy, setBusy] = useState(false);
   const upload = async () => {
     const file = await pick(imageTypes.join(","));
@@ -406,24 +538,26 @@ function BattleBackground({ update }: { update: () => void }) {
         {area === city ? "Battle background" : `${area.name} battle background`}
       </p>
       <div className="flex items-center gap-3 rounded-md border border-border p-2.5">
-        <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-sm border border-border bg-[linear-gradient(#70c0f0,#b8e4f8_52%,#a8d878_52%,#84bc60)]">
-          {shown ? <img src={shown.image} alt="" className="pixelated h-full w-full object-cover" /> : null}
+        <div className="relative aspect-[240/112] w-32 shrink-0 overflow-hidden rounded-sm border border-border">
+          <img src={scene ? scenePicture(scene) : shown!.image} alt="" className="pixelated h-full w-full object-cover" />
         </div>
         <div className="min-w-0 flex-1">
-          <b className="block text-sm">{own ? "Uploaded picture" : inherited ? "The town's picture" : "Built-in scene"}</b>
+          <b className="block text-sm">
+            {uploaded ? "Uploaded picture" : own ? scenes.find(({ key }) => key === scene)?.label : inherited ? "The town's background" : "Automatic"}
+          </b>
           <small className="text-xs text-subtle-fg">
             {own
               ? area === city
                 ? "Used by every map without its own"
                 : "Only on this map"
               : inherited
-                ? "Set on the outside map. Upload one to use another here"
-                : "Sky and grass outdoors, wall and floor indoors"}
+                ? "Set on the outside map. Pick or upload one to use another here"
+                : "Grass outdoors, the sea when surfing or fishing, a building indoors, rock in caves"}
           </small>
         </div>
         <Button variant="secondary" size="sm" disabled={busy} onClick={upload}>
           <Upload />
-          {own ? "Replace" : "Upload"}
+          {uploaded ? "Replace" : "Upload"}
         </Button>
         {own ? (
           <Button
@@ -437,7 +571,23 @@ function BattleBackground({ update }: { update: () => void }) {
           </Button>
         ) : null}
       </div>
-      {own ? (
+      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+        {scenes.map(({ key, label }) => (
+          <button
+            key={key}
+            title={label}
+            onClick={() => (session.setBattle({ scene: key }), update())}
+            className={cn(
+              "grid gap-0.5 rounded-md border p-1 text-[10px] text-muted-foreground hover:border-ring",
+              own && sceneOf(own.image) === key ? "border-select text-foreground" : "border-border",
+            )}
+          >
+            <img src={scenePicture(key)} alt="" className="pixelated aspect-[240/112] w-full rounded-sm object-cover" />
+            {label}
+          </button>
+        ))}
+      </div>
+      {uploaded ? (
         <label className="flex items-center justify-between gap-3 text-sm">
           <span>
             Shadows under the Pokémon<small className="block text-xs text-subtle-fg">Turn off when the picture already has platforms drawn in</small>
@@ -446,9 +596,8 @@ function BattleBackground({ update }: { update: () => void }) {
         </label>
       ) : null}
       <Hint>
-        {area === city
-          ? "A wide picture (16:9) works best. Interiors and routes can each have their own: open them and upload one here."
-          : "A wide picture (16:9) works best. Time of day and weather still tint it."}
+        Scenes from Pokémon Emerald, or your own picture (wide, 16:9, works best).{" "}
+        {area === city ? "Interiors and routes can each have their own: open them and pick one here." : "Time of day and weather still tint it."}
       </Hint>
     </section>
   );
@@ -581,6 +730,8 @@ function Settings({ close }: { close: () => void }) {
           </div>
           <Hint>Shows over this map in Play, so building stays easy to see. Each interior has its own.</Hint>
         </section>
+        <MapDetails update={update} />
+        <BattleRules update={update} />
         <BattleBackground update={update} />
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Music</p>
@@ -777,6 +928,68 @@ Style: 3/4 top-down view, crisp pixels, no anti-aliasing, no blur, a limited pal
 Background: floor and wall tiles are fully opaque; around furniture and on empty tiles the background is fully transparent. No text, no grid lines, no border.`,
   },
 };
+
+/** Pick one of Pokémon Emerald's tilesets to paint with */
+export function emeraldTilesets() {
+  return openDialog<void>((close) => <EmeraldTilesets close={close} />);
+}
+
+function EmeraldTilesets({ close }: { close: () => void }) {
+  const [list, setList] = useState<{ name: string; file: string; kind: string; count: number }[] | null>(null);
+  const [busy, setBusy] = useState("");
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    fetch("/game/tilesets/emerald/index.json")
+      .then((response) => response.json())
+      .then(setList, () => setList([]));
+  }, []);
+  //Tilesets with only a handful of tiles (placeholders in the game) are left out
+  const shown = (list ?? []).filter(({ name, count }) => count >= 16 && name.includes(query.trim().toLowerCase().replace(/\s+/g, "_")));
+  const add = async (entry: { name: string; file: string }) => {
+    setBusy(entry.file);
+    try {
+      const index = await session.addEmeraldTileset(entry);
+      session.editor.setSheet(index);
+      close();
+    } catch (error) {
+      toast.error(message(error));
+    } finally {
+      setBusy("");
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Emerald tilesets</DialogTitle>
+          <DialogDescription>Every tileset of Pokémon Emerald: towns, gyms, caves, buildings. Pick one to paint with it.</DialogDescription>
+        </DialogHeader>
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search: petalburg, gym, cave…" autoFocus />
+        {list === null ? <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p> : null}
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {shown.map((entry) => (
+            <button
+              key={entry.file}
+              disabled={Boolean(busy)}
+              onClick={() => add(entry)}
+              className="grid gap-1 rounded-lg border border-border bg-card p-1.5 text-left hover:border-ring disabled:opacity-60"
+            >
+              <span className="block h-20 overflow-hidden rounded-sm bg-muted">
+                <img src={`/game/tilesets/emerald/${entry.file}`} alt="" className="pixelated w-full" loading="lazy" />
+              </span>
+              <span className="truncate text-xs font-medium capitalize">
+                {entry.kind === "primary" ? "Shared: " : ""}
+                {entry.name.replace(/_/g, " ")}
+              </span>
+              <span className="text-[10px] text-subtle-fg">{busy === entry.file ? "Adding…" : `${entry.count} tiles`}</span>
+            </button>
+          ))}
+        </div>
+        <Hint>Shared tilesets (like General) hold what most towns use. A town&apos;s own tileset adds its buildings and details.</Hint>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function importTileset() {
   return openDialog<void>((close) => <ImportTileset close={close} />);

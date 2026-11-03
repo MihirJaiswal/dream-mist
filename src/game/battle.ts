@@ -1,8 +1,11 @@
 //Imports
 import { assets, battleSprite, type Move, species, type Stage } from "./assets";
-import { type Creature, cure, evolution, evolve, grow, hp, named, stat, type Status, trainer } from "./trainer";
+import { abilityOf, type Creature, cure, evolution, evolve, grow, hp, named, stat, type Status, trainer } from "./trainer";
 import { sound } from "./audio";
 import { type ItemId, items } from "./items";
+import { abilityName, absorbs, contact, guards, pinch, shields, swimmers } from "./abilities";
+import type { Difficulty } from "./data";
+import type { Weather } from "./atmosphere";
 
 /** Battle outcome */
 export type Outcome = "win" | "lose" | "run" | "caught";
@@ -52,9 +55,46 @@ export function stageMultiplier(stage: number, accuracy = false) {
 /** Types that can't get a condition */
 const immune: Record<Status, string[]> = { poison: ["poison", "steel"], burn: ["fire"], paralysis: ["electric"], sleep: [] };
 
-/** Can a creature get a condition */
+/** Can a creature get a condition (its types and ability can prevent it) */
 export function canGet(creature: Creature, status: Status) {
-  return !creature.status && !species(creature.species).types.some((type) => immune[status].includes(type));
+  return !creature.status && !species(creature.species).types.some((type) => immune[status].includes(type)) && shields[abilityOf(creature)] !== status;
+}
+
+/** Battle weather: the map's rain, sandstorm or snow */
+export type BattleWeather = "rain" | "sandstorm" | "snow" | null;
+
+/** Weather a map brings into its battles */
+export function battleWeather(weather?: Weather): BattleWeather {
+  return weather === "rain" || weather === "sandstorm" || weather === "snow" ? weather : null;
+}
+
+/** Everything that makes a move stronger or weaker besides stats: abilities, held items, weather */
+export function powerOf(attacker: Creature, defender: Creature, move: Move, weather: BattleWeather = null) {
+  let power = 1;
+  const ability = abilityOf(attacker);
+  if (pinch[ability] === move.type && attacker.hp * 3 <= hp(attacker)) {
+    power *= 1.5;
+  }
+  const held = attacker.held ? items[attacker.held] : null;
+  if (held && "boosts" in held && held.boosts === move.type) {
+    power *= 1.2;
+  }
+  if (weather === "rain" && (move.type === "water" || move.type === "fire")) {
+    power *= move.type === "water" ? 1.5 : 0.5;
+  }
+  if (abilityOf(defender) === "thick-fat" && (move.type === "fire" || move.type === "ice")) {
+    power *= 0.5;
+  }
+  return power;
+}
+
+/** Attack multiplier from abilities (Huge Power, Guts) */
+export function attackOf(attacker: Creature, physical: boolean) {
+  const ability = abilityOf(attacker);
+  if (physical && (ability === "huge-power" || ability === "pure-power")) {
+    return 2;
+  }
+  return physical && ability === "guts" && attacker.status ? 1.5 : 1;
 }
 
 /** Short labels of conditions (battle info box) */
@@ -65,17 +105,76 @@ export const statusLabels: Record<Status, { label: string; color: string }> = {
   burn: { label: "BRN", color: "#e05030" },
 };
 
-/** Compute damage dealt by a move (multipliers come from stat stages and burns) */
-export function damage(attacker: Creature, defender: Creature, move: Move, { attack: attackBoost = 1, defense: defenseBoost = 1 } = {}) {
+/** Compute damage dealt by a move (multipliers come from stat stages, burns, abilities, held items and weather). `average` skips luck, for trainers weighing their moves */
+export function damage(
+  attacker: Creature,
+  defender: Creature,
+  move: Move,
+  { attack: attackBoost = 1, defense: defenseBoost = 1, power = 1, average = false } = {},
+) {
   const physical = move.class === "physical";
   const attack = stat(attacker, physical ? 1 : 3) * attackBoost,
     defense = stat(defender, physical ? 2 : 4) * defenseBoost;
-  const critical = Math.random() < 1 / 16;
+  const critical = !average && Math.random() < 1 / 16;
   const stab = species(attacker.species).types.includes(move.type) ? 1.5 : 1;
   const multiplier = effectiveness(move.type, defender);
-  const base = Math.floor(Math.floor((Math.floor((2 * attacker.level) / 5 + 2) * move.power * attack) / defense) / 50) + 2;
-  const value = multiplier === 0 ? 0 : Math.max(1, Math.floor(base * stab * multiplier * (critical ? 2 : 1) * (0.85 + Math.random() * 0.15)));
+  const base = Math.floor(Math.floor((Math.floor((2 * attacker.level) / 5 + 2) * move.power * power * attack) / defense) / 50) + 2;
+  const roll = average ? 0.925 : 0.85 + Math.random() * 0.15;
+  const value = multiplier === 0 ? 0 : Math.max(1, Math.floor(base * stab * multiplier * (critical ? 2 : 1) * roll));
   return { value, critical, multiplier };
+}
+
+/** How a trainer picks moves: at random (easy), weighted toward strong ones (normal), or the best one (hard) */
+export function choose(attacker: Creature, defender: Creature, difficulty: Difficulty = "normal", weather: BattleWeather = null, random = Math.random) {
+  const usable = attacker.moves.filter(({ pp }) => pp > 0);
+  if (!usable.length) {
+    return null;
+  }
+  if (difficulty === "easy") {
+    return usable[Math.floor(random() * usable.length)];
+  }
+  const absorbed = (move: Move) => absorbs[abilityOf(defender)]?.type === move.type && !move.effect?.self;
+  const scores = usable.map(({ key }) => {
+    const move = assets.moves[key];
+    if (!move || absorbed(move)) {
+      return 0;
+    }
+    //Status moves now and then: a condition when the target has none, stat changes otherwise
+    if (!move.power) {
+      const useful = move.effect?.ailment ? canGet(defender, move.effect.ailment) : true;
+      return difficulty === "hard"
+        ? useful
+          ? move.effect?.ailment
+            ? 0.3
+            : attacker.hp === hp(attacker)
+              ? 0.15
+              : 0
+          : 0
+        : useful
+          ? move.effect?.ailment
+            ? 60
+            : 25
+          : 0;
+    }
+    if (difficulty === "normal") {
+      return move.power * (effectiveness(move.type, defender) || 0.1) * (species(attacker.species).types.includes(move.type) ? 1.5 : 1);
+    }
+    //Hard: the share of the target's HP it takes (a knockout counts most), times the chance to hit
+    const { value } = damage(attacker, defender, move, {
+      power: powerOf(attacker, defender, move, weather),
+      attack: attackOf(attacker, move.class === "physical"),
+      average: true,
+    });
+    const share = Math.min(1, value / Math.max(1, defender.hp));
+    return (share >= 1 ? 2 + move.priority * 0.1 : share) * (move.accuracy / 100);
+  });
+  if (difficulty === "hard") {
+    const best = Math.max(...scores);
+    return usable[scores.indexOf(best)];
+  }
+  let roll = random() * scores.reduce((a, b) => a + b, 0);
+  const index = scores.findIndex((score) => (roll -= score) <= 0);
+  return usable[Math.max(0, index)];
 }
 
 /** One side of the battle as drawn on screen */
@@ -143,6 +242,9 @@ export class Battle {
     this.#listeners.forEach((listener) => listener());
   }
 
+  /** Fought on water (surfing or fishing), for the battle scene */
+  readonly water: boolean;
+
   /** Pending menu choice */
   #choose = null as null | ((index: number) => void);
 
@@ -162,14 +264,28 @@ export class Battle {
   /** Stat stages of creatures in battle (cleared when they leave the field) */
   readonly #stages = new Map<Creature, Partial<Record<Stage, number>>>();
 
+  /** How smart trainers are, the level cap, and the weather of the map */
+  readonly #difficulty: Difficulty;
+  readonly #cap: number;
+  readonly #weather: BattleWeather;
+
+  /** Pokémon already told they reached the level cap */
+  readonly #capped = new Set<Creature>();
+
   /** Stat stage of a creature */
   #stage(creature: Creature, name: Stage) {
     return this.#stages.get(creature)?.[name] ?? 0;
   }
 
-  /** Effective speed (stages, and paralysis halves it) */
+  /** Effective speed (stages, paralysis halves it, Swift Swim doubles it in the rain) */
   #speed(creature: Creature) {
-    return stat(creature, 5) * stageMultiplier(this.#stage(creature, "speed")) * (creature.status === "paralysis" ? 0.5 : 1);
+    const weather = this.#weather && swimmers[abilityOf(creature)] === this.#weather ? 2 : 1;
+    return stat(creature, 5) * stageMultiplier(this.#stage(creature, "speed")) * (creature.status === "paralysis" ? 0.5 : 1) * weather;
+  }
+
+  /** Side a creature is on */
+  #side(creature: Creature) {
+    return creature === this.#ally ? "ally" : "foe";
   }
 
   /** "Foe Zigzagoon", "Wild Zigzagoon" or your own "Treecko" */
@@ -178,8 +294,20 @@ export class Battle {
   }
 
   /** Constructor */
-  constructor({ wild, opponent = null }: { wild?: Creature; opponent?: Opponent | null }) {
+  constructor({
+    wild,
+    opponent = null,
+    rules = {},
+  }: {
+    wild?: Creature;
+    opponent?: Opponent | null;
+    rules?: { difficulty?: Difficulty; cap?: number; weather?: BattleWeather; water?: boolean };
+  }) {
+    this.water = rules.water ?? false;
     this.#opponent = opponent;
+    this.#difficulty = rules.difficulty ?? "normal";
+    this.#cap = rules.cap ?? 100;
+    this.#weather = rules.weather ?? null;
     this.#foes = opponent ? opponent.team : [wild!];
     this.#foe = this.#foes[0];
     this.#ally = trainer.lead!;
@@ -282,6 +410,11 @@ export class Battle {
     this.#render("ally", true);
     this.#participants.add(this.#ally);
     await this.#say(`Go! ${named(this.#ally)}!`, 500);
+    if (this.#weather) {
+      await this.#say({ rain: "Rain continues to fall.", sandstorm: "The sandstorm rages.", snow: "Snow continues to fall." }[this.#weather], 600);
+    }
+    await this.#enter(this.#foe);
+    await this.#enter(this.#ally);
 
     let outcome = null as Outcome | null;
     while (!outcome) {
@@ -341,9 +474,13 @@ export class Battle {
         const bag = trainer.bag;
         const usable = (id: ItemId) => {
           const item = items[id];
-          return item.kind === "ball" ? !this.#opponent : item.kind === "heal" ? this.#ally.hp < hp(this.#ally) : Boolean(this.#ally.status);
+          return item.kind === "ball"
+            ? !this.#opponent
+            : item.kind === "heal"
+              ? this.#ally.hp < hp(this.#ally)
+              : item.kind === "cure" && Boolean(this.#ally.status);
         };
-        const colorOf = { ball: "#f05038", heal: "#a040a0", cure: "#48a8d0" };
+        const colorOf = { ball: "#f05038", heal: "#a040a0", cure: "#48a8d0", rod: "#909090", hm: "#909090", hold: "#58a858" };
         const choice = await this.#menu<ItemId | "back">([
           ...bag.map(({ id, count }) => ({
             label: items[id].name,
@@ -382,7 +519,7 @@ export class Battle {
         break;
       }
       case "run": {
-        const chance = (this.#speed(this.#ally) * 128) / Math.max(1, this.#speed(this.#foe)) / 256 + 0.3;
+        const chance = abilityOf(this.#ally) === "run-away" ? 1 : (this.#speed(this.#ally) * 128) / Math.max(1, this.#speed(this.#foe)) / 256 + 0.3;
         if (Math.random() < chance) {
           sound.play("hit");
           await this.#say("Got away safely!");
@@ -397,7 +534,11 @@ export class Battle {
     const foeMove = this.#pick(this.#foe, this.#ally);
     const order = [] as ["ally" | "foe", Move][];
     if (move) {
-      const allyFirst = move.priority > foeMove.priority || (move.priority === foeMove.priority && this.#speed(this.#ally) >= this.#speed(this.#foe));
+      //A Quick Claw sometimes lets its holder go first among moves of the same priority
+      const claw = (creature: Creature) => creature.held === "quick-claw" && Math.random() < 0.2;
+      const [allyClaw, foeClaw] = [claw(this.#ally), claw(this.#foe)];
+      const faster = allyClaw !== foeClaw ? allyClaw : this.#speed(this.#ally) >= this.#speed(this.#foe);
+      const allyFirst = move.priority > foeMove.priority || (move.priority === foeMove.priority && faster);
       order.push(
         ...((allyFirst
           ? [
@@ -418,43 +559,115 @@ export class Battle {
         return outcome;
       }
     }
-    //Poison and burns hurt at the end of the turn
+    //End of the turn: poison and burns, the weather, Leftovers, then abilities
     for (const side of ["ally", "foe"] as const) {
-      const creature = side === "ally" ? this.#ally : this.#foe;
-      if (creature.hp > 0 && (creature.status === "poison" || creature.status === "burn")) {
-        creature.hp = Math.max(0, creature.hp - Math.max(1, Math.floor(hp(creature) / (creature.status === "poison" ? 8 : 16))));
-        this.#fx(side, "hurt");
-        await this.#say(`${this.#who(creature)} is hurt by ${creature.status === "poison" ? "poison" : "its burn"}!`, 600);
-        if (creature.hp <= 0) {
-          this.#fx(side, "fainted");
-          await this.#say(`${this.#who(creature)} fainted!`);
-          const outcome = side === "foe" ? await this.#foeFainted() : await this.#allyFainted();
-          if (outcome) {
-            return outcome;
-          }
-        }
+      const outcome = await this.#endTurn(side);
+      if (outcome) {
+        return outcome;
       }
     }
     return null;
   }
 
-  /** Opponent move choice (weighted toward effective moves) */
+  /** What happens to one side at the end of the turn (returns an outcome when the battle ends) */
+  async #endTurn(side: "ally" | "foe"): Promise<Outcome | null> {
+    const creature = side === "ally" ? this.#ally : this.#foe;
+    const ability = abilityOf(creature);
+    const types = species(creature.species).types;
+    const hurts = [] as [number, string][];
+    if (creature.status === "poison" || creature.status === "burn") {
+      hurts.push([creature.status === "poison" ? 8 : 16, `${this.#who(creature)} is hurt by ${creature.status === "poison" ? "poison" : "its burn"}!`]);
+    }
+    if (this.#weather === "sandstorm" && !types.some((type) => ["rock", "ground", "steel"].includes(type)) && !["sand-veil", "sand-rush"].includes(ability)) {
+      hurts.push([16, `${this.#who(creature)} is buffeted by the sandstorm!`]);
+    }
+    if (this.#weather === "snow" && !types.includes("ice") && !["snow-cloak", "slush-rush", "ice-body"].includes(ability)) {
+      hurts.push([16, `${this.#who(creature)} is pelted by the snow!`]);
+    }
+    for (const [part, message] of hurts) {
+      if (creature.hp <= 0) {
+        break;
+      }
+      creature.hp = Math.max(0, creature.hp - Math.max(1, Math.floor(hp(creature) / part)));
+      this.#fx(side, "hurt");
+      await this.#say(message, 600);
+      if (creature.hp <= 0) {
+        return this.#fainted(side);
+      }
+    }
+    if (creature.hp <= 0) {
+      return null;
+    }
+    if (creature.held === "leftovers" && creature.hp < hp(creature)) {
+      creature.hp = Math.min(hp(creature), creature.hp + Math.max(1, Math.floor(hp(creature) / 16)));
+      this.#emit();
+      await this.#say(`${this.#who(creature)} restored a little HP using its Leftovers!`, 600);
+    }
+    if (ability === "speed-boost" && this.#stage(creature, "speed") < 6) {
+      this.#stages.set(creature, { ...this.#stages.get(creature), speed: this.#stage(creature, "speed") + 1 });
+      await this.#say(`${this.#who(creature)}'s Speed Boost raised its Speed!`, 600);
+    }
+    if (ability === "shed-skin" && creature.status && Math.random() < 1 / 3) {
+      cure(creature);
+      this.#emit();
+      await this.#say(`${this.#who(creature)}'s Shed Skin cured its condition!`, 600);
+    }
+    return null;
+  }
+
+  /** A creature fainted: say so and go on (returns an outcome when the battle ends) */
+  async #fainted(side: "ally" | "foe") {
+    const creature = side === "ally" ? this.#ally : this.#foe;
+    this.#fx(side, "fainted");
+    await this.#say(`${this.#who(creature)} fainted!`);
+    return side === "foe" ? await this.#foeFainted() : await this.#allyFainted();
+  }
+
+  /** Abilities that work when a Pokémon comes out (Intimidate) */
+  async #enter(creature: Creature) {
+    if (abilityOf(creature) !== "intimidate" || creature.hp <= 0) {
+      return;
+    }
+    const target = creature === this.#ally ? this.#foe : this.#ally;
+    const guard = guards[abilityOf(target)];
+    if (guard === "all" || guard === "attack") {
+      await this.#say(`${this.#who(target)}'s ${abilityName(abilityOf(target))} prevents its Attack from falling!`, 700);
+      return;
+    }
+    const before = this.#stage(target, "attack");
+    if (before > -6) {
+      this.#stages.set(target, { ...this.#stages.get(target), attack: before - 1 });
+      this.#fx(this.#side(target), "hurt");
+      await this.#say(`${this.#who(creature)}'s Intimidate cuts ${this.#who(target)}'s Attack!`, 700);
+    }
+  }
+
+  /** Berries a hurt or ailing Pokémon eats (each once) */
+  async #berry(creature: Creature) {
+    const held = creature.held;
+    if (!held || creature.hp <= 0) {
+      return;
+    }
+    if ((held === "oran-berry" || held === "sitrus-berry") && creature.hp * 2 <= hp(creature)) {
+      const heal = held === "oran-berry" ? 10 : Math.floor(hp(creature) / 4);
+      creature.hp = Math.min(hp(creature), creature.hp + heal);
+      delete creature.held;
+      this.#emit();
+      await this.#say(`${this.#who(creature)} restored HP using its ${items[held].name}!`, 700);
+    } else if (held === "lum-berry" && creature.status) {
+      cure(creature);
+      delete creature.held;
+      this.#emit();
+      await this.#say(`${this.#who(creature)}'s Lum Berry cured its condition!`, 700);
+    }
+  }
+
+  /** Opponent move choice: wild Pokémon pick at random, trainers by the town's difficulty */
   #pick(attacker: Creature, defender: Creature): Move {
-    const usable = attacker.moves.filter(({ pp }) => pp > 0);
-    if (!usable.length) {
+    const chosen = choose(attacker, defender, this.#opponent ? this.#difficulty : "easy", this.#weather);
+    if (!chosen) {
       return struggle;
     }
-    const weights = usable.map(({ key }) => {
-      const move = assets.moves[key];
-      //Status moves now and then: a condition when the target has none, stat changes otherwise
-      if (!move?.power) {
-        return move?.effect?.ailment ? (canGet(defender, move.effect.ailment) ? 60 : 0) : 25;
-      }
-      return move.power * (effectiveness(move.type, defender) || 0.1) * (species(attacker.species).types.includes(move.type) ? 1.5 : 1);
-    });
-    let roll = Math.random() * weights.reduce((a, b) => a + b, 0);
-    const index = weights.findIndex((weight) => (roll -= weight) <= 0);
-    const chosen = usable[Math.max(0, index)];
     chosen.pp--;
     return assets.moves[chosen.key] ?? struggle;
   }
@@ -486,9 +699,27 @@ export class Battle {
     this.#fx(side, "lunge");
     await wait(250);
 
-    const accuracy = move.accuracy * stageMultiplier(Math.max(-6, Math.min(6, this.#stage(attacker, "accuracy") - this.#stage(defender, "evasion"))), true);
+    const evasion =
+      (this.#weather === "sandstorm" && abilityOf(defender) === "sand-veil") || (this.#weather === "snow" && abilityOf(defender) === "snow-cloak") ? 0.8 : 1;
+    const accuracy =
+      move.accuracy *
+      stageMultiplier(Math.max(-6, Math.min(6, this.#stage(attacker, "accuracy") - this.#stage(defender, "evasion"))), true) *
+      (abilityOf(attacker) === "compound-eyes" ? 1.3 : 1) *
+      evasion;
     if (Math.random() * 100 >= accuracy) {
       await this.#say(`${named(attacker)}'s attack missed!`);
+      return;
+    }
+    //Abilities that take moves of a type (Levitate, Water Absorb…)
+    const absorb = absorbs[abilityOf(defender)];
+    if (absorb?.type === move.type && (move.power || !move.effect?.self)) {
+      if (absorb.heals && defender.hp < hp(defender)) {
+        defender.hp = Math.min(hp(defender), defender.hp + Math.floor(hp(defender) / 4));
+        this.#emit();
+        await this.#say(`${this.#who(defender)}'s ${abilityName(abilityOf(defender))} restored its HP!`);
+      } else {
+        await this.#say(`It doesn't affect ${this.#who(defender)}… (${abilityName(abilityOf(defender))})`);
+      }
       return;
     }
     //Status moves: only their effect
@@ -499,14 +730,18 @@ export class Battle {
       return;
     }
     const physical = move.class === "physical";
+    const burned = physical && attacker.status === "burn" && abilityOf(attacker) !== "guts";
     const { value, critical, multiplier } = damage(attacker, defender, move, {
-      attack: stageMultiplier(this.#stage(attacker, physical ? "attack" : "spatk")) * (physical && attacker.status === "burn" ? 0.5 : 1),
+      attack: stageMultiplier(this.#stage(attacker, physical ? "attack" : "spatk")) * (burned ? 0.5 : 1) * attackOf(attacker, physical),
       defense: stageMultiplier(this.#stage(defender, physical ? "defense" : "spdef")),
+      power: powerOf(attacker, defender, move, this.#weather),
     });
     this.#projectile(side, move.type);
     await wait(350);
     sound.play(multiplier > 1 ? "hit2" : "hit");
-    defender.hp = Math.max(0, defender.hp - value);
+    //Sturdy: a Pokémon at full HP survives a hit that would knock it out
+    const sturdy = abilityOf(defender) === "sturdy" && defender.hp === hp(defender) && value >= defender.hp;
+    defender.hp = sturdy ? 1 : Math.max(0, defender.hp - value);
     this.#fx(target, "hurt");
     await wait(500);
     if (critical && value) {
@@ -519,11 +754,38 @@ export class Battle {
     } else if (multiplier < 1) {
       await this.#say("It's not very effective…", 700);
     }
+    if (sturdy) {
+      await this.#say(`${this.#who(defender)} endured the hit with Sturdy!`, 700);
+    }
 
     if (defender.hp <= 0) {
-      this.#fx(target, "fainted");
-      await this.#say(`${this.#who(defender)} fainted!`);
-      return target === "foe" ? await this.#foeFainted() : await this.#allyFainted();
+      return this.#fainted(target);
+    }
+    await this.#berry(defender);
+    //Abilities that hurt or afflict whoever hits them with a physical move
+    if (physical && multiplier > 0) {
+      const ability = abilityOf(defender);
+      if (ability === "rough-skin") {
+        attacker.hp = Math.max(0, attacker.hp - Math.max(1, Math.floor(hp(attacker) / 16)));
+        this.#fx(side, "hurt");
+        await this.#say(`${this.#who(attacker)} was hurt by ${this.#who(defender)}'s Rough Skin!`, 700);
+        if (attacker.hp <= 0) {
+          return this.#fainted(side);
+        }
+      }
+      const status = contact[ability];
+      if (status && Math.random() < 0.3 && canGet(attacker, status)) {
+        attacker.status = status;
+        if (status === "sleep") {
+          attacker.sleep = 1 + Math.ceil(Math.random() * 3);
+        }
+        this.#emit();
+        await this.#say(
+          `${this.#who(defender)}'s ${abilityName(ability)} ${{ sleep: "put", poison: "poisoned", paralysis: "paralyzed", burn: "burned" }[status]} ${this.#who(attacker)}${status === "sleep" ? " to sleep" : ""}!`,
+          700,
+        );
+        await this.#berry(attacker);
+      }
     }
     //Side effects of damaging moves, by chance (Ember may burn)
     if (move.effect && multiplier > 0 && Math.random() * 100 < move.effect.chance) {
@@ -550,6 +812,7 @@ export class Battle {
           effect.ailment
         ];
         await this.#say(`${this.#who(defender)} ${what}`);
+        await this.#berry(defender);
         worked = true;
       } else if (!move.power) {
         await this.#say(
@@ -563,6 +826,11 @@ export class Battle {
     const names = { attack: "Attack", defense: "Defense", spatk: "Sp. Atk", spdef: "Sp. Def", speed: "Speed", accuracy: "accuracy", evasion: "evasiveness" };
     for (const [name, change] of effect.stats ?? []) {
       const creature = effect.self ? attacker : defender;
+      const guard = guards[abilityOf(creature)];
+      if (!effect.self && change < 0 && (guard === "all" || guard === name)) {
+        await this.#say(`${this.#who(creature)}'s ${abilityName(abilityOf(creature))} prevents its ${names[name]} from falling!`, 600);
+        continue;
+      }
       const stages = this.#stages.get(creature) ?? {};
       const before = stages[name] ?? 0;
       const after = Math.max(-6, Math.min(6, before + change));
@@ -599,8 +867,16 @@ export class Battle {
     const participants = [...this.#participants].filter((creature) => creature.hp > 0);
     for (const creature of participants) {
       const amount = Math.max(1, Math.floor(total / participants.length));
+      if (creature.level >= this.#cap) {
+        //Level cap: no more experience until the next badge
+        if (!this.#capped.has(creature)) {
+          this.#capped.add(creature);
+          await this.#say(`${named(creature)} can't grow past Lv. ${this.#cap} until the next badge.`, 700);
+        }
+        continue;
+      }
       await this.#say(`${named(creature)} gained ${amount} EXP. Points!`, 500);
-      const messages = grow(creature, amount);
+      const messages = grow(creature, amount, this.#cap);
       if (creature === this.#ally) {
         this.#render("ally");
       }
@@ -636,6 +912,7 @@ export class Battle {
       trainer.see(next.species);
       await this.#say(`${this.#opponent!.name} sent out ${named(next)}!`, 400);
       this.#render("foe", true);
+      await this.#enter(next);
       return null;
     }
     sound.play("victory");
@@ -682,11 +959,16 @@ export class Battle {
     if (cancellable) {
       await this.#say(`Come back, ${named(this.#ally)}!`, 400);
     }
+    //Natural Cure heals a condition when its Pokémon leaves the field
+    if (abilityOf(this.#ally) === "natural-cure" && this.#ally.hp > 0) {
+      cure(this.#ally);
+    }
     this.#stages.delete(this.#ally);
     this.#ally = party[choice];
     this.#participants.add(this.#ally);
     this.#render("ally", true);
     await this.#say(`Go! ${named(this.#ally)}!`, 500);
+    await this.#enter(this.#ally);
     return true;
   }
 

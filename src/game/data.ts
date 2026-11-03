@@ -5,7 +5,7 @@
  */
 
 //Imports
-import { type Daytime, daytimes, type Weather, weathers } from "./atmosphere";
+import { type Daytime, daytimes, type Period, type Weather, weathers } from "./atmosphere";
 import { frames } from "./brushes";
 import type { ItemId } from "./items";
 import type { Tileset } from "./tilesets";
@@ -20,14 +20,34 @@ export type Layer = (typeof layers)[number];
 /** Directions */
 export type Direction = "up" | "down" | "left" | "right";
 
+/** How a wild Pokémon is met: walking (in grass, caves), surfing on water, or fishing with a rod */
+export type Method = "walk" | "surf" | "fish";
+
+/** Fishing rods, from the weakest */
+export const rods = ["old", "good", "super"] as const;
+export type Rod = (typeof rods)[number];
+
+/** Wild Pokémon of a zone */
+export type Wild = {
+  species: number;
+  min: number;
+  max: number;
+  /** How it's met (walking when not set) */
+  method?: Exclude<Method, "walk">;
+  /** Only at this part of the day (any time when not set) */
+  time?: Period;
+  /** Fishing: the weakest rod that can hook it (any rod when not set) */
+  rod?: Exclude<Rod, "old">;
+};
+
 /** Wild encounter zone */
 export type Zone = {
   name: string;
-  /** Encounter chance per step (0-1) */
+  /** Encounter chance per step (0-1), walking and surfing */
   rate: number;
   /** Color used in editor overlay */
   color: number;
-  creatures: { species: number; min: number; max: number }[];
+  creatures: Wild[];
 };
 
 /** Story step (the city timeline: main story steps in order, and the steps of each side quest) */
@@ -55,6 +75,61 @@ export type Quest = {
   /** Starts once this step is done (main story or another quest): its steps can't happen before */
   after?: string;
 };
+
+/** How hard trainers battle */
+export const difficulties = ["easy", "normal", "hard"] as const;
+export type Difficulty = (typeof difficulties)[number];
+
+/** Battle rules of a town: how smart trainers are, and the highest level Pokémon reach for each number of badges earned there */
+export type Rules = { difficulty?: Difficulty; caps?: number[] };
+
+/** Highest level a Pokémon can reach with a number of badges of the town (100 without caps, the last cap past the end of the list) */
+export function levelCap(rules: Rules | undefined, badges: number) {
+  const caps = rules?.caps ?? [];
+  return caps.length ? Math.max(1, Math.min(100, caps[Math.min(badges, caps.length - 1)])) : 100;
+}
+
+/** Kinds of place */
+export const mapTypes = ["outdoor", "indoor", "cave"] as const;
+export type MapType = (typeof mapTypes)[number];
+
+/** Kind of place a map is (outdoors, indoors or a cave) */
+export function typeOf(map: City, root: City) {
+  return map.type ?? (map === root || map.outdoor ? "outdoor" : "indoor");
+}
+
+/** Battle scenes from Pokémon Emerald (game/battle/<key>.png, 240×112 with the battle bases drawn in) */
+export const scenes = [
+  { key: "tall_grass", label: "Grass" },
+  { key: "long_grass", label: "Long grass" },
+  { key: "sand", label: "Sand" },
+  { key: "rock", label: "Mountain" },
+  { key: "cave", label: "Cave" },
+  { key: "water", label: "Sea" },
+  { key: "pond_water", label: "Pond" },
+  { key: "underwater", label: "Underwater" },
+  { key: "sky", label: "Sky" },
+  { key: "building", label: "Building" },
+  { key: "stadium", label: "Stadium" },
+] as const;
+export type Scene = (typeof scenes)[number]["key"];
+
+/** Picture of an Emerald battle scene */
+export const scenePicture = (scene: Scene) => `/game/battle/${scene}.png`;
+
+/** Emerald battle scene of a picture (null for uploaded pictures) */
+export function sceneOf(image?: string) {
+  return scenes.find(({ key }) => image === scenePicture(key))?.key ?? null;
+}
+
+/** Emerald scene a battle gets when the map has no background: by the kind of place, the weather, and surfing or fishing */
+export function autoScene(map: City, root: City, { water = false } = {}): Scene {
+  const type = typeOf(map, root);
+  if (type === "cave") return "cave";
+  if (type === "indoor") return "building";
+  if (water) return "water";
+  return map.weather === "sandstorm" ? "sand" : "tall_grass";
+}
 
 /** Uploaded battle background: the picture, and whether platforms are drawn on it */
 export type BattleBackground = { image: string; platforms: boolean };
@@ -175,7 +250,7 @@ export type Npc = {
   /** Talk without any picture beside the dialogue box */
   hidePortrait?: boolean;
   trainer?: {
-    team: { species: number; level: number }[];
+    team: { species: number; level: number; held?: ItemId }[];
     gym: boolean;
     badge: string;
     defeat: string;
@@ -228,6 +303,14 @@ export type City = {
   time?: Daytime;
   /** Battle background of this map (an uploaded picture). Maps without one use the outside map's, then the built-in scene */
   battle?: BattleBackground;
+  /** What kind of place it is (its built-in battle scene): outdoors for the outside and outdoor maps, indoors for interiors, unless set */
+  type?: MapType;
+  /** Dark: only a little light around the player until they use Flash */
+  dark?: boolean;
+  /** Music of this map (an uploaded track url), the town music when not set */
+  song?: string;
+  /** Battle rules of the whole town (outside map only, shared by interiors) */
+  rules?: Rules;
   updated: number;
 };
 
@@ -326,7 +409,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
       city.layers.ground[i] = frames.grass + 1;
     }
   });
-  city.zones = Array.isArray(raw.zones) ? raw.zones : city.zones;
+  city.zones = Array.isArray(raw.zones) ? raw.zones.filter((zone) => zone && typeof zone === "object").map(cleanZone) : city.zones;
   city.npcs = Array.isArray(raw.npcs) ? raw.npcs : [];
   city.spawn = raw.spawn ?? city.spawn;
   city.doors = Array.isArray(raw.doors) ? raw.doors.filter((door) => door && Number.isFinite(door.x) && Number.isFinite(door.y)) : [];
@@ -342,6 +425,15 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   }
   if (daytimes.some(({ key }) => key === raw.time) && raw.time !== "day") {
     city.time = raw.time;
+  }
+  if (mapTypes.includes(raw.type as MapType)) {
+    city.type = raw.type;
+  }
+  if (raw.dark === true) {
+    city.dark = true;
+  }
+  if (typeof raw.song === "string" && raw.song) {
+    city.song = raw.song;
   }
   if (raw.battle && typeof raw.battle.image === "string" && raw.battle.image) {
     city.battle = { image: raw.battle.image, platforms: raw.battle.platforms !== false };
@@ -365,11 +457,39 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.tilesets = Array.isArray(raw.tilesets) ? raw.tilesets : [];
   city.sprites = Array.isArray(raw.sprites) ? raw.sprites.filter((sprite) => sprite && sprite.id && sprite.url) : [];
   city.music = raw.music && typeof raw.music === "object" ? raw.music : {};
+  const rules = raw.rules && typeof raw.rules === "object" ? raw.rules : null;
+  if (rules) {
+    const caps = Array.isArray(rules.caps) ? rules.caps.slice(0, 17).map((cap) => Math.max(1, Math.min(100, Math.round(Number(cap) || 100)))) : [];
+    city.rules = {
+      ...(rules.difficulty === "easy" || rules.difficulty === "hard" ? { difficulty: rules.difficulty } : {}),
+      ...(caps.length ? { caps } : {}),
+    };
+  }
   city.id = `${raw.id ?? city.id}`;
   city.name = `${raw.name ?? city.name}`.slice(0, 40);
   city.author = `${raw.author ?? ""}`.slice(0, 40);
   city.updated = Number(raw.updated) || Date.now();
   return city;
+}
+
+/** An imported encounter zone, with only known methods, times and rods */
+function cleanZone(zone: Zone): Zone {
+  const creatures = (Array.isArray(zone.creatures) ? zone.creatures : [])
+    .filter((wild) => wild && Number(wild.species) > 0)
+    .map(({ species, min, max, method, time, rod }) => ({
+      species: Number(species),
+      min: Math.max(1, Math.min(100, Number(min) || 1)),
+      max: Math.max(1, Math.min(100, Number(max) || Number(min) || 1)),
+      ...(method === "surf" || method === "fish" ? { method } : {}),
+      ...(time === "morning" || time === "day" || time === "night" ? { time } : {}),
+      ...(method === "fish" && (rod === "good" || rod === "super") ? { rod } : {}),
+    }));
+  return {
+    name: `${zone.name ?? "Zone"}`.slice(0, 40),
+    rate: Math.max(0, Math.min(1, Number(zone.rate) || 0.1)),
+    color: Number(zone.color) || 0x2ecc40,
+    creatures,
+  };
 }
 
 /** Valid triggers of an imported map (kept inside it) */
@@ -400,7 +520,7 @@ function triggers(raw: unknown, city: City): Trigger[] {
 
 /** Make an interior share the root zones, story, tilesets and music (not serialized twice) */
 function attach(interior: City, root: City) {
-  for (const key of ["zones", "story", "quests", "tilesets", "sprites", "music", "author"] as const) {
+  for (const key of ["zones", "story", "quests", "tilesets", "sprites", "music", "author", "rules"] as const) {
     Object.defineProperty(interior, key, {
       enumerable: false,
       configurable: true,

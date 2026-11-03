@@ -24,7 +24,7 @@ import { toast } from "sonner";
 /** Loading screen with the DreamMist loader */
 function Loading({ progress }: { progress: string }) {
   return (
-    <div className="absolute inset-0 z-30 grid place-items-center bg-[url(/game/images/loaderbg.png)] bg-cover bg-center [image-rendering:pixelated]">
+    <div className="absolute inset-0 z-30 grid place-items-center bg-[url(/game/images/loaderbg.avif)] bg-cover bg-center [image-rendering:pixelated]">
       <div className="grid justify-items-center gap-5">
         <img src="/game/images/loader.gif" alt="" className="w-[min(26rem,80vw)] rounded-lg" />
         <p className="font-pixel text-sm text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">{progress}</p>

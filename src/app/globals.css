@@ -72,6 +72,20 @@
   color-scheme: dark;
 }
 
+/* Fumadocs paints every border violet; keep the neutral border everywhere except inside the docs */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border);
+  }
+  .docs-night :is(*, ::after, ::before) {
+    border-color: var(--color-fd-border);
+  }
+}
+
 /* Docs sidebar matches the site header */
 #nd-sidebar,
 #nd-sidebar-mobile {

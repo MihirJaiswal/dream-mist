@@ -24,6 +24,8 @@ export type Species = {
   xp: number;
   capture: number;
   learnset: [number, string][];
+  /** Regular abilities (each Pokémon gets one of them) */
+  abilities?: string[];
   /** Evolves at a level into another species */
   evolves?: [number, number];
 };
@@ -67,6 +69,8 @@ export const assets = {
   pokedex: [] as Species[],
   moves: {} as { [key: string]: Move },
   types: {} as { [attacker: string]: { [defender: string]: number } },
+  /** Abilities: name and what they do */
+  abilities: {} as { [key: string]: { name: string; about: string } },
 };
 
 /** Load all assets */
@@ -77,7 +81,8 @@ export async function load(progress: (text: string) => void) {
   (PIXI.Spritesheet as unknown as { BATCH_SIZE: number }).BATCH_SIZE = 10000;
 
   const loader = PIXI.Loader.shared;
-  for (const texture of ["tileset", "npcs", "creatures"]) {
+  //People: the original sheet, then every Emerald overworld person (names starting with "em_", built from pret/pokeemerald)
+  for (const texture of ["tileset", "npcs", "creatures", "people"]) {
     loader.add(texture, `/game/textures/rse/${texture}.json`);
   }
   loader.onProgress.add((_: unknown, { name = "" }) => progress(`loaded ${name} textures`));
@@ -96,15 +101,15 @@ export async function load(progress: (text: string) => void) {
   assets.ground = new Set(tiles.layers?.ground ?? []);
   assets.above = new Set(tiles.layers?.above ?? []);
   Object.assign(assets, pokedex);
-  assets.npcs = [
-    ...new Set(
-      Object.keys(resources.npcs.spritesheet.textures)
-        .filter((name) => name.endsWith("_down_0"))
-        .map((name) => name.replace(/_down_0$/, "")),
-    ),
-  ]
-    .filter((name) => !["boat", "oups/scientist"].includes(name))
-    .sort();
+  const names = (sheet: string) =>
+    [
+      ...new Set(
+        Object.keys(resources[sheet]?.spritesheet?.textures ?? {})
+          .filter((name) => name.endsWith("_down_0"))
+          .map((name) => name.replace(/_down_0$/, "")),
+      ),
+    ].sort();
+  assets.npcs = [...names("npcs").filter((name) => !["boat", "oups/scientist"].includes(name)), ...names("people")];
 
   //Build palette and detect unused frames
   const image = resources.tileset.spritesheet.baseTexture.resource.source;

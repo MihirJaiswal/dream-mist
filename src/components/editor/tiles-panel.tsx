@@ -15,6 +15,7 @@ import type { Stamp } from "@/game/editor/constants";
 import { targets } from "@/game/editor/constants";
 import type { EditorEngine } from "@/game/editor/engine";
 import { decode, range } from "@/game/tilesets";
+import { emeraldTilesets } from "@/components/editor/city-dialogs";
 import { cn } from "@/lib/utils";
 import { MagnifyingGlass, Minus, Plus, Shuffle, Star, Trash } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
@@ -430,6 +431,14 @@ function Palette({ editor, onImport }: { editor: EditorEngine; onImport: () => v
             </button>
           </Tip>
         ) : null}
+        <button
+          title="Add a tileset from Pokémon Emerald"
+          onClick={() => emeraldTilesets()}
+          className="flex h-7 items-center gap-1 rounded-md border border-dashed border-border px-2 text-xs text-muted-foreground hover:border-ring hover:text-foreground"
+        >
+          <Plus size={12} />
+          Emerald
+        </button>
         <button
           title="Import your own tileset image"
           onClick={onImport}
