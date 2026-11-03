@@ -6,7 +6,7 @@ import { useSession } from "@/components/editor/hooks";
 import { publish, room, share } from "@/components/editor/share-dialogs";
 import { openSearch } from "@/components/editor/shortcuts";
 import { startTour } from "@/components/editor/tour";
-import { card, journalDialog, party, wildDialog } from "@/components/editor/trainer-dialogs";
+import { card, journalDialog, party, townMap, wildDialog } from "@/components/editor/trainer-dialogs";
 import { TextInput, Tip } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -256,6 +256,13 @@ export function Topbar() {
           <Tip label="Pokémon here" description="Wild Pokémon living on this map (N)">
             <Button variant="ghost" size="icon" aria-label="Pokémon here" onClick={() => wildDialog()}>
               <PawPrint size={17} />
+            </Button>
+          </Tip>
+        ) : null}
+        {mode === "play" ? (
+          <Tip label="Town Map" description="Where you are in the town (M)">
+            <Button variant="ghost" size="icon" aria-label="Town Map" onClick={() => townMap()}>
+              <MapTrifold size={17} />
             </Button>
           </Tip>
         ) : null}

@@ -670,6 +670,25 @@ function BattleSettings({ npc, update }: { npc: Npc; update: (fn: () => void) =>
       </section>
 
       <section className="grid gap-3">
+        <Heading>Battle style</Heading>
+        <Choice
+          value={rules.double ? "double" : "single"}
+          onChange={(value) => setRule("double", value === "double" || undefined)}
+          options={[
+            { value: "single", label: "Single battle", hint: "One Pokémon on each side." },
+            {
+              value: "double",
+              label: "Double battle",
+              hint:
+                data.team.length < 2
+                  ? "Two on each side: give them at least two Pokémon. Players with only one Pokémon able to fight get a single battle."
+                  : "Two on each side, like gym leaders Tate and Liza. Players with only one Pokémon able to fight get a single battle.",
+            },
+          ]}
+        />
+      </section>
+
+      <section className="grid gap-3">
         <Heading>How they battle</Heading>
         <Choice
           value={rules.difficulty ?? "town"}

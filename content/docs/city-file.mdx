@@ -44,7 +44,7 @@ type City = {
   type?: "outdoor" | "indoor" | "cave"; // per map, picks the automatic battle scene (outdoor for the outside and outdoor maps, indoor for interiors)
   dark?: boolean; // per map: dark until the player has HM05 Flash
   song?: string; // per map: its own music (an uploaded track url), the town music when not set
-  rules?: { difficulty?: "easy" | "hard"; caps?: number[] }; // outside map only: trainer difficulty (normal when not set), level caps by badges
+  rules?: { difficulty?: "easy" | "hard"; caps?: number[]; followers?: false }; // outside map only: trainer difficulty (normal when not set), level caps by badges, no Pokémon following the player
   battle?: { image: string; platforms: boolean }; // per map battle background: a picture url, or an Emerald scene "/game/battle/<scene>.png" (tall_grass, long_grass, sand, rock, cave, water, pond_water, underwater, sky, building, stadium); maps without one use the outside map's, then the automatic scene
   updated: number; // timestamp in milliseconds
 };
@@ -102,10 +102,12 @@ type Npc = {
   dir: "up" | "down" | "left" | "right";
   name: string;
   dialogue: string; // an empty line starts a new page
-  role: "talk" | "trainer" | "healer" | "wild" | "shop" | "item"; // "wild": a Pokémon to battle and catch, "shop": a Poké Mart clerk, "item": an item ball holding `gift`
+  role: "talk" | "trainer" | "healer" | "wild" | "raid" | "shop" | "item" | "obstacle" | "daycare"; // "wild": a Pokémon to battle and catch, "raid": a raid den, "shop": a Poké Mart clerk, "item": an item ball holding `gift`, "obstacle": cleared with a field move, "daycare": raises a Pokémon
   shop?: ItemId[]; // what a clerk sells, everything when not set
   gift?: { item: ItemId; count: number }; // given the first time the player talks to them (or found in an item)
   hidden?: boolean; // an item hidden on the ground instead of a ball
+  grow?: number; // a berry tree instead: hours until it can be picked again
+  field?: "cut" | "smash" | "strength"; // an obstacle: small tree, cracked rock or boulder
   script?: { actions: Action[]; once: boolean }; // plays instead of their usual part when talked to
   approach?: boolean; // walks up to the player and talks the first time they see them
   wander: boolean;
@@ -130,7 +132,7 @@ type Npc = {
     badge: string;
     defeat: string;
     lines?: { last?: string; low?: string }; // said mid-battle: sending out their last Pokémon, and when it's low on HP
-    rules?: { difficulty?: "easy" | "normal" | "hard"; weather?: "clear" | "rain" | "sandstorm" | "snow"; scene?: string; noItems?: boolean }; // over the town's and map's
+    rules?: { difficulty?: "easy" | "normal" | "hard"; weather?: "clear" | "rain" | "sandstorm" | "snow"; scene?: string; noItems?: boolean; double?: boolean }; // over the town's and map's
   };
   story?: {
     after?: string; // Shows up (step id)
@@ -168,6 +170,8 @@ type Trigger = {
 // `who` is someone's index in the map's `npcs`, or "player"
 type Action =
   | { do: "say"; text: string; who?: number } // no `who`: narration
+  | { do: "ask"; text: string; who?: number; yes: Action[]; no: Action[] } // a YES/NO question, then one branch
+  | { do: "if"; check: Check; then: Action[]; else: Action[] } // a check, then one branch
   | { do: "come"; who: number } // notice the player and walk up to them
   | { do: "move"; who: number | "player"; steps: ("up" | "down" | "left" | "right")[] }
   | { do: "face"; who: number | "player"; dir: "up" | "down" | "left" | "right" }
@@ -175,11 +179,19 @@ type Action =
   | { do: "wait"; seconds: number } // 0 to 10
   | { do: "battle"; who: number } // a trainer or wild Pokémon of the map, stops the script if the player loses
   | { do: "give"; item: ItemId; count: number }
+  | { do: "take"; item: ItemId; count: number } // take items from the bag
   | { do: "pokemon"; species: number; level: number }
-  | { do: "money"; amount: number }
+  | { do: "money"; amount: number } // below 0 takes money
   | { do: "heal" }
   | { do: "step"; step: string } // complete a story step
   | { do: "warp"; to: string; x: number; y: number }; // map id ("" = outside) and tile, ends the script
+
+type Check =
+  | { has: "item"; item: ItemId; count: number }
+  | { has: "step"; step: string }
+  | { has: "money"; amount: number }
+  | { has: "pokemon"; species: number } // in the party
+  | { has: "badges"; count: number }; // badges of this town
 ```
 
 ## Zones, doors and tilesets

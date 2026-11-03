@@ -79,7 +79,7 @@ type City = {
   type?: "outdoor" | "indoor" | "cave";             // kind of place (picks the battle scene); leave out for outdoor
   dark?: true;                                      // dark until the player has HM05 Flash
   song?: string;                                    // an uploaded music url for this map; leave out for the town music
-  rules?: { difficulty?: "easy" | "hard"; caps?: number[] };  // trainer difficulty (normal by default), level caps by badges earned here
+  rules?: { difficulty?: "easy" | "hard"; caps?: number[]; followers?: false };  // trainer difficulty (normal by default), level caps by badges earned here; followers: false stops the lead Pokémon walking behind the player
   battle?: { image: string; platforms: boolean };   // optional battle background picture (url), default for every map
   zones: Zone[];              // shared by every map
   story: Step[];              // shared by every map
@@ -233,12 +233,14 @@ type Npc = {
   dir: "up" | "down" | "left" | "right";          // facing; trainers see in this direction
   name: string;                      // shown with their dialogue (up to 24 characters)
   dialogue: string;                  // what they say. An empty line ("\n\n") starts a new page
-  role: "talk" | "trainer" | "healer" | "shop" | "wild" | "item";
+  role: "talk" | "trainer" | "healer" | "shop" | "wild" | "raid" | "item" | "obstacle" | "daycare";
   wander: boolean;                   // walk around near their spot
   path?: { points: { x: number; y: number }[]; loop: boolean; run: boolean; pause: number };  // a patrol instead
   approach?: boolean;                // walks up and talks the first time they see the player (a cutscene)
   gift?: { item: ItemId; count: number };          // handed over the first time they talk, once per player (role "item": what the item holds)
   hidden?: boolean;                  // role "item": hidden on the ground instead of a ball
+  grow?: number;                     // role "item": a berry tree instead, picked again after this many real hours (24 is usual)
+  field?: "cut" | "smash" | "strength";  // role "obstacle": a small tree (HM01 Cut), a cracked rock (HM06 Rock Smash) or a boulder (HM04 Strength)
   script?: { actions: Action[]; once: boolean };   // a cutscene played instead of their usual part (6.1)
   shop?: ItemId[];                   // role "shop": what they sell (everything when left out)
   trainer?: {
@@ -252,7 +254,7 @@ type Npc = {
     }[];
     gym: boolean; badge: string; defeat: string;
     lines?: { last?: string; low?: string };   // mid-battle: sending out their last Pokémon, and their last one low on HP
-    rules?: { difficulty?: "easy" | "normal" | "hard"; weather?: "clear" | "rain" | "sandstorm" | "snow"; scene?: string; noItems?: boolean };
+    rules?: { difficulty?: "easy" | "normal" | "hard"; weather?: "clear" | "rain" | "sandstorm" | "snow"; scene?: string; noItems?: boolean; double?: boolean };
   };
   portrait?: string;                 // "sprite:<name>" to show another sprite beside their dialogue
   hidePortrait?: boolean;
@@ -275,7 +277,10 @@ Pick looks that fit the role: `hiker` in caves, `fisher` and `sailor` by the wat
 | `healer` | Says their dialogue and heals the whole party. In a city with no shop, Nurses also refill Poké Balls and Potions to 5 each |
 | `shop` | Says their dialogue, then opens the Poké Mart with the `shop` items |
 | `wild` | A Pokémon standing on the map (`creature` set) that battles as a wild Pokémon: beat it or catch it, then it's gone for that player. Great for legendaries and rare encounters |
-| `item` | An item on the ground (`sprite: ""`, `gift` set): a Poké Ball the player picks up, or with `hidden: true` nothing shows and the player finds it by facing the tile and pressing Space. Once per player. An item ball blocks its tile until picked up |
+| `raid` | A raid den (`creature` set, stays put): a boss with 5× HP. Players in a live room fighting the same den share its HP. Once beaten, the player gets one throw to catch it, and the den is back the next day. Use a strong species a bit above the player's level |
+| `item` | An item on the ground (`sprite: ""`, `gift` set): a Poké Ball the player picks up, or with `hidden: true` nothing shows and the player finds it by facing the tile and pressing Space. Once per player. An item ball blocks its tile until picked up. With `grow` it's a berry tree instead: picked again and again, once its berries grow back |
+| `obstacle` | Something in the way (`sprite: ""`, `name: ""`, `field` set): it blocks its tile until the player uses the HM in their bag on it (no Pokémon needs the move). Hand out the HM before it. Obstacles come back when the player leaves the map |
+| `daycare` | Says their dialogue, then raises one of the player's Pokémon: it gains 1 experience per step walked, and the player takes it back for ₽100 + ₽100 per level gained |
 
 ### 5.3 Items
 
@@ -288,6 +293,8 @@ Pick looks that fit the role: `hiker` in caves, `fisher` and `sailor` by the wat
 | `full-heal` | Full Heal | ₽600 | Cures sleep, poison, paralysis, burn |
 | `old-rod`, `good-rod`, `super-rod` | Fishing rods | key item | Fish facing water (section 4). Never sold: hand them out |
 | `hm-flash` | HM05 Flash | key item | Lights up `dark` maps. Hand it out before the first dark cave |
+| `hm-cut`, `hm-rock-smash`, `hm-strength` | HMs | key item | Clear `obstacle`s of `field` `cut`, `smash` and `strength`. Hand them out before the obstacles |
+| `vs-seeker` | VS Seeker | key item | Press V: beaten trainers nearby want a rematch, 4 levels stronger each time |
 | `oran-berry`, `sitrus-berry`, `lum-berry` | Berries | ₽100 to 500 | Held: heal at half HP, or cure a condition, once |
 | `leftovers`, `quick-claw` | Held items | ₽2000 to 4000 | Held: heal a little each turn; sometimes move first |
 | `charcoal`, `mystic-water`, `miracle-seed`, `magnet`, `silk-scarf` | Type boosters | ₽1000 | Held: Fire, Water, Grass, Electric, Normal moves ×1.2 |
@@ -298,6 +305,8 @@ Poké Mart clerks without a `shop` list sell only the first five. Add held items
 
 - Every Pokémon gets a random nature and one of its species' abilities. Abilities like Intimidate, Levitate, Static, Overgrow and Swift Swim work in battle.
 - `rules.difficulty`: `"easy"` trainers pick moves at random, `"hard"` ones always pick the best move. Use hard for gyms in a challenge game.
+- `rules.double: true`: a double battle, two Pokémon on each side (when both sides have two able to fight). Give that trainer at least two Pokémon, like a pair of twins or a duo gym.
+- Moves work like in the games: multi-hit (Fury Attack), draining (Absorb), recoil (Take Down), healing (Recover), flinching (Bite), high critical (Slash) and Protect.
 - Gym leaders deserve a designed team: chosen `moves` that cover their weaknesses, a `held` berry on the ace, `lines.last` for their ace, and `rules` like `{ difficulty: "hard", scene: "rock", weather: "sandstorm" }` for a rock gym. Move keys are PokeAPI names (lowercase, dashes); only moves the species learns by leveling up work.
 - `rules.caps`: highest level for 0, 1, 2… badges earned in this town, like `[14, 20, 26, 32]`. Keeps the player from outleveling the gyms.
 - Battle backgrounds are automatic Emerald scenes (grass outdoors, building indoors, cave for `type: "cave"`, sea when surfing). Set a map's `battle` to `{ image: "/game/battle/sand.png", platforms: false }` for another scene: `tall_grass`, `long_grass`, `sand`, `rock`, `cave`, `water`, `pond_water`, `underwater`, `sky`, `building`, `stadium`.
@@ -380,6 +389,8 @@ type Trigger = {
 // `who` is someone's index in the same map's `npcs` array, or "player"
 type Action =
   | { do: "say"; text: string; who?: number }   // no who: narration
+  | { do: "ask"; text: string; who?: number; yes: Action[]; no: Action[] }   // a YES/NO question, then one branch
+  | { do: "if"; check: Check; then: Action[]; else: Action[] }               // a check, then one branch
   | { do: "come"; who: number }                 // notices the player ("!") and walks up next to them
   | { do: "move"; who: number | "player"; steps: ("up" | "down" | "left" | "right")[] }
   | { do: "face"; who: number | "player"; dir: "up" | "down" | "left" | "right" }
@@ -387,11 +398,19 @@ type Action =
   | { do: "wait"; seconds: number }             // 0 to 10
   | { do: "battle"; who: number }               // a trainer (or role "wild" Pokémon) of the map; stops the script if the player loses
   | { do: "give"; item: ItemId; count: number }
+  | { do: "take"; item: ItemId; count: number }  // takes items from the bag (check first with "if")
   | { do: "pokemon"; species: number; level: number }
-  | { do: "money"; amount: number }
+  | { do: "money"; amount: number }             // below 0 takes money (check first with "if")
   | { do: "heal" }
   | { do: "step"; step: string }                // completes a story step (counts as "someone completes it")
   | { do: "warp"; to: string; x: number; y: number };  // map id ("" = outside) and tile; ends the script
+
+type Check =
+  | { has: "item"; item: ItemId; count: number }  // at least that many in the bag
+  | { has: "step"; step: string }                 // a story step is done
+  | { has: "money"; amount: number }              // at least that much money
+  | { has: "pokemon"; species: number }           // that species is in the party
+  | { has: "badges"; count: number };             // at least that many badges of this town
 ```
 
 Good uses:
@@ -399,6 +418,7 @@ Good uses:
 - **The rival runs up**: a trigger across the path out of town with `come`, `say`, `battle`, `say`, `back`, `step`. Give the rival `story.until` that step so they leave afterwards.
 - **Someone stops the player**: a one-tile trigger in front of an exit, `once: false`, `until` the step that allows leaving, with a `say` and a `move` of the player one step back.
 - **A welcome**: a trigger just inside a building, `once: true`, where someone walks up and explains.
+- **A trade or a toll**: `ask` "Want a Magikarp for ₽500?", then under `yes` an `if` `{ has: "money", amount: 500 }` with `money` -500 and `pokemon` in `then`, and a `say` "You can't afford it!" in `else`.
 
 Draw triggers across the **whole** width of a path so players can't walk around them. Only people of the same map can act in it.
 

@@ -47,6 +47,7 @@ Press **+ Emerald** next to the tileset tabs to add any of the 67 tilesets of Po
 - **Shared: General** holds what most outdoor maps use: grass, trees, water, ledges, paths.
 - A town's own tileset adds its buildings and details.
 - Tiles keep the see-through parts they have in the game, so put pieces with holes on **Objects** or **Above**, over ground.
+- Tiles know how they behave in the game. Painting one sets its [collision](/docs/collision) (trees and walls block, paths don't), its [behavior](/docs/collision#tile-behaviors) (ledges, water, ice, arrow tiles) and, for tall grass, the encounter zone under it. Walkable ground tiles go on the Ground layer by themselves. You can still change any of it by hand afterwards.
 
 They come from the [pret/pokeemerald](https://github.com/pret/pokeemerald) decompilation and are served with DreamMist, so they don't count against your uploads.
 

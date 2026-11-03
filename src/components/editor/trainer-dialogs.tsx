@@ -14,6 +14,8 @@ import { colors, statusLabels } from "@/game/battle";
 import { bestRod, type ItemId, itemCount, items } from "@/game/items";
 import { period } from "@/game/atmosphere";
 import { living } from "@/game/encounters";
+import { outdoors } from "@/game/region";
+import type { City } from "@/game/data";
 import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
 import { type Entry, goal, journal } from "@/game/story";
@@ -490,6 +492,94 @@ function WildHere({ close }: { close: () => void }) {
             </div>
           ))}
         {found.fish.length && !bestRod((id) => trainer.count(id)) ? <Hint>You need a fishing rod to hook the Pokémon in the water.</Hint> : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+//=================================================================================================
+// Town Map: the town's outdoor maps as they're joined, and where the player is
+
+export function townMap() {
+  return openDialog<void>((close) => <TownMap close={close} />);
+}
+
+/** The outdoor map a map belongs to: itself, or the one with a door leading (through other rooms) to it */
+function outdoorOf(world: City, map: City, seen = new Set<City>()): { outdoor: City; door?: { x: number; y: number } } | null {
+  if (map === world || map.outdoor) {
+    return { outdoor: map };
+  }
+  seen.add(map);
+  for (const other of [world, ...world.interiors]) {
+    const door = other.doors.find(({ to }) => to === map.id);
+    if (door && !seen.has(other)) {
+      const found = outdoorOf(world, other, seen);
+      if (found) return found.door ? found : { outdoor: found.outdoor, door };
+    }
+  }
+  return null;
+}
+
+function TownMap({ close }: { close: () => void }) {
+  const world = session.city;
+  const placed = outdoors(world);
+  const here = outdoorOf(world, session.area);
+  const minX = Math.min(...placed.map(({ x }) => x)),
+    minY = Math.min(...placed.map(({ y }) => y));
+  const maxX = Math.max(...placed.map(({ x, map }) => x + map.width)),
+    maxY = Math.max(...placed.map(({ y, map }) => y + map.height));
+  const scale = Math.max(1, Math.min(8, 640 / (maxX - minX), 420 / (maxY - minY)));
+  const [pictures] = useState(() => new Map(placed.map(({ map }) => [map, session.map.picture(map, Math.min(1, scale / 16)).toDataURL()])));
+  //Where the player is: their tile outdoors, or the door of the building they're in
+  const spot = (() => {
+    if (!here) return null;
+    const item = placed.find(({ map }) => map === here.outdoor);
+    const tile = here.door ?? (session.area === here.outdoor ? session.play?.position : null);
+    return item && tile ? { x: item.x + tile.x + 0.5, y: item.y + tile.y + 0.5 } : null;
+  })();
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Town Map</DialogTitle>
+          <DialogDescription>
+            {here
+              ? session.area === here.outdoor
+                ? here.outdoor.name || world.name
+                : `${session.area.name}, ${here.outdoor === world ? world.name : here.outdoor.name}`
+              : world.name}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-auto rounded-lg bg-[#16324a] p-4">
+          <div className="relative mx-auto" style={{ width: (maxX - minX) * scale, height: (maxY - minY) * scale }}>
+            {placed.map(({ map, x, y }) => (
+              <div
+                key={map.id}
+                className={cn("absolute overflow-hidden rounded-sm ring-2", map === here?.outdoor ? "ring-select" : "ring-black/40")}
+                style={{
+                  left: (x - minX) * scale,
+                  top: (y - minY) * scale,
+                  width: map.width * scale,
+                  height: map.height * scale,
+                  backgroundImage: `url(${pictures.get(map)})`,
+                  backgroundSize: "100% 100%",
+                  imageRendering: "pixelated",
+                }}
+              >
+                <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 font-pixel text-[10px] text-white">
+                  {map === world ? world.name : map.name}
+                </span>
+              </div>
+            ))}
+            {spot ? (
+              <span
+                className="town-map-you absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500"
+                style={{ left: (spot.x - minX) * scale, top: (spot.y - minY) * scale }}
+                aria-label="You are here"
+              />
+            ) : null}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

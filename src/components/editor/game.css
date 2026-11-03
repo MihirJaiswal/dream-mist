@@ -61,6 +61,52 @@
   line-height: 1.2;
   text-shadow: 2px 2px 0 var(--rim-dark);
 }
+/* YES/NO window above the message, on the right, with a red arrow on the picked answer */
+.game-dialogue .choices {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 18px);
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  min-width: 128px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 12px 18px 12px 34px;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow:
+    inset -3px -3px 0 var(--paper-shade),
+    0 0 0 3px var(--trim),
+    0 0 0 8px var(--rim),
+    0 0 0 10px var(--rim-dark),
+    0 10px 24px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  animation: dialogue-in 0.12s ease-out;
+}
+.game-dialogue .choices button {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--ink);
+  text-shadow: 2px 2px 0 var(--ink-shadow);
+  cursor: pointer;
+}
+.game-dialogue .choices button.picked::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  translate: 0 -50%;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 9px solid #e04838;
+}
 /* Red arrow: bounces down when the message continues, blinks at the end */
 .game-dialogue .next {
   position: absolute;
@@ -676,39 +722,88 @@
   filter: grayscale(0.85) brightness(0.8);
   opacity: 0.7;
 }
-.battle .orb {
+/* Attack animations: Gen 3 sprites whose frames play (stacked top to bottom) while they fly, burst or glow */
+.battle .fx-layer {
   position: absolute;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: radial-gradient(white, var(--accent) 55%, transparent 70%);
+  inset: 0;
   z-index: 4;
   pointer-events: none;
 }
-.battle .orb.from-ally {
-  left: 30%;
-  bottom: 40%;
-  animation: orb-ally 0.45s ease-in forwards;
+.battle .fx {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  background-size: var(--size) var(--sheet);
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--size) / 2);
+  opacity: 0;
+  animation-fill-mode: both;
 }
-.battle .orb.from-foe {
-  right: 22%;
-  top: 30%;
-  animation: orb-foe 0.45s ease-in forwards;
+.battle .fx.fly {
+  animation:
+    fx-frames 0.4s steps(var(--frames)) infinite,
+    fx-fly 0.42s ease-in both;
 }
-@keyframes orb-ally {
+.battle .fx.burst {
+  animation:
+    fx-frames 0.45s steps(var(--frames)) both,
+    fx-burst 0.5s ease-out both;
+}
+.battle .fx.glow {
+  animation:
+    fx-frames 0.6s steps(var(--frames)) both,
+    fx-glow 0.75s ease-out both;
+}
+@keyframes fx-frames {
+  from {
+    background-position-y: 0;
+  }
   to {
-    left: 72%;
-    bottom: 68%;
-    scale: 2.5;
-    opacity: 0.2;
+    background-position-y: calc(var(--sheet) * -1);
   }
 }
-@keyframes orb-foe {
-  to {
-    right: 68%;
-    top: 62%;
-    scale: 2.5;
-    opacity: 0.2;
+@keyframes fx-fly {
+  0% {
+    opacity: 1;
+    translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--size) / 2);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: calc(var(--x1) - var(--size) / 2) calc(var(--y1) - var(--size) / 2);
+  }
+}
+@keyframes fx-burst {
+  0% {
+    opacity: 1;
+    scale: 0.6;
+  }
+  60% {
+    opacity: 1;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.25;
+  }
+}
+@keyframes fx-glow {
+  0% {
+    opacity: 0;
+    scale: 0.5;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.2;
+    translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--size) / 2 - 24px);
   }
 }
 .battle .pokeball {
@@ -898,4 +993,67 @@
     opacity: 0;
     transform: translateY(-12px);
   }
+}
+
+/* Town Map: the player's spot pulses */
+.town-map-you {
+  animation: town-map-you 1s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgb(239 68 68 / 0.6);
+}
+@keyframes town-map-you {
+  50% {
+    box-shadow: 0 0 0 8px rgb(239 68 68 / 0);
+  }
+}
+
+/* Double battles: two Pokémon on each side, side by side, a little smaller, with their info boxes stacked */
+.battle .stage.double .side[data-slot="foe"] {
+  left: 60%;
+  top: 44%;
+}
+.battle .stage.double .side[data-slot="foe2"] {
+  left: 82%;
+  top: 50%;
+}
+.battle .stage.double .side[data-slot="ally"] {
+  left: 16%;
+  top: 86%;
+}
+.battle .stage.double .side[data-slot="ally2"] {
+  left: 40%;
+  top: 92%;
+}
+.battle .stage.gen3.double .side[data-slot="foe"] {
+  left: 64%;
+  top: 52%;
+}
+.battle .stage.gen3.double .side[data-slot="foe2"] {
+  left: 86%;
+  top: 60%;
+}
+.battle .stage.gen3.double .side[data-slot="ally"] {
+  left: 14%;
+  top: 98%;
+}
+.battle .stage.gen3.double .side[data-slot="ally2"] {
+  left: 38%;
+  top: 106%;
+}
+.battle .stage.double .mon {
+  scale: 0.8;
+}
+.battle .stage.double .infobox.foe2 {
+  top: calc(9% + 78px);
+}
+.battle .stage.double .infobox.ally {
+  top: auto;
+  bottom: calc(5% + 118px);
+}
+.battle .stage.double .infobox.ally2 {
+  top: auto;
+  bottom: 5%;
+  right: 3%;
+}
+.battle .stage.double .infobox .card {
+  width: min(290px, 40vw);
 }

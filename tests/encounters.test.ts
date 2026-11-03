@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import { clock, hour, period } from "@/game/atmosphere";
 import { blank, sanitize, type Zone } from "@/game/data";
-import { appears, living, pool, roll } from "@/game/encounters";
+import { appears, habitats, living, pool, roll } from "@/game/encounters";
 import { bestRod, sold } from "@/game/items";
 
 const pond: Zone = {
@@ -80,5 +80,18 @@ describe("rods", () => {
     expect(sold).not.toContain("old-rod");
     expect(bestRod((id) => (id === "old-rod" || id === "good-rod" ? 1 : 0))).toBe("good-rod");
     expect(bestRod(() => 0)).toBeNull();
+  });
+});
+
+describe("habitats", () => {
+  test("list every place a Pokémon lives, on every map its zone is painted", () => {
+    const city = sanitize({ ...JSON.parse(JSON.stringify(blank({ width: 3, height: 3 }))) });
+    city.zones = [pond];
+    city.zone[0] = 1;
+    const cave = { ...blank({ width: 2, height: 2, name: "Cave" }), id: "cave" };
+    cave.zone[3] = 1;
+    city.interiors = [cave];
+    const places = habitats(city).filter(({ wild }) => wild.species === 72);
+    expect(places.map(({ map }) => map.name)).toEqual(["New Town", "Cave"]);
   });
 });

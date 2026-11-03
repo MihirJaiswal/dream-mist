@@ -17,6 +17,8 @@ export type RoomHandlers = {
   peers(peers: Map<string, Peer>): void;
   cursor(peer: Peer): void;
   chat(message: { name: string; color: string; text: string; from: string }): void;
+  /** Someone hit a raid boss (`den` is "map id/npc index") */
+  raid(hit: { den: string; damage: number; name: string; from: string }): void;
   status(status: "connecting" | "online" | "offline"): void;
   /** This builder became (or stopped being) the one who saves the room */
   host(host: boolean): void;
@@ -33,7 +35,7 @@ const chunk = 2000;
 /**
  * Live building room on Supabase Realtime.
  * Builders join a channel named after the city and its invite (only invite holders know it),
- * see each other through presence, and send edits, people changes, cursors and chat as broadcasts.
+ * see each other through presence, and send edits, people changes, cursors, chat and raid hits as broadcasts.
  * The builder who has been there the longest is the host: it brings newcomers up to date and saves the city.
  */
 export class Room {
@@ -69,6 +71,7 @@ export class Room {
         }
       })
       .on("broadcast", { event: "chat" }, ({ payload }) => handlers.chat(payload))
+      .on("broadcast", { event: "raid" }, ({ payload }) => handlers.raid(payload))
       .on("broadcast", { event: "hello" }, async () => {
         const city = this.host ? handlers.hello() : null;
         if (city) {
@@ -165,6 +168,11 @@ export class Room {
     const message = { name: this.you.name, color: this.you.color, text: text.slice(0, 300) };
     this.#send("chat", message);
     this.#handlers.chat({ ...message, from: this.you.id });
+  }
+
+  /** Tell everyone how much damage you dealt to a raid boss */
+  raid(den: string, damage: number) {
+    this.#send("raid", { den, damage, name: this.you.name });
   }
 
   /** Leave the room */

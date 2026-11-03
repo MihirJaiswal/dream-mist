@@ -5,6 +5,7 @@ import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
 import { ScriptEditor } from "@/components/editor/script-editor";
 import { battleDesigner } from "@/components/editor/battle-designer";
+import { fieldIds, fields } from "@/game/fields";
 import { CanvasView, Field, Hint, NumberInput, Removable, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -59,21 +60,53 @@ function ball(scale = 2, hidden = false) {
   return canvas;
 }
 
+/** A berry tree drawn on a small canvas (the same drawing as on the map) */
+function treeIcon(scale = 2, item = "") {
+  const canvas = Object.assign(document.createElement("canvas"), { width: 16 * scale, height: 16 * scale });
+  const context = canvas.getContext("2d")!;
+  context.scale(scale, scale);
+  const berry = { "oran-berry": "#3878e8", "sitrus-berry": "#f0d038", "lum-berry": "#58c858" }[item] ?? "#e04848";
+  context.fillStyle = "#7a5030";
+  context.fillRect(7, 8, 2, 7);
+  context.fillStyle = "#48a048";
+  context.strokeStyle = "#205828";
+  context.beginPath();
+  context.arc(8, 6, 5.5, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  context.fillStyle = berry;
+  for (const [x, y] of [
+    [4, 7],
+    [11, 5],
+    [8, 10],
+    [10, 9],
+  ]) {
+    context.beginPath();
+    context.arc(x, y, 1.6, 0, Math.PI * 2);
+    context.fill();
+  }
+  return canvas;
+}
+
 /** How someone looks, as a small preview */
 function Look({ editor, npc, scale = 1 }: { editor: EditorEngine; npc: Npc; scale?: number }) {
   return (
     <CanvasView
       className="h-[30px] w-[34px] shrink-0 overflow-hidden"
       make={() =>
-        npc.role === "item"
-          ? ball(2 * scale, npc.hidden)
-          : npc.creature
-            ? portrait(npc.creature.species, scale, creatureImage(npc.creature.look))
-            : npc.sprite
-              ? preview(texture(npc.sprite, "down"), scale * scaleOf(npc.sprite))
-              : editor.stampCanvas({ w: 1, h: 1, tiles: [206] }, 1.5)
+        npc.role === "item" && npc.grow
+          ? treeIcon(1.8 * scale, npc.gift?.item)
+          : npc.role === "item"
+            ? ball(2 * scale, npc.hidden)
+            : npc.role === "obstacle"
+              ? editor.stampCanvas({ w: 1, h: 1, tiles: [fields[npc.field ?? "cut"].tile] }, 1.5 * scale)
+              : npc.creature
+                ? portrait(npc.creature.species, scale, creatureImage(npc.creature.look))
+                : npc.sprite
+                  ? preview(texture(npc.sprite, "down"), scale * scaleOf(npc.sprite))
+                  : editor.stampCanvas({ w: 1, h: 1, tiles: [206] }, 1.5)
       }
-      deps={[npc.role, npc.hidden, npc.sprite, npc.creature?.species, npc.creature?.look]}
+      deps={[npc.role, npc.hidden, npc.grow, npc.gift?.item, npc.field, npc.sprite, npc.creature?.species, npc.creature?.look]}
     />
   );
 }
@@ -82,6 +115,9 @@ function Look({ editor, npc, scale = 1 }: { editor: EditorEngine; npc: Npc; scal
 function label(npc: Npc) {
   if (npc.role === "item") {
     return npc.gift && npc.gift.item in items ? items[npc.gift.item].name : "Item";
+  }
+  if (npc.role === "obstacle") {
+    return fields[npc.field ?? "cut"].label;
   }
   return npc.name || (npc.creature ? species(npc.creature.species)?.name : kindOf(npc) === "sign" ? "Sign" : "Someone") || "Someone";
 }
@@ -93,12 +129,25 @@ function tag(npc: Npc) {
     return "sign";
   }
   if (kind === "item") {
-    return npc.hidden ? "hidden item" : "item ball";
+    return npc.grow ? "berry tree" : npc.hidden ? "hidden item" : "item ball";
+  }
+  if (kind === "obstacle") {
+    return fields[npc.field ?? "cut"].move;
   }
   if (kind === "pokemon") {
-    return npc.role === "wild" ? `wild · Lv ${npc.creature!.level}` : "Pokémon";
+    return npc.role === "wild" ? `wild · Lv ${npc.creature!.level}` : npc.role === "raid" ? `raid · Lv ${npc.creature!.level}` : "Pokémon";
   }
-  return npc.role === "trainer" ? (npc.trainer?.gym ? "gym leader" : "trainer") : npc.role === "healer" ? "nurse" : npc.role === "shop" ? "Poké Mart" : "talks";
+  return npc.role === "trainer"
+    ? npc.trainer?.gym
+      ? "gym leader"
+      : "trainer"
+    : npc.role === "healer"
+      ? "nurse"
+      : npc.role === "shop"
+        ? "Poké Mart"
+        : npc.role === "daycare"
+          ? "Day Care"
+          : "talks";
 }
 
 /** Person / Pokémon / Sign tabs */
@@ -108,9 +157,10 @@ function Kinds({ editor, active, onPick }: { editor: EditorEngine; active: Kind;
     pokemon: () => portrait(25, 1),
     sign: () => editor.stampCanvas({ w: 1, h: 1, tiles: [206] }, 2),
     item: () => ball(2.5),
+    obstacle: () => editor.stampCanvas({ w: 1, h: 1, tiles: [fields.cut.tile] }, 2),
   };
   return (
-    <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="What to place">
+    <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="What to place">
       {(Object.keys(kinds) as Kind[]).map((kind) => (
         <button
           key={kind}
@@ -138,7 +188,7 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
   const editor = useEditor();
   const npc = editor.city.npcs[editor.selected] as Npc | undefined;
   if (!npc) {
-    const count = { person: 0, pokemon: 0, sign: 0, item: 0 };
+    const count = { person: 0, pokemon: 0, sign: 0, item: 0, obstacle: 0 };
     editor.city.npcs.forEach((npc) => count[kindOf(npc)]++);
     const summary =
       [
@@ -146,6 +196,7 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
         count.pokemon && `${count.pokemon} Pokémon`,
         count.sign && `${count.sign} sign${count.sign > 1 ? "s" : ""}`,
         count.item && `${count.item} item${count.item > 1 ? "s" : ""}`,
+        count.obstacle && `${count.obstacle} obstacle${count.obstacle > 1 ? "s" : ""}`,
       ]
         .filter(Boolean)
         .join(" · ") || "nobody yet";
@@ -170,7 +221,7 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
                   <span
                     className={cn(
                       "rounded px-1.5 py-0.5 text-[11px]",
-                      ["trainer", "wild"].includes(npc.role)
+                      ["trainer", "wild", "raid"].includes(npc.role)
                         ? "bg-destructive/15 text-red-300"
                         : npc.role === "healer"
                           ? "bg-pink-500/15 text-pink-300"
@@ -223,6 +274,8 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
       <Kinds editor={editor} active={kind} onPick={(value) => editor.convertNpc(value)} />
       {kind === "item" ? (
         <ItemForm npc={npc} update={update} />
+      ) : kind === "obstacle" ? (
+        <ObstacleForm editor={editor} npc={npc} update={update} />
       ) : kind === "sign" ? (
         <SignForm npc={npc} update={update} />
       ) : kind === "pokemon" ? (
@@ -230,7 +283,7 @@ export function PeoplePanel({ onSprite }: { onSprite: OnSprite }) {
       ) : (
         <PersonForm editor={editor} npc={npc} update={update} onSprite={onSprite} />
       )}
-      {kind !== "item" ? <PersonScript editor={editor} npc={npc} index={editor.selected} update={update} /> : null}
+      {kind !== "item" && kind !== "obstacle" ? <PersonScript editor={editor} npc={npc} index={editor.selected} update={update} /> : null}
       <PersonStory editor={editor} npc={npc} update={update} />
     </div>
   );
@@ -303,15 +356,86 @@ function ItemForm({ npc, update }: { npc: Npc; update: Update }) {
           <NumberInput min={1} max={99} value={gift.count} onCommit={(count) => update(() => (npc.gift = { ...gift, count }))} className="w-14" />
         </div>
       </Field>
-      <Label className="flex items-center justify-between gap-2 text-xs font-normal text-muted-foreground">
-        Hidden on the ground
-        <Switch checked={Boolean(npc.hidden)} onCheckedChange={(hidden) => update(() => (hidden ? (npc.hidden = true) : delete npc.hidden))} />
-      </Label>
+      <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="How it lies">
+        {(
+          [
+            ["ball", "Item ball"],
+            ["hidden", "Hidden"],
+            ["tree", "Berry tree"],
+          ] as const
+        ).map(([mode, text]) => {
+          const active = (npc.grow ? "tree" : npc.hidden ? "hidden" : "ball") === mode;
+          return (
+            <button
+              key={mode}
+              role="radio"
+              aria-checked={active}
+              onClick={() =>
+                update(() => {
+                  delete npc.hidden;
+                  delete npc.grow;
+                  if (mode === "hidden") npc.hidden = true;
+                  if (mode === "tree") {
+                    npc.grow = 24;
+                    if (!(npc.gift?.item ?? "").endsWith("-berry")) npc.gift = { item: "oran-berry", count: 2 };
+                  }
+                })
+              }
+              className={cn(
+                "h-8 rounded-md border text-xs",
+                active ? "border-foreground bg-muted text-foreground" : "border-border text-muted-foreground hover:border-ring",
+              )}
+            >
+              {text}
+            </button>
+          );
+        })}
+      </div>
+      {npc.grow ? (
+        <Field label="Grows back after (hours, real time)">
+          <NumberInput min={1} max={240} value={npc.grow} onCommit={(grow) => update(() => (npc.grow = grow))} className="w-20" />
+        </Field>
+      ) : null}
       <Hint>
-        {npc.hidden
-          ? `Nothing shows on the map. Visitors find ${itemCount(gift.item, gift.count)} by facing this tile and pressing Space.`
-          : `An item ball blocks the tile. Visitors pick up ${itemCount(gift.item, gift.count)} by facing it and pressing Space.`}{" "}
-        Each player finds it once.
+        {npc.grow
+          ? `A tree that blocks its tile. Visitors pick ${itemCount(gift.item, gift.count)} by facing it and pressing Space, then it grows them back after ${npc.grow} hours.`
+          : npc.hidden
+            ? `Nothing shows on the map. Visitors find ${itemCount(gift.item, gift.count)} by facing this tile and pressing Space. Each player finds it once.`
+            : `An item ball blocks the tile. Visitors pick up ${itemCount(gift.item, gift.count)} by facing it and pressing Space. Each player finds it once.`}
+      </Hint>
+    </>
+  );
+}
+
+/** Obstacle cleared by a field move: which one */
+function ObstacleForm({ editor, npc, update }: { editor: EditorEngine; npc: Npc; update: Update }) {
+  const field = npc.field ?? "cut";
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Obstacle">
+        {fieldIds.map((key) => (
+          <button
+            key={key}
+            role="radio"
+            aria-checked={field === key}
+            onClick={() => update(() => (npc.field = key))}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-lg border p-2 text-xs",
+              field === key ? "border-foreground bg-muted text-foreground" : "border-border bg-card text-muted-foreground hover:border-ring",
+            )}
+          >
+            <CanvasView make={() => editor.stampCanvas({ w: 1, h: 1, tiles: [fields[key].tile] }, 2)} deps={[key]} />
+            {fields[key].label}
+            <small className="text-[10px] text-subtle-fg">{fields[key].move}</small>
+          </button>
+        ))}
+      </div>
+      <Hint>
+        {field === "strength"
+          ? "Blocks the way until the player uses HM04 Strength on it; then they can push it one tile at a time."
+          : `Blocks the way until the player uses ${items[fields[field].hm].name} on it.`}{" "}
+        The HM only needs to be in the bag. Give it with someone&apos;s gift, an item ball or a script. Obstacles come back when the player leaves the map, like
+        in the games.
       </Hint>
     </>
   );
@@ -457,6 +581,10 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
                   npc.dialogue = "Welcome! How may I help you?";
                   npc.wander = false;
                 }
+                if (role === "daycare") {
+                  npc.dialogue = "I'm the Day Care Lady. We can raise Pokémon for you.";
+                  npc.wander = false;
+                }
               })
             }
           >
@@ -468,6 +596,7 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
               <SelectItem value="trainer">Trainer (battles)</SelectItem>
               <SelectItem value="healer">Nurse (heals party)</SelectItem>
               <SelectItem value="shop">Poké Mart clerk (sells items)</SelectItem>
+              <SelectItem value="daycare">Day Care (raises a Pokémon)</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -617,6 +746,7 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
   const creature = npc.creature!;
   const own = (editor.world.sprites ?? []).filter(({ kind }) => kind === "pokemon");
   const wild = npc.role === "wild";
+  const raid = npc.role === "raid";
   return (
     <>
       <div className="flex items-center gap-1.5">
@@ -679,32 +809,37 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
       <PortraitField editor={editor} npc={npc} update={update} />
       <div className="grid gap-1.5">
         <p className="text-xs font-medium text-muted-foreground">When the player talks to it</p>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {(
             [
               ["talk", "Makes its cry", "Says its message, like a friendly Pikachu"],
               ["wild", "Wild battle", "Battle it and try to catch it, like Snorlax"],
+              ["raid", "Raid den", "A boss with 5× HP, fought together in live rooms"],
             ] as const
           ).map(([value, title, text]) => (
             <button
               key={value}
-              aria-pressed={wild === (value === "wild")}
+              aria-pressed={npc.role === value}
               onClick={() =>
                 update(() => {
                   npc.role = value;
-                  //Wild encounters stay where they were placed
-                  if (value === "wild") {
+                  //Wild encounters and dens stay where they were placed
+                  if (value !== "talk") {
                     npc.wander = false;
                     delete npc.path;
-                    if (!npc.dialogue || npc.dialogue === "Pika pika!") {
-                      npc.dialogue = `The wild ${species(creature.species).name} stares at you!`;
-                    }
+                  }
+                  const name = species(creature.species).name;
+                  if (value === "wild" && (!npc.dialogue || npc.dialogue === "Pika pika!" || npc.dialogue.startsWith("A powerful"))) {
+                    npc.dialogue = `The wild ${name} stares at you!`;
+                  }
+                  if (value === "raid" && (!npc.dialogue || npc.dialogue === "Pika pika!" || npc.dialogue.startsWith("The wild"))) {
+                    npc.dialogue = `A powerful ${name} glows inside the den!`;
                   }
                 })
               }
               className={cn(
                 "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left",
-                wild === (value === "wild") ? "border-foreground bg-muted" : "border-border bg-card hover:border-ring",
+                npc.role === value ? "border-foreground bg-muted" : "border-border bg-card hover:border-ring",
               )}
             >
               <b className="text-xs">{title}</b>
@@ -715,13 +850,19 @@ function PokemonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; 
       </div>
       <Movement editor={editor} npc={npc} update={update} />
       <Words
-        label={wild ? "Before the battle" : "Cry or message"}
+        label={wild || raid ? "Before the battle" : "Cry or message"}
         speaker={npc}
         value={npc.dialogue}
-        placeholder={wild ? "Snorlax is fast asleep… It woke up!" : "Pika pika!"}
+        placeholder={raid ? "A powerful Aggron glows inside the den!" : wild ? "Snorlax is fast asleep… It woke up!" : "Pika pika!"}
         onCommit={(text) => update(() => (npc.dialogue = text))}
       />
       {wild ? <Hint>Visitors battle it as a wild Pokémon and can catch it. Once beaten or caught, it&apos;s gone for that player.</Hint> : null}
+      {raid ? (
+        <Hint>
+          Its boss has 5× HP. In a live room, everyone fighting it shares the damage. Beaten, each player gets one throw to catch it, and the den is back the
+          next day.
+        </Hint>
+      ) : null}
     </>
   );
 }
@@ -1002,7 +1143,8 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
       <div className="grid gap-1 border-t border-border pt-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Story</p>
         <Hint>
-          Add steps in the Story layer to make this {{ person: "person", pokemon: "Pokémon", sign: "sign", item: "item" }[kindOf(npc)]} part of the story.
+          Add steps in the Story layer to make this {{ person: "person", pokemon: "Pokémon", sign: "sign", item: "item", obstacle: "obstacle" }[kindOf(npc)]}{" "}
+          part of the story.
         </Hint>
       </div>
     );
@@ -1045,7 +1187,7 @@ function PersonStory({ editor, npc, update }: { editor: EditorEngine; npc: Npc; 
   const completes =
     npc.role === "trainer"
       ? "Beating them completes"
-      : npc.role === "wild"
+      : npc.role === "wild" || npc.role === "raid"
         ? "Beating or catching it completes"
         : kindOf(npc) === "sign"
           ? "Reading it completes"

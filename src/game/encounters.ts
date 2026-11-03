@@ -49,3 +49,14 @@ export function living(map: City) {
   });
   return found;
 }
+
+/** A place a wild Pokémon lives: the map, the zone painted there, and how it's met */
+export type Habitat = { map: City; zone: number; wild: Wild };
+
+/** Every wild Pokémon of a town and every place it lives (zones count where they're painted) */
+export function habitats(world: City): Habitat[] {
+  return [world, ...world.interiors].flatMap((map) => {
+    const painted = new Set(map.zone.filter(Boolean));
+    return world.zones.flatMap((zone, i) => (painted.has(i + 1) ? zone.creatures.map((wild) => ({ map, zone: i, wild })) : []));
+  });
+}

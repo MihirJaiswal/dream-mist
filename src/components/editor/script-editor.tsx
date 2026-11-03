@@ -7,10 +7,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { species } from "@/game/assets";
-import type { Action, ActionKind, Direction, Npc, Who } from "@/game/data";
+import type { Action, ActionKind, Check, Direction, Npc, Who } from "@/game/data";
 import type { EditorEngine } from "@/game/editor/engine";
 import { type ItemId, itemIds, items } from "@/game/items";
-import { arrows, kinds } from "@/game/scripts";
+import { arrows, checks, kinds } from "@/game/scripts";
 import { lanes } from "@/game/story";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, Backspace, Plus, X } from "@phosphor-icons/react";
@@ -134,7 +134,101 @@ function Steps({ steps, onChange }: { steps: Direction[]; onChange: (steps: Dire
 }
 
 /** Fields of one action */
-function Fields({ editor, action, set }: { editor: EditorEngine; action: Action; set: (patch: Partial<Action>) => void }) {
+/** Actions played on one side of a question or a check, indented under it */
+function Branch({
+  label,
+  editor,
+  actions,
+  update,
+  self,
+}: {
+  label: string;
+  editor: EditorEngine;
+  actions: Action[];
+  update: (fn: () => void) => void;
+  self?: number;
+}) {
+  return (
+    <div className="grid gap-1.5 border-l-2 border-select/50 pl-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-select">{label}</p>
+      <ScriptEditor editor={editor} actions={actions} update={update} self={self} />
+    </div>
+  );
+}
+
+/** Item and count */
+function ItemCount({ item, count, onItem, onCount }: { item: ItemId; count: number; onItem: (item: ItemId) => void; onCount: (count: number) => void }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Select value={item} onValueChange={(value) => onItem(value as ItemId)}>
+        <SelectTrigger className="h-8 min-w-0 flex-1">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {itemIds.map((id) => (
+            <SelectItem key={id} value={id}>
+              {items[id].name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-xs text-subtle-fg">×</span>
+      <NumberInput min={1} max={99} value={count} onCommit={onCount} className="w-14" />
+    </div>
+  );
+}
+
+/** What an If… action checks */
+function CheckFields({ editor, check, set }: { editor: EditorEngine; check: Check; set: (check: Check) => void }) {
+  return (
+    <div className="grid gap-1.5">
+      <Select value={check.has} onValueChange={(has) => set(checks[has as Check["has"]].make())}>
+        <SelectTrigger className="h-8">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(checks) as Check["has"][]).map((key) => (
+            <SelectItem key={key} value={key}>
+              {checks[key].label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {check.has === "item" ? (
+        <ItemCount item={check.item} count={check.count} onItem={(item) => set({ ...check, item })} onCount={(count) => set({ ...check, count })} />
+      ) : check.has === "step" ? (
+        <StepSelect editor={editor} value={check.step} empty="Choose a step…" onChange={(step) => set({ ...check, step })} />
+      ) : check.has === "money" ? (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          At least ₽
+          <NumberInput min={0} max={999999} value={check.amount} onCommit={(amount) => set({ ...check, amount })} className="w-24" />
+        </div>
+      ) : check.has === "pokemon" ? (
+        <SpeciesInput value={check.species} onChange={(species) => set({ ...check, species })} />
+      ) : (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          At least
+          <NumberInput min={0} max={99} value={check.count} onCommit={(count) => set({ ...check, count })} className="w-16" />
+          badges of this town
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Fields({
+  editor,
+  action,
+  set,
+  update,
+  self,
+}: {
+  editor: EditorEngine;
+  action: Action;
+  set: (patch: Partial<Action>) => void;
+  update: (fn: () => void) => void;
+  self?: number;
+}) {
   const dir = (value: Direction, onChange: (dir: Direction) => void) => (
     <Select value={value} onValueChange={(next) => onChange(next as Direction)}>
       <SelectTrigger className="h-8 w-24">
@@ -210,23 +304,24 @@ function Fields({ editor, action, set }: { editor: EditorEngine; action: Action;
         </div>
       );
     case "give":
+    case "take":
+      return <ItemCount item={action.item} count={action.count} onItem={(item) => set({ item })} onCount={(count) => set({ count })} />;
+    case "ask":
       return (
-        <div className="flex items-center gap-1.5">
-          <Select value={action.item} onValueChange={(item) => set({ item: item as ItemId })}>
-            <SelectTrigger className="h-8 flex-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {itemIds.map((id) => (
-                <SelectItem key={id} value={id}>
-                  {items[id].name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-subtle-fg">×</span>
-          <NumberInput min={1} max={99} value={action.count} onCommit={(count) => set({ count })} className="w-14" />
-        </div>
+        <>
+          <WhoSelect editor={editor} value={action.who} nobody="Nobody (narration)" onChange={(who) => set({ who: who as number | undefined })} />
+          <Message value={action.text} onCommit={(text) => set({ text })} />
+          <Branch label="If they answer YES" editor={editor} actions={action.yes} update={update} self={self} />
+          <Branch label="If they answer NO" editor={editor} actions={action.no} update={update} self={self} />
+        </>
+      );
+    case "if":
+      return (
+        <>
+          <CheckFields editor={editor} check={action.check} set={(check) => set({ check })} />
+          <Branch label="Then" editor={editor} actions={action.then} update={update} self={self} />
+          <Branch label="Otherwise" editor={editor} actions={action.else} update={update} self={self} />
+        </>
       );
     case "pokemon":
       return (
@@ -240,7 +335,8 @@ function Fields({ editor, action, set }: { editor: EditorEngine; action: Action;
       return (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           ₽
-          <NumberInput min={0} max={999999} value={action.amount} onCommit={(amount) => set({ amount })} className="w-24" />
+          <NumberInput min={-999999} max={999999} value={action.amount} onCommit={(amount) => set({ amount })} className="w-24" />
+          <span className="text-subtle-fg">(less than 0 takes money)</span>
         </div>
       );
     case "heal":
@@ -275,7 +371,7 @@ function Fields({ editor, action, set }: { editor: EditorEngine; action: Action;
 }
 
 /** Order of actions in the "Add" menu */
-const menu: ActionKind[] = ["say", "come", "move", "face", "back", "wait", "battle", "give", "pokemon", "money", "heal", "step", "warp"];
+const menu: ActionKind[] = ["say", "ask", "if", "come", "move", "face", "back", "wait", "battle", "give", "take", "pokemon", "money", "heal", "step", "warp"];
 
 /** Edit a script: its actions in order, each with its own fields */
 export function ScriptEditor({
@@ -348,6 +444,8 @@ export function ScriptEditor({
               <Fields
                 editor={editor}
                 action={action}
+                update={update}
+                self={self}
                 set={(patch) =>
                   update(() => {
                     Object.assign(action, patch);

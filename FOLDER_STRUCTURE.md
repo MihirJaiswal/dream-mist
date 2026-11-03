@@ -21,7 +21,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 │   │   ├── atmosphere.ts     Weather and time of day drawn over the map in play mode
 │   │   ├── play.ts           Play mode: walking, talking, doors, wild Pokémon, trainers, tile behaviors, scripts
 │   │   ├── behaviors.ts      Tile behaviors painted on the Collision layer: ledges, surf water, ice, push tiles
-│   │   ├── encounters.ts     Wild Pokémon a zone offers: walking, surfing or fishing, by part of the day and rod
+│   │   ├── encounters.ts     Wild Pokémon a zone offers: walking, surfing or fishing, by part of the day and rod; where each one lives
+│   │   ├── fields.ts         Field obstacles (Cut trees, Rock Smash rocks, Strength boulders) and the HM that clears each
 │   │   ├── abilities.ts      Abilities that change battles (Intimidate, Levitate, Static…)
 │   │   ├── natures.ts        The 25 natures and the stats they raise and lower
 │   │   ├── scripts.ts        Event script actions: their names, checking imported ones, fixing them when people are removed
@@ -59,8 +60,8 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 ├── public/
 │   ├── game/                 Files the game loads (built by `npm run data`, committed)
 │   │   ├── textures/         Sprite sheets for tiles, people and Pokémon (people.* is every Emerald overworld person)
-│   │   ├── battle/           Emerald battle scenes (built from pret/pokeemerald)
-│   │   ├── tilesets/emerald/ Every Emerald tileset as a 16px tile sheet, and index.json (built from pret/pokeemerald)
+│   │   ├── battle/           Emerald battle scenes, and anims/ the move animation sprites (built from pret/pokeemerald)
+│   │   ├── tilesets/emerald/ Every Emerald tileset as a 16px tile sheet with its collision and behavior rules, and index.json (built from pret/pokeemerald)
 │   │   ├── data/             Pokédex, walkable tiles, tile animations, Hoenn map sections
 │   │   ├── audio/            Default music and sound effects
 │   │   └── images/           Logo and loading art used by the editor
@@ -97,22 +98,24 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 
 ## Where to change things
 
-| To change                                | Look in                                                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| A panel, dialog or button in the editor  | `src/components/editor/`                                                                                          |
-| What a tool does on the map              | `src/game/editor/engine.ts`                                                                                       |
-| Walking, talking, doors, encounters      | `src/game/play.ts`                                                                                                |
-| Ledges, surf, ice and push tiles         | `src/game/behaviors.ts` (values), `src/game/play.ts` (movement), `drawBehaviors` in `src/game/map.ts`             |
-| Event script actions                     | `src/game/scripts.ts`, `#act` in `src/game/play.ts`, `src/components/editor/script-editor.tsx`                    |
-| Battle rules                             | `src/game/battle.ts`, `src/game/trainer.ts`, `src/game/abilities.ts` and `src/game/natures.ts`                    |
-| Wild encounters, fishing                 | `src/game/encounters.ts`, `#stepped` and `#fish` in `src/game/play.ts`, `src/components/editor/zones-panel.tsx`   |
-| Emerald graphics (pret)                  | `scripts/pret.mts`, rebuilt with `npm run data -- pret --force`                                                   |
-| The city file format                     | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`)                                          |
-| Saving, accounts, Explore                | `src/game/cloud.ts` and `supabase/migrations/`                                                                    |
-| Live rooms                               | `src/game/room.ts`                                                                                                |
-| Problems list checks                     | `src/game/problems.ts`                                                                                            |
-| Command search (⌘K)                      | `src/components/editor/command-palette.tsx`                                                                       |
-| Keyboard shortcuts and the ? cheat sheet | `src/components/editor/shortcuts.tsx` (app-wide) and the `#keys` handler in `src/game/editor/engine.ts` (editing) |
-| Getting started tour                     | `src/components/editor/tour.tsx`                                                                                  |
-| Home page or Explore                     | `src/app/(site)/` and `src/components/site/`                                                                      |
-| Docs                                     | `content/docs/`                                                                                                   |
+| To change                                 | Look in                                                                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| A panel, dialog or button in the editor   | `src/components/editor/`                                                                                          |
+| What a tool does on the map               | `src/game/editor/engine.ts`                                                                                       |
+| Walking, talking, doors, encounters       | `src/game/play.ts`                                                                                                |
+| Ledges, surf, ice and push tiles          | `src/game/behaviors.ts` (values), `src/game/play.ts` (movement), `drawBehaviors` in `src/game/map.ts`             |
+| Event script actions                      | `src/game/scripts.ts`, `#act` in `src/game/play.ts`, `src/components/editor/script-editor.tsx`                    |
+| Battle rules                              | `src/game/battle.ts`, `src/game/trainer.ts`, `src/game/abilities.ts` and `src/game/natures.ts`                    |
+| Move animations                           | `Attack` in `src/components/editor/overlays.tsx`, sprites from `animations` in `scripts/pret.mts`                 |
+| Field moves, berry trees, Day Care, raids | `src/game/fields.ts`, `#field`, `#pick`, `#daycare` and `#raid` in `src/game/play.ts`                             |
+| Wild encounters, fishing                  | `src/game/encounters.ts`, `#stepped` and `#fish` in `src/game/play.ts`, `src/components/editor/zones-panel.tsx`   |
+| Emerald graphics (pret)                   | `scripts/pret.mts`, rebuilt with `npm run data -- pret --force`                                                   |
+| The city file format                      | `src/game/data.ts` (update `sanitize` and the docs page `city-file.mdx`)                                          |
+| Saving, accounts, Explore                 | `src/game/cloud.ts` and `supabase/migrations/`                                                                    |
+| Live rooms, co-op raids                   | `src/game/room.ts`, the room handlers in `joinRoom` in `src/game/session.ts`                                      |
+| Problems list checks                      | `src/game/problems.ts`                                                                                            |
+| Command search (⌘K)                       | `src/components/editor/command-palette.tsx`                                                                       |
+| Keyboard shortcuts and the ? cheat sheet  | `src/components/editor/shortcuts.tsx` (app-wide) and the `#keys` handler in `src/game/editor/engine.ts` (editing) |
+| Getting started tour                      | `src/components/editor/tour.tsx`                                                                                  |
+| Home page or Explore                      | `src/app/(site)/` and `src/components/site/`                                                                      |
+| Docs                                      | `content/docs/`                                                                                                   |

@@ -21,6 +21,10 @@ export type UiBridge = {
   toast(text: string, type?: ToastType): void;
   /** Dialogue box with one or more pages (blank lines split pages), resolves when dismissed */
   say(text: string, options?: { speaker?: string; portrait?: Portrait }): Promise<void>;
+  /** Ask a YES/NO question in the dialogue box, resolves with the answer */
+  ask(text: string, options?: { speaker?: string; portrait?: Portrait }): Promise<boolean>;
+  /** Pick one of a few answers in the dialogue box (the last one is the way out), resolves with its index */
+  choose(text: string, choices: string[], options?: { speaker?: string; portrait?: Portrait }): Promise<number>;
   /** Close the dialogue box right away, dropping pending lines (their conversation never continues) */
   hush(): void;
   /** Poké Mart: buy items with the trainer's money (resolves when they leave) */
@@ -46,6 +50,8 @@ export type SignInReason = "default" | "save" | "new" | "publish" | "share" | "r
 export const ui: UiBridge = {
   toast: () => {},
   say: async () => {},
+  ask: async () => false,
+  choose: async (_text, choices) => choices.length - 1,
   hush: () => {},
   shop: async () => {},
   banner: () => {},

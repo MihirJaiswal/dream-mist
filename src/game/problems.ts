@@ -3,6 +3,7 @@ import type { Action, City } from "./data";
 import type { Target } from "./editor/constants";
 import { edge, outdoors, type Placed, reachable as joined } from "./region";
 import { questOf, stepLabel } from "./story";
+import { flatten } from "./scripts";
 
 /** Do two placed maps overlap */
 function overlapping(a: Placed, b: Placed) {
@@ -129,7 +130,7 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
   //Scripts: of people, and of event areas
   const known = new Set(city.story.map(({ id }) => id));
   const check = (map: City, actions: Action[], where: string, focus: Pick<Problem, "layer" | "at" | "npc" | "trigger">) => {
-    const issue = actions
+    const issue = flatten(actions)
       .map((action): string | null => {
         const someone = "who" in action && typeof action.who === "number" ? map.npcs[action.who] : undefined;
         if ("who" in action && typeof action.who === "number" && (!someone || someone.role === "item")) {
@@ -143,6 +144,9 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
         }
         if (action.do === "warp" && !exists(action.to)) {
           return "warps to a deleted map";
+        }
+        if (action.do === "if" && action.check.has === "step" && !known.has(action.check.step)) {
+          return "checks a story step that was deleted";
         }
         return null;
       })
@@ -203,7 +207,7 @@ export function problems(city: City, valid: (species: number) => boolean = () =>
   const steps = new Set(city.story.map(({ id }) => id));
   const people = maps.flatMap((map) => map.npcs.map((npc, index) => ({ npc, index, map })));
   //Who completes each step, and what they wait for: people (by talking, or in their script) and event areas
-  const steps_ = (actions: Action[]) => actions.flatMap((action) => (action.do === "step" && action.step ? [action.step] : []));
+  const steps_ = (actions: Action[]) => flatten(actions).flatMap((action) => (action.do === "step" && action.step ? [action.step] : []));
   const completers = [
     ...people.flatMap(({ npc }) =>
       [npc.story?.completes, ...steps_(npc.script?.actions ?? [])]

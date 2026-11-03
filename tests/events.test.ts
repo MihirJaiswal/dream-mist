@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { arrow, ICE, ledge, slippery, WATER } from "@/game/behaviors";
 import { blank, type Npc, resize, sanitize } from "@/game/data";
 import { problems } from "@/game/problems";
-import { actions, reindex } from "@/game/scripts";
+import { actions, flatten, reindex } from "@/game/scripts";
 
 const person = (npc: Partial<Npc>) =>
   ({ x: 1, y: 1, sprite: "youngster", dir: "down", name: "Bob", dialogue: "Hi", role: "talk", wander: false, ...npc }) as Npc;
@@ -126,5 +126,51 @@ describe("event problems", () => {
     expect(texts(city)).toContain('Story step "Meet the rival" can never happen: nobody completes it');
     city.triggers = [{ id: "t", x: 2, y: 2, w: 3, h: 1, name: "Rival", once: true, actions: [{ do: "step", step: "rival" }] }];
     expect(problems(city)).toEqual([]);
+  });
+});
+
+describe("branching scripts", () => {
+  test("questions and checks keep their branches when imported, invalid ones are dropped", () => {
+    expect(
+      actions([
+        { do: "ask", text: "Trade?", who: 1, yes: [{ do: "take", item: "potion", count: 2 }, { do: "dance" }], no: [{ do: "say", text: "Oh well." }] },
+        { do: "if", check: { has: "item", item: "old-rod", count: 1 }, then: [{ do: "heal" }], else: [] },
+        { do: "if", check: { has: "nothing" }, then: [], else: [] },
+        { do: "money", amount: -300 },
+      ]),
+    ).toEqual([
+      { do: "ask", text: "Trade?", who: 1, yes: [{ do: "take", item: "potion", count: 2 }], no: [{ do: "say", text: "Oh well." }] },
+      { do: "if", check: { has: "item", item: "old-rod", count: 1 }, then: [{ do: "heal" }], else: [] },
+      { do: "money", amount: -300 },
+    ]);
+  });
+
+  test("everything inside branches is found and reindexed", () => {
+    const list = actions([
+      {
+        do: "if",
+        check: { has: "step", step: "x" },
+        then: [{ do: "come", who: 2 }],
+        else: [{ do: "ask", text: "?", yes: [{ do: "step", step: "y" }], no: [] }],
+      },
+    ]);
+    expect(flatten(list).map(({ do: kind }) => kind)).toEqual(["if", "come", "ask", "step"]);
+    const city = blank();
+    city.npcs = [person({}), person({}), person({})];
+    city.triggers = [{ id: "t", x: 0, y: 0, w: 1, h: 1, name: "Branchy", once: true, actions: list }];
+    reindex(city, 1);
+    expect(flatten(city.triggers[0].actions).find(({ do: kind }) => kind === "come")).toEqual({ do: "come", who: 1 });
+  });
+
+  test("checks of deleted steps are problems, and steps completed in a branch count", () => {
+    const city = blank();
+    city.zones = [];
+    city.story = [{ id: "y", n: 1, name: "Answered", blocked: "" }];
+    city.triggers = [
+      { id: "t", x: 0, y: 0, w: 1, h: 1, name: "Branchy", once: true, actions: actions([{ do: "ask", text: "?", yes: [{ do: "step", step: "y" }], no: [] }]) },
+    ];
+    expect(problems(city)).toEqual([]);
+    city.triggers[0].actions.push({ do: "if", check: { has: "step", step: "gone" }, then: [], else: [] });
+    expect(texts(city)).toContain('Event "Branchy" outside checks a story step that was deleted');
   });
 });

@@ -3,12 +3,13 @@ import * as PIXI from "pixi.js";
 import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
 import { brushes, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
 import { arrow, ICE } from "../behaviors";
-import { type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
-import { type CityMap, drawBall } from "../map";
-import { reindex } from "../scripts";
+import { type Action, type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
+import { type CityMap, drawBall, drawDen, drawTree } from "../map";
+import { flatten, reindex } from "../scripts";
+import { fields } from "../fields";
 import { collides, isOutdoor, type Side, spot } from "../region";
 import { scaleOf } from "../sprites";
-import { custom as sheets, decode, encode, range } from "../tilesets";
+import { custom as sheets, decode, encode, range, ruleOf } from "../tilesets";
 import { ui } from "../ui-bridge";
 import {
   type Clip,
@@ -34,8 +35,8 @@ type Change = { grid: Grid; index: number; before: number; after: number };
 /** History entry: cell changes, a snapshot of people, spawn, zones, story and doors, or of the whole town (name, size, interiors, uploads) */
 type Entry = { changes: Change[] } | { snapshot: { before: string; after: string } } | { town: { before: string; after: string } };
 
-/** Is a tile value tall grass (a brush that brings wild Pokémon) */
-const tall = (value: number) => value > 0 && brushes.some(({ zone, tiles }) => zone && tiles[0] === value);
+/** Is a tile value tall grass (a brush that brings wild Pokémon, or an Emerald tile that is tall grass in the game) */
+const tall = (value: number) => value > 0 && (brushes.some(({ zone, tiles }) => zone && tiles[0] === value) || Boolean(ruleOf(value)?.grass));
 
 /** Grids that can be hidden in the editor (people, spawn and doors are always shown) */
 const hideable = ["ground", "decor", "above", "solid", "zone", "story"] as readonly string[];
@@ -720,7 +721,7 @@ export class EditorEngine {
       this.#collide(layer, x, y);
       //Tall grass brings wild encounters along (and painting over it removes them)
       if (this.#auto && layer !== "above") {
-        if (this.#stamp.zone) {
+        if (this.#stamp.zone || ruleOf(value)?.grass) {
           this.#set("zone", x, y, this.#grassZone());
         } else if (tall(previous)) {
           this.#set("zone", x, y, 0);
@@ -737,14 +738,22 @@ export class EditorEngine {
     const index = y * this.#city.width + x;
     const ground = this.#city.layers.ground[index] - 1,
       decor = this.#city.layers.decor[index] - 1;
-    let solid = ground >= 0 && assets.water.has(ground) ? 1 : 0;
+    //Emerald tiles know whether they block (learned from the real maps) and what they do
+    const groundRule = ground >= 0 ? ruleOf(ground + 1) : null,
+      decorRule = decor >= 0 ? ruleOf(decor + 1) : null;
+    let solid = ground >= 0 && (groundRule ? groundRule.solid === 1 : assets.water.has(ground)) ? 1 : 0;
     if (decor >= 0) {
       const forced = layer === "decor" && this.#stamp.solid && this.#tool !== "erase" ? this.#stamp.solid : null;
-      solid = forced === "all" ? 1 : forced === "none" ? solid : assets.walkable.has(decor) ? solid : 1;
+      const blocks = decorRule ? decorRule.solid !== 0 : !assets.walkable.has(decor);
+      solid = forced === "all" ? 1 : forced === "none" ? solid : blocks ? 1 : solid;
     } else if (layer === "ground" && this.#stamp.solid === "all" && this.#tool !== "erase") {
       solid = 1;
     }
     this.#set("solid", x, y, solid);
+    //They also bring their behavior: a ledge, deep water to surf, ice
+    if (groundRule || decorRule) {
+      this.#set("behavior", x, y, decorRule?.behavior || groundRule?.behavior || 0);
+    }
   }
 
   /** Zone used by tall grass (created when missing) */
@@ -1563,8 +1572,7 @@ export class EditorEngine {
 
   /** People of the whole city using a step in a story setting */
   people(key: keyof NpcStory, id: string) {
-    const scripted = (actions: { do: string; step?: string }[] = []) =>
-      key === "completes" && actions.some((action) => action.do === "step" && action.step === id);
+    const scripted = (actions: Action[] = []) => key === "completes" && flatten(actions).some((action) => action.do === "step" && action.step === id);
     return [this.#world, ...this.#world.interiors].flatMap((map) => [
       ...map.npcs.filter((npc) => npc.story?.[key] === id || scripted(npc.script?.actions)).map((npc) => npc.name || "Someone"),
       //Event areas completing it in their script
@@ -2194,9 +2202,26 @@ export class EditorEngine {
     this.#drawRoutes();
     const step = this.#city.story.find(({ n }) => n === this.#step);
     this.#city.npcs.forEach((npc, i) => {
-      //Item balls (hidden items show faded)
+      //Obstacles cleared by field moves: the tree, rock or boulder they look like
+      if (npc.role === "obstacle") {
+        const tile = this.#markers.addChild(sprite(fields[npc.field ?? "cut"].tile));
+        tile.position.set(npc.x * size, npc.y * size);
+        tile.zIndex = npc.y;
+        if (this.#target === "npc" && i === this.#selected) {
+          const ring = this.#markers.addChild(
+            new PIXI.Graphics().lineStyle({ width: 1, color: 0xffdc00, native: true }).drawRect(npc.x * size, npc.y * size, size, size),
+          );
+          ring.zIndex = 9999;
+        }
+        return;
+      }
+      //Item balls (hidden items show faded), and berry trees
       if (npc.role === "item") {
-        const ball = this.#markers.addChild(drawBall(new PIXI.Graphics(), npc.x * size + size / 2, npc.y * size + size / 2 + 1, npc.hidden));
+        const ball = this.#markers.addChild(
+          npc.grow
+            ? drawTree(new PIXI.Graphics(), npc.x * size, npc.y * size, true, npc.gift?.item)
+            : drawBall(new PIXI.Graphics(), npc.x * size + size / 2, npc.y * size + size / 2 + 1, npc.hidden),
+        );
         ball.zIndex = npc.y;
         if (this.#target === "npc" && i === this.#selected) {
           const ring = this.#markers.addChild(
@@ -2205,6 +2230,10 @@ export class EditorEngine {
           ring.zIndex = 9999;
         }
         return;
+      }
+      //Raid dens: the den under their boss
+      if (npc.role === "raid") {
+        this.#markers.addChild(drawDen(new PIXI.Graphics(), npc.x * size, npc.y * size)).zIndex = npc.y - 0.5;
       }
       const look = npc.creature ? creatureSprite(npc.creature.species, npc.creature.look) : null;
       const marker = this.#markers.addChild(new PIXI.Sprite(look ? look.texture : npc.sprite ? texture(npc.sprite, npc.dir) : PIXI.Texture.WHITE));
@@ -2234,12 +2263,12 @@ export class EditorEngine {
       if (this.#target === "npc" && i === this.#selected) {
         ring(0xffdc00);
       }
-      if (npc.role === "trainer" || npc.role === "wild") {
+      if (npc.role === "trainer" || npc.role === "wild" || npc.role === "raid") {
         const badge = this.#markers.addChild(
-          new PIXI.Text(npc.role === "wild" ? "!" : npc.trainer?.gym ? "★" : "!", {
+          new PIXI.Text(npc.role === "raid" ? "◆" : npc.role === "wild" ? "!" : npc.trainer?.gym ? "★" : "!", {
             fontSize: 10,
             fontWeight: "bold",
-            fill: npc.trainer?.gym ? 0xffdc00 : 0xff4136,
+            fill: npc.role === "raid" ? 0xff5a8a : npc.trainer?.gym ? 0xffdc00 : 0xff4136,
             stroke: 0x000000,
             strokeThickness: 2,
           }),

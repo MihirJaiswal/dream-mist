@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { assets } from "@/game/assets";
-import { attackOf, battleWeather, canGet, choose, damage, powerOf } from "@/game/battle";
+import { attackOf, Battle, battleWeather, canGet, choose, damage, powerOf } from "@/game/battle";
 import { blank, levelCap, sanitize } from "@/game/data";
 import { holdable, sold } from "@/game/items";
 import { natureLabel, natureMultiplier } from "@/game/natures";
-import { abilityOf, create, experience, grow, stat } from "@/game/trainer";
+import { abilityOf, create, experience, grow, hp, stat, type Trainer, trainer } from "@/game/trainer";
 
 const [treecko, torchic, mudkip, pikachu, geodude, magikarp] = [252, 255, 258, 25, 74, 129];
 
@@ -137,5 +137,56 @@ describe("level caps", () => {
   test("and the rules are kept on import", () => {
     const raw = { ...JSON.parse(JSON.stringify(blank({ width: 2, height: 2 }))), rules: { difficulty: "hard", caps: [12, "18", 500] } };
     expect(sanitize(raw).rules).toEqual({ difficulty: "hard", caps: [12, 18, 100] });
+  });
+});
+
+describe("move effects", () => {
+  test("moves know how many times they hit, what they drain, heal and flinch", () => {
+    expect(assets.moves["fury-attack"].hits).toEqual([2, 5]);
+    expect(assets.moves["double-kick"].hits).toEqual([2, 2]);
+    expect(assets.moves.absorb.drain).toBe(50);
+    expect(assets.moves["take-down"].drain).toBe(-25);
+    expect(assets.moves.recover.heal).toBe(50);
+    expect(assets.moves.bite.flinch).toBe(30);
+    expect(assets.moves.slash.crit).toBe(1);
+    expect(assets.moves.protect.protect).toBe(true);
+  });
+
+  test("high critical hit moves crit more often", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const tackle = assets.moves.tackle;
+    expect(damage(create(treecko, 20, { nature: "hardy" }), create(pikachu, 20, { nature: "hardy" }), tackle).critical).toBe(false);
+    expect(damage(create(treecko, 20, { nature: "hardy" }), create(pikachu, 20, { nature: "hardy" }), tackle, { crit: 1 }).critical).toBe(true);
+  });
+
+  test("hurt trainers heal with their healing move", () => {
+    const user = create(pikachu, 30, { nature: "hardy" });
+    user.moves = [
+      { key: "recover", pp: 5 },
+      { key: "thunder-shock", pp: 5 },
+    ];
+    user.hp = 5;
+    expect(choose(user, create(treecko, 30), "hard")?.key).toBe("recover");
+  });
+});
+
+describe("raids", () => {
+  test("bosses have 5× HP, and hits from the live room lower it only in their own den", async () => {
+    const boss = create(geodude, 20, { nature: "hardy" });
+    const normal = hp(boss);
+    boss.boss = 5;
+    expect(hp(boss)).toBe(normal * 5);
+    boss.hp = hp(boss);
+    const stand = { name: "Tester", party: [create(treecko, 20)], box: [], items: {}, money: 0 } as unknown as Trainer;
+    await trainer.sandbox(stand, async () => {
+      const battle = new Battle({ wild: boss, rules: { raid: { den: "city:3" } } });
+      expect(battle.raid).toBe("city:3");
+      battle.hurt("city:4", 50);
+      expect(boss.hp).toBe(normal * 5);
+      battle.hurt("city:3", 50);
+      expect(boss.hp).toBe(normal * 5 - 50);
+      battle.hurt("city:3", 99999);
+      expect(boss.hp).toBe(0);
+    });
   });
 });

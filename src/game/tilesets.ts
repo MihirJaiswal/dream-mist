@@ -5,8 +5,11 @@ import { size } from "./assets";
 /** Custom tileset (uploaded by a user, stored in the city) */
 export type Tileset = { id: string; name: string; url: string; tile: number; columns: number; rows: number };
 
+/** What each tile of a tileset does (Emerald tilesets ship with it): blocked (1), walkable (0) or unknown (-1), a behavior, tall grass */
+export type Rules = { solid: number[]; behavior: number[]; grass: number[] };
+
 /** Loaded custom tileset */
-type Loaded = Tileset & { textures: unknown[]; palette: HTMLCanvasElement; empty: Set<number>; clear: Set<number> };
+type Loaded = Tileset & { textures: unknown[]; palette: HTMLCanvasElement; empty: Set<number>; clear: Set<number>; rules?: Rules };
 
 /** Tile values range reserved per custom tileset (built-in RSE tileset uses values below 10000) */
 export const range = 10000;
@@ -84,7 +87,24 @@ export async function prepare(tileset: Tileset): Promise<Loaded> {
       clear.add(frame);
     }
   }
-  return { ...tileset, columns, rows, textures, palette, empty, clear };
+  //Emerald tilesets come with what their tiles do, learned from the real maps
+  let rules: Rules | undefined;
+  if (/^\/game\/tilesets\/emerald\/[\w-]+\.png$/.test(tileset.url)) {
+    rules = await fetch(tileset.url.replace(/\.png$/, ".json"))
+      .then((response) => (response.ok ? response.json() : undefined))
+      .catch(() => undefined);
+  }
+  return { ...tileset, columns, rows, textures, palette, empty, clear, rules };
+}
+
+/** What a tile of a custom tileset does, when its tileset knows (Emerald ones): null otherwise */
+export function ruleOf(value: number) {
+  if (value < range) {
+    return null;
+  }
+  const { index, frame } = decode(value);
+  const rules = custom.get(index)?.rules;
+  return rules ? { solid: rules.solid[frame] ?? -1, behavior: rules.behavior[frame] ?? 0, grass: Boolean(rules.grass[frame]) } : null;
 }
 
 /** Create a sprite for a custom tile value */

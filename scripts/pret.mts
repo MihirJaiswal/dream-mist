@@ -4,6 +4,8 @@
  *   game/battle/<scene>.png             battle backgrounds (240×112, the battle bases drawn in) and <scene>-edge.png to widen them
  *   game/textures/rse/people.{png,json} every walking overworld person, as a sprite sheet (names start with "em_")
  *   game/tilesets/emerald/<name>.png    every Emerald tileset, its metatiles as 16px tiles, and index.json listing them
+ *   game/tilesets/emerald/<name>.json   what each of its tiles does: blocked (learned from the real maps), a behavior, tall grass
+ *   game/battle/anims/<name>.png        attack animation sprites (frames stacked from top to bottom), and index.json with their frame sizes
  *
  * The repository is cloned once into .cache/pret (only the folders used here). Its files are only read as data.
  * GBA graphics are 8×8 tiles in 4-bit indexed PNGs, tile maps of 16-bit entries (tile, flips, palette) and JASC palettes.
@@ -27,6 +29,9 @@ const sources = [
   "/src/data/object_events/object_event_graphics_info.h",
   "/src/data/object_events/object_event_pic_tables.h",
   "/src/data/object_events/object_event_graphics.h",
+  "/include/constants/metatile_behaviors.h",
+  "data/layouts",
+  "graphics/battle_anims/sprites",
 ];
 
 type Color = [number, number, number];
@@ -204,6 +209,74 @@ function battles(out: string) {
 }
 
 //=================================================================================================
+// Attack animations
+
+/** Animation sprites used by battles: one or two per type, impacts and glows (their PNGs carry their real colors) */
+const anims = [
+  "impact",
+  "hit",
+  "punch_impact",
+  "small_ember",
+  "fire",
+  "water_orb",
+  "bubble",
+  "lightning",
+  "spark_0",
+  "leaf",
+  "razor_leaf",
+  "ice_crystals_0",
+  "ice_chunk",
+  "poison_bubble",
+  "flying_dirt",
+  "rocks",
+  "gust",
+  "white_feather",
+  "spiral",
+  "needle",
+  "shadow_ball",
+  "blue_flames",
+  "purple_scratch",
+  "metal_ball",
+  "pink_heart_2",
+  "sparkle_1",
+  "protect",
+  "yellow_star",
+];
+
+/** Export the animation sprites as they are (color 0 see-through), with their frame size (square frames, stacked) */
+function animations(out: string) {
+  const index = {} as Record<string, { size: number; frames: number }>;
+  for (const name of anims) {
+    const file = join(repo, "graphics/battle_anims/sprites", `${name}.png`);
+    if (!existsSync(file)) continue;
+    const data = readFileSync(file);
+    const sheet = indexed(file);
+    //The palette of the PNG itself
+    const colors = [] as Color[];
+    let offset = 8;
+    while (offset < data.length) {
+      const length = data.readUInt32BE(offset);
+      if (data.toString("ascii", offset + 4, offset + 8) === "PLTE") {
+        for (let i = 0; i < length; i += 3) colors.push([data[offset + 8 + i], data[offset + 9 + i], data[offset + 10 + i]]);
+      }
+      offset += 12 + length;
+    }
+    const { png, set } = canvas(sheet.width, sheet.height);
+    for (let y = 0; y < sheet.height; y++) {
+      for (let x = 0; x < sheet.width; x++) {
+        const color = sheet.pixels[y * sheet.width + x];
+        if (color && colors[color]) set(x, y, colors[color]);
+      }
+    }
+    write(join(out, "battle/anims", `${name}.png`), png);
+    const size = Math.min(sheet.width, sheet.height);
+    index[name] = { size, frames: Math.max(1, Math.floor(sheet.height / size)) };
+  }
+  writeFileSync(join(out, "battle/anims/index.json"), JSON.stringify(index));
+  return Object.keys(index).length;
+}
+
+//=================================================================================================
 // Overworld people
 
 /** Walking overworld people: 9 frames (down, up, left standing, then two walking frames each), drawn with their real palette */
@@ -288,11 +361,45 @@ const folderOf = (symbol: string) =>
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase();
 
+/** Emerald tile behaviors (MB_*), by number, from the enum of the decompilation */
+function behaviorNames() {
+  const text = readFileSync(join(repo, "include/constants/metatile_behaviors.h"), "utf8");
+  const body = text.slice(text.indexOf("enum {"), text.indexOf("};"));
+  let value = -1;
+  const names = [] as string[];
+  for (const [, name, explicit] of body.matchAll(/\b(MB_\w+)\s*(?:=\s*(0x[0-9a-fA-F]+|\d+))?\s*,/g)) {
+    value = explicit ? Number(explicit) : value + 1;
+    names[value] = name;
+  }
+  return names;
+}
+
+/** DreamMist tile behavior of an Emerald one (see src/game/behaviors.ts): ledges, surf water, ice, push tiles */
+function dreammist(name = "") {
+  const dir = name.match(/_(EAST|WEST|NORTH|SOUTH)(?:WARD)?(?:_CURRENT)?$/)?.[1];
+  if (/^MB_JUMP_(EAST|WEST|NORTH|SOUTH)$/.test(name)) return { SOUTH: 1, NORTH: 2, WEST: 3, EAST: 4 }[dir!]!;
+  if (/^MB_(POND_WATER|INTERIOR_DEEP_WATER|DEEP_WATER|SOOTOPOLIS_DEEP_WATER|OCEAN_WATER|NO_SURFACING|\w+WARD_CURRENT)$/.test(name)) return 5;
+  if (/^MB_(ICE|THIN_ICE|CRACKED_ICE)$/.test(name)) return 6;
+  if (/^MB_(WALK|SLIDE)_(EAST|WEST|NORTH|SOUTH)$/.test(name)) return { NORTH: 7, SOUTH: 8, WEST: 9, EAST: 10 }[dir!]!;
+  return 0;
+}
+
 /** Every tileset as a sheet of its 16px metatiles (8 per row), bottom and top layers drawn together (color 0 stays see-through, as in the game) */
 function tilesets(out: string) {
   const root = join(repo, "data/tilesets");
+  mkdirSync(join(out, "tilesets/emerald"), { recursive: true });
+  const names = behaviorNames();
   //Secondary tilesets are drawn with the primary their maps use most
   const pairs = new Map<string, Map<string, number>>();
+  //How often each tile is blocked in the real maps: tileset → metatile → [walkable, blocked]
+  const usage = new Map<string, Map<number, [number, number]>>();
+  const count = (tileset: string, metatile: number, blocked: boolean) => {
+    const tiles = usage.get(tileset) ?? new Map<number, [number, number]>();
+    const seen = tiles.get(metatile) ?? [0, 0];
+    seen[blocked ? 1 : 0]++;
+    tiles.set(metatile, seen);
+    usage.set(tileset, tiles);
+  };
   for (const layout of JSON.parse(readFileSync(join(repo, "data/layouts/layouts.json"), "utf8")).layouts ?? []) {
     if (!layout.secondary_tileset) continue;
     const secondary = folderOf(layout.secondary_tileset),
@@ -300,7 +407,34 @@ function tilesets(out: string) {
     const counts = pairs.get(secondary) ?? new Map();
     counts.set(primary, (counts.get(primary) ?? 0) + 1);
     pairs.set(secondary, counts);
+    //Map blocks: metatile (10 bits), collision (2 bits), elevation (4 bits)
+    const file = join(repo, layout.blockdata_filepath ?? "");
+    if (!layout.blockdata_filepath || !existsSync(file)) continue;
+    const blocks = readFileSync(file);
+    for (let i = 0; i + 1 < blocks.length; i += 2) {
+      const block = blocks.readUInt16LE(i);
+      const metatile = block & 0x3ff;
+      count(metatile < 512 ? primary : secondary, metatile < 512 ? metatile : metatile - 512, Boolean(block & 0xc00));
+    }
   }
+  //What each tile does: blocked (1), walkable (0) or never used in a map (-1), its DreamMist behavior, and tall grass
+  const rules = (name: string, folder: string, total: number) => {
+    const attributes = readFileSync(join(folder, "metatile_attributes.bin"));
+    const seen = usage.get(name) ?? new Map();
+    const solid = [] as number[],
+      behavior = [] as number[],
+      grass = [] as number[];
+    for (let m = 0; m < total; m++) {
+      const mb = names[m * 2 + 1 < attributes.length ? attributes.readUInt16LE(m * 2) & 0xff : 0];
+      const [walk, block] = seen.get(m) ?? [0, 0];
+      const value = dreammist(mb);
+      behavior.push(value);
+      //Deep water is walkable in the game's collision (surfing is its behavior's job): DreamMist blocks it and lets surfers through
+      solid.push(value === 5 || mb === "MB_WATERFALL" ? 1 : walk + block ? (block > walk ? 1 : 0) : -1);
+      grass.push(mb === "MB_TALL_GRASS" || mb === "MB_LONG_GRASS" ? 1 : 0);
+    }
+    return { solid, behavior, grass };
+  };
   const load = (kind: "primary" | "secondary", name: string) => {
     const folder = join(root, kind, name);
     return {
@@ -314,6 +448,10 @@ function tilesets(out: string) {
   };
   const index = [] as { name: string; file: string; kind: string; count: number }[];
   const render = (name: string, kind: "primary" | "secondary", own: ReturnType<typeof load>, primary: ReturnType<typeof load>) => {
+    writeFileSync(
+      join(out, "tilesets/emerald", `${kind === "primary" ? "primary-" : ""}${name}.json`),
+      JSON.stringify(rules(name, join(root, kind, name), own.metatiles.length / 16)),
+    );
     const count = own.metatiles.length / 16;
     const rows = Math.ceil(count / 8);
     const { png, set } = canvas(8 * 16, rows * 16);
@@ -358,6 +496,7 @@ export function pret(out: string, log: (text: string) => void) {
   clone(log);
   log("drawing battle backgrounds");
   battles(out);
+  log(`exported ${animations(out)} attack animation sprites`);
   log(`packed ${people(out)} overworld people`);
   log(`drew ${tilesets(out)} tilesets`);
 }

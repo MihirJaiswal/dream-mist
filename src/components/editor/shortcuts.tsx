@@ -1,7 +1,7 @@
 "use client";
 
 import { openDialog } from "@/components/editor/dialogs";
-import { journalDialog, wildDialog } from "@/components/editor/trainer-dialogs";
+import { journalDialog, townMap, wildDialog } from "@/components/editor/trainer-dialogs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { session } from "@/game/session";
 import { useEffect } from "react";
@@ -84,6 +84,8 @@ export const shortcuts = [
       ["Space, Enter, Z, E", "Talk, read, continue"],
       ["J", "Open the Journal"],
       ["N", "See the wild Pokémon living on this map"],
+      ["M", "Open the Town Map"],
+      ["V", "Use the VS Seeker (trainers you beat want a rematch)"],
       ["1 to 4", "Pick a battle option"],
     ],
   },
@@ -154,6 +156,11 @@ export function useAppShortcuts({ onPanels }: { onPanels: () => void }) {
       if (key === "j" && !typing && !command && session.ready && session.mode === "play" && !document.querySelector("[role=dialog], [role=alertdialog]")) {
         event.preventDefault();
         void journalDialog();
+        return;
+      }
+      if (key === "m" && !typing && !command && session.ready && session.mode === "play" && !document.querySelector("[role=dialog], [role=alertdialog]")) {
+        event.preventDefault();
+        void townMap();
         return;
       }
       if (key === "n" && !typing && !command && session.ready && session.mode === "play" && !document.querySelector("[role=dialog], [role=alertdialog]")) {

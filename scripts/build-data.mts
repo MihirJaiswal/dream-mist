@@ -404,9 +404,35 @@ function pokedex({ force = false }) {
     return undefined;
   };
 
+  //More of what a move does: hits several times, drains or recoils (percent of the damage dealt), heals (percent of max HP),
+  //makes the target flinch, lands critical hits more often, or protects the user for the turn
+  const extrasOf = (data: Json) => {
+    const meta = data.meta ?? {};
+    return {
+      ...(meta.min_hits ? { hits: [meta.min_hits, meta.max_hits ?? meta.min_hits] } : {}),
+      ...(meta.drain ? { drain: meta.drain } : {}),
+      ...(meta.healing > 0 && data.damage_class.name === "status" ? { heal: meta.healing } : {}),
+      ...(meta.flinch_chance ? { flinch: meta.flinch_chance } : {}),
+      ...(meta.crit_rate ? { crit: meta.crit_rate } : {}),
+      ...(["protect", "detect"].includes(data.name) ? { protect: true } : {}),
+      ...(data.target?.name === "all-opponents" ? { spread: "foes" } : data.target?.name === "all-other-pokemon" ? { spread: "all" } : {}),
+    };
+  };
+
   //Creatures and their level-up moves (damaging moves, and status moves battles know how to play)
   const moves = {} as {
-    [name: string]: { name: string; type: string; power: number; accuracy: number; pp: number; class: string; priority: number; effect?: Json };
+    [name: string]: {
+      name: string;
+      type: string;
+      power: number;
+      accuracy: number;
+      pp: number;
+      class: string;
+      priority: number;
+      effect?: Json;
+      heal?: number;
+      protect?: boolean;
+    };
   };
   //Abilities: English name and a one-line description of each one a Pokémon can have
   const abilities = {} as { [key: string]: { name: string; about: string } };
@@ -448,9 +474,10 @@ function pokedex({ force = false }) {
           class: data.damage_class.name,
           priority: data.priority ?? 0,
           ...(effect ? { effect } : {}),
+          ...extrasOf(data),
         };
       }
-      if (moves[name].power > 0 || moves[name].effect) {
+      if (moves[name].power > 0 || moves[name].effect || moves[name].heal || moves[name].protect) {
         learnset.push([detail.level_learned_at, name]);
       }
     }

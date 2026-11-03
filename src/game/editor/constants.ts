@@ -62,17 +62,22 @@ export const templates = [
 export type Template = (typeof templates)[number]["key"];
 
 /** What can be placed on the People layer */
-export type Kind = "person" | "pokemon" | "sign" | "item";
+export type Kind = "person" | "pokemon" | "sign" | "item" | "obstacle";
 export const kinds = {
   person: { label: "Person", title: "Villagers, trainers and nurses", hint: "Click an empty tile to add a person." },
   pokemon: { label: "Pokémon", title: "A Pokémon to talk to or battle", hint: "Click an empty tile to place a Pokémon. Pick which one after." },
   sign: { label: "Sign", title: "A sign visitors can read", hint: "Click a tile to put up a sign. A sign post is drawn there if the tile is empty." },
   item: { label: "Item", title: "An item ball, or an item hidden on the ground", hint: "Click an empty tile to drop an item ball." },
+  obstacle: {
+    label: "Obstacle",
+    title: "A tree to Cut, a rock to Rock Smash or a boulder to push with Strength",
+    hint: "Click a tile to put a tree that can be cut. Pick a rock or a boulder after.",
+  },
 } as const;
 
 /** Kind of someone on the map */
 export function kindOf(npc: Npc): Kind {
-  return npc.role === "item" ? "item" : npc.creature ? "pokemon" : npc.sprite ? "person" : "sign";
+  return npc.role === "obstacle" ? "obstacle" : npc.role === "item" ? "item" : npc.creature ? "pokemon" : npc.sprite ? "person" : "sign";
 }
 
 /** Turn someone into another kind, keeping where they stand and their story */
@@ -85,7 +90,12 @@ export function convert(npc: Npc, kind: Kind, city: string) {
   if (npc.role === "item") {
     delete npc.gift;
   }
-  if (kind === "item") {
+  delete npc.field;
+  if (kind === "obstacle") {
+    Object.assign(npc, { sprite: "", name: "", dialogue: "", role: "obstacle", wander: false, field: "cut" });
+    delete npc.path;
+    delete npc.script;
+  } else if (kind === "item") {
     Object.assign(npc, { sprite: "", name: "", dialogue: "", role: "item", wander: false, gift: { item: "potion", count: 1 } });
     delete npc.path;
     delete npc.script;

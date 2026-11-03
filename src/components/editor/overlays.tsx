@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { artwork, battleSprite, npc as texture, preview } from "@/game/assets";
 import { CanvasView } from "@/components/editor/widgets";
 import { scaleOf } from "@/game/sprites";
-import { Battle, type BattleSide, statusLabels } from "@/game/battle";
+import { Battle, type BattleSide, type BattleView, type Slot, statusLabels } from "@/game/battle";
 import { hour } from "@/game/atmosphere";
 import { cloud } from "@/game/cloud";
 import { autoScene, type Scene, sceneOf, scenePicture, typeOf } from "@/game/data";
@@ -15,12 +15,12 @@ import type { Banner, Portrait } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Eyedropper, Users } from "@phosphor-icons/react";
-import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 //=================================================================================================
 // Dialogue box
 
-type Line = { text: string; speaker: string; portrait?: Portrait; done: () => void };
+type Line = { text: string; speaker: string; portrait?: Portrait; choices?: string[]; done: (choice: number) => void };
 let queue = [] as Line[];
 const lineListeners = new Set<() => void>();
 const emitLines = () => lineListeners.forEach((listener) => listener());
@@ -28,7 +28,20 @@ const emitLines = () => lineListeners.forEach((listener) => listener());
 /** Show a dialogue (blank lines split pages), resolves when the player dismisses the last page */
 export function say(text: string, { speaker = "", portrait }: { speaker?: string; portrait?: Portrait } = {}) {
   return new Promise<void>((done) => {
-    queue = [...queue, { text, speaker, portrait, done }];
+    queue = [...queue, { text, speaker, portrait, done: () => done() }];
+    emitLines();
+  });
+}
+
+/** Ask a question in the dialogue box: YES/NO appears with its last page, resolves with the answer */
+export function ask(text: string, voice: { speaker?: string; portrait?: Portrait } = {}) {
+  return choose(text, ["YES", "NO"], voice).then((choice) => choice === 0);
+}
+
+/** Pick one of a few answers in the dialogue box (X picks the last one, like CANCEL), resolves with its index */
+export function choose(text: string, choices: string[], { speaker = "", portrait }: { speaker?: string; portrait?: Portrait } = {}) {
+  return new Promise<number>((done) => {
+    queue = [...queue, { text, speaker, portrait, choices, done }];
     emitLines();
   });
 }
@@ -70,12 +83,14 @@ export function DialogueBox() {
     : [];
   const [page, setPage] = useState(0);
   const [shown, setShown] = useState(0);
+  const [choice, setChoice] = useState(0);
   //Start over on a new line, and type again on a new page
   const [at, setAt] = useState<{ line?: Line; page: number }>({ page: 0 });
   if (at.line !== line) {
     setAt({ line, page: 0 });
     setPage(0);
     setShown(0);
+    setChoice(0);
   } else if (at.page !== page) {
     setAt({ line, page });
     setShown(0);
@@ -85,8 +100,9 @@ export function DialogueBox() {
     const timer = setInterval(() => setShown((count) => (count >= text.length ? (clearInterval(timer), count) : count + 1)), 18);
     return () => clearInterval(timer);
   }, [text, line, page]);
-  //Continue: finish typing, then next page, then close
-  const advance = () => {
+  const asking = Boolean(line?.choices) && page === pages.length - 1 && shown >= text.length;
+  //Continue: finish typing, then next page, then close (with the picked answer on a question)
+  const advance = (picked = choice) => {
     if (!line) {
       return;
     }
@@ -98,10 +114,20 @@ export function DialogueBox() {
     }
     queue = queue.slice(1);
     emitLines();
-    line.done();
+    line.done(picked);
   };
   const onKey = useEffectEvent((event: KeyboardEvent) => {
-    if ([" ", "enter", "z", "e"].includes(event.key.toLowerCase()) && !event.repeat) {
+    const key = event.key.toLowerCase();
+    //Questions: up and down move between the answers, X or Escape answers the last one (NO)
+    if (asking && line?.choices && ["arrowup", "arrowdown", "w", "s", "x", "escape"].includes(key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (key === "x" || key === "escape") {
+        return advance(line.choices.length - 1);
+      }
+      return setChoice((current) => (current + (key === "arrowdown" || key === "s" ? 1 : line.choices!.length - 1)) % line.choices!.length);
+    }
+    if ([" ", "enter", "z", "e"].includes(key) && !event.repeat) {
       event.preventDefault();
       event.stopPropagation();
       advance();
@@ -120,7 +146,23 @@ export function DialogueBox() {
   }
   const typing = shown < text.length;
   return (
-    <div className="game-dialogue" role="dialog" aria-live="polite" aria-label={line.speaker || "Message"} onClick={advance}>
+    <div className="game-dialogue" role="dialog" aria-live="polite" aria-label={line.speaker || "Message"} onClick={() => !asking && advance()}>
+      {asking ? (
+        <div className="choices" role="listbox" aria-label="Answer">
+          {line.choices!.map((label, i) => (
+            <button
+              key={label}
+              role="option"
+              aria-selected={i === choice}
+              className={cn(i === choice && "picked")}
+              onMouseEnter={() => setChoice(i)}
+              onClick={(event) => (event.stopPropagation(), advance(i))}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {line.portrait ? <img key={line.portrait.src} className={cn("portrait", line.portrait.kind)} src={line.portrait.src} alt="" draggable={false} /> : null}
       <div className="box">
         {line.speaker ? <div className="speaker">{line.speaker}</div> : null}
@@ -131,7 +173,7 @@ export function DialogueBox() {
             {text.slice(shown)}
           </span>
         </div>
-        {typing ? null : <div className={cn("next", page < pages.length - 1 ? "more" : "end")} aria-hidden="true" />}
+        {typing || asking ? null : <div className={cn("next", page < pages.length - 1 ? "more" : "end")} aria-hidden="true" />}
       </div>
     </div>
   );
@@ -165,13 +207,13 @@ function Scene({ overlays, picture, scene }: { overlays: string[]; picture: stri
 }
 
 /** Info box: name, level, condition, HP (and experience for your Pokémon) */
-function Info({ view, foe }: { view: BattleSide; foe: boolean }) {
+function Info({ view, foe, slot }: { view: BattleSide; foe: boolean; slot: Slot }) {
   const creature = view.creature;
   const ratio = Math.max(0, creature.hp) / hp(creature);
   const start = creature.level ** 3,
     end = (creature.level + 1) ** 3;
   return (
-    <div className={cn("infobox", foe ? "foe" : "ally")} style={{ visibility: view.info ? "visible" : "hidden" }}>
+    <div className={cn("infobox", foe ? "foe" : "ally", slot)} style={{ visibility: view.info ? "visible" : "hidden" }}>
       <div className="card">
         <div className="row">
           <b>
@@ -210,14 +252,14 @@ function Info({ view, foe }: { view: BattleSide; foe: boolean }) {
 }
 
 /** A Pokémon standing on its platform: animated battle sprite at a whole-pixel size, the still artwork if it can't load */
-function Side({ side, view, foe }: { side: "ally" | "foe"; view: BattleSide; foe: boolean }) {
+function Side({ side, view, foe }: { side: Slot; view: BattleSide; foe: boolean }) {
   const creature = view.creature;
   const sprite = battleSprite(creature.species, { back: !foe, shiny: creature.shiny });
   const [failed, setFailed] = useState("");
   const custom = Boolean(creature.art);
   const still = custom || failed === sprite.src;
   return (
-    <div className={`side ${side}`}>
+    <div className={`side ${foe ? "foe" : "ally"}`} data-slot={side}>
       <div className="platform" />
       <div className="stand">
         <img
@@ -230,6 +272,123 @@ function Side({ side, view, foe }: { side: "ally" | "foe"; view: BattleSide; foe
           style={{ scale: custom && !foe ? "-1 1" : undefined }}
         />
       </div>
+    </div>
+  );
+}
+
+/** Gen 3 animation sprites of each type: one that flies at the target, one that bursts on it */
+const typeSprites: Record<string, { fly: string; burst: string }> = {
+  normal: { fly: "yellow_star", burst: "hit" },
+  fire: { fly: "small_ember", burst: "fire" },
+  water: { fly: "water_orb", burst: "bubble" },
+  electric: { fly: "spark_0", burst: "lightning" },
+  grass: { fly: "razor_leaf", burst: "leaf" },
+  ice: { fly: "ice_crystals_0", burst: "ice_chunk" },
+  fighting: { fly: "punch_impact", burst: "punch_impact" },
+  poison: { fly: "poison_bubble", burst: "poison_bubble" },
+  ground: { fly: "flying_dirt", burst: "rocks" },
+  flying: { fly: "white_feather", burst: "gust" },
+  psychic: { fly: "spiral", burst: "spiral" },
+  bug: { fly: "needle", burst: "hit" },
+  rock: { fly: "rocks", burst: "rocks" },
+  ghost: { fly: "shadow_ball", burst: "shadow_ball" },
+  dragon: { fly: "blue_flames", burst: "blue_flames" },
+  dark: { fly: "purple_scratch", burst: "purple_scratch" },
+  steel: { fly: "metal_ball", burst: "impact" },
+  fairy: { fly: "pink_heart_2", burst: "sparkle_1" },
+};
+
+/** Frame size and count of each animation sprite (loaded once) */
+let animFrames: Record<string, { size: number; frames: number }> = {};
+const animIndex =
+  typeof window === "undefined"
+    ? null
+    : fetch("/game/battle/anims/index.json")
+        .then((response) => response.json())
+        .then(
+          (index) => (animFrames = index),
+          () => ({}),
+        );
+
+/** One animation sprite: its frames play while it moves (positions in pixels of the stage) */
+function Sprite({
+  name,
+  className,
+  from,
+  to,
+  delay = 0,
+  scale = 3,
+}: {
+  name: string;
+  className: string;
+  from: { x: number; y: number };
+  to?: { x: number; y: number };
+  delay?: number;
+  scale?: number;
+}) {
+  const { size = 32, frames = 1 } = animFrames[name] ?? {};
+  return (
+    <div
+      className={cn("fx", className)}
+      style={
+        {
+          "--x0": `${from.x}px`,
+          "--y0": `${from.y}px`,
+          "--x1": `${(to ?? from).x}px`,
+          "--y1": `${(to ?? from).y}px`,
+          "--size": `${size * scale}px`,
+          "--frames": frames,
+          "--sheet": `${size * scale * frames}px`,
+          animationDelay: `${delay}ms, ${delay}ms`,
+          backgroundImage: `url("/game/battle/anims/${name}.png")`,
+        } as React.CSSProperties
+      }
+    />
+  );
+}
+
+/** Attack animation over the stage: projectiles flying at the target, an impact on it, or a glow around the user */
+function Attack({ anim }: { anim: NonNullable<BattleView["anim"]> }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [spots, setSpots] = useState<null | { user: { x: number; y: number }; target: { x: number; y: number } }>(null);
+  const [, ready] = useState(0);
+  useLayoutEffect(() => {
+    const layer = ref.current;
+    const stage = layer?.parentElement?.querySelector(".stage");
+    const box = stage?.getBoundingClientRect();
+    const center = (slot: string) => {
+      const rect = stage?.querySelector(`.side[data-slot="${slot}"] .mon`)?.getBoundingClientRect();
+      return rect && box ? { x: rect.left - box.left + rect.width / 2, y: rect.top - box.top + rect.height / 2 } : { x: 0, y: 0 };
+    };
+    setSpots({ user: center(anim.from), target: center(anim.to) });
+    void animIndex?.then(() => ready((n) => n + 1));
+  }, [anim]);
+  const sprites = typeSprites[anim.type] ?? typeSprites.normal;
+  return (
+    <div ref={ref} className="fx-layer" aria-hidden="true">
+      {spots ? (
+        anim.mode === "self" ? (
+          anim.protect ? (
+            <Sprite name="protect" className="glow" from={spots.user} scale={4} />
+          ) : (
+            [0, 1, 2].map((i) => (
+              <Sprite key={i} name="sparkle_1" className="glow" from={{ x: spots.user.x + (i - 1) * 34, y: spots.user.y - (i % 2) * 26 }} delay={i * 90} />
+            ))
+          )
+        ) : anim.mode === "projectile" ? (
+          <>
+            {[0, 1, 2].map((i) => (
+              <Sprite key={i} name={sprites.fly} className="fly" from={spots.user} to={spots.target} delay={i * 70} />
+            ))}
+            <Sprite name={sprites.burst} className="burst" from={spots.target} delay={330} />
+          </>
+        ) : (
+          <>
+            <Sprite name="impact" className="burst" from={spots.target} scale={3} />
+            <Sprite name={sprites.burst} className="burst" from={{ x: spots.target.x + 10, y: spots.target.y - 8 }} delay={90} />
+          </>
+        )
+      ) : null}
     </div>
   );
 }
@@ -262,13 +421,20 @@ export function BattleScreen() {
   return (
     <div className={cn("battle", view.phase === "intro" && "intro", view.phase === "outro" && "outro")}>
       <div className="flash" />
-      <div className={cn("stage", scene ? "gen3" : background.platforms ? "picture" : "bare")} style={{ ["--tint" as string]: tint }}>
+      <div
+        className={cn("stage", scene ? "gen3" : background.platforms ? "picture" : "bare", battle.double && "double")}
+        style={{ ["--tint" as string]: tint }}
+      >
         <Scene overlays={overlays} picture={background.image} scene={scene} />
         <div className="arena">
           <Side side="foe" view={view.foe} foe />
+          {view.foe2 ? <Side side="foe2" view={view.foe2} foe /> : null}
           <Side side="ally" view={view.ally} foe={false} />
-          <Info view={view.foe} foe />
-          <Info view={view.ally} foe={false} />
+          {view.ally2 ? <Side side="ally2" view={view.ally2} foe={false} /> : null}
+          <Info view={view.foe} foe slot="foe" />
+          {view.foe2 ? <Info view={view.foe2} foe slot="foe2" /> : null}
+          <Info view={view.ally} foe={false} slot="ally" />
+          {view.ally2 ? <Info view={view.ally2} foe={false} slot="ally2" /> : null}
           {view.slide ? (
             <div key={view.slide.key} className="slide" aria-hidden="true">
               <CanvasView make={() => preview(texture(view.slide!.sprite, "down"), 6 * scaleOf(view.slide!.sprite))} deps={[view.slide.sprite]} />
@@ -293,7 +459,7 @@ export function BattleScreen() {
           ))}
         </div>
       </div>
-      {view.orb ? <div key={view.orb.key} className={`orb from-${view.orb.from}`} style={{ ["--accent" as string]: view.orb.color }} /> : null}
+      {view.anim ? <Attack key={view.anim.key} anim={view.anim} /> : null}
       {view.ball ? <div key={view.ball.key} className={`pokeball ${view.ball.state}`} /> : null}
     </div>
   );

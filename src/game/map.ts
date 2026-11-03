@@ -32,6 +32,73 @@ export function drawBall(graphic: PIXI.Graphics, cx: number, cy: number, hidden 
   return graphic;
 }
 
+/** Berry colors by item (red for any other) */
+const berryColors: Record<string, number> = { "oran-berry": 0x3878e8, "sitrus-berry": 0xf0d038, "lum-berry": 0x58c858 };
+
+/** Draw a berry tree standing on a tile (its berries show when ripe) */
+export function drawTree(graphic: PIXI.Graphics, x: number, y: number, ripe: boolean, item = "") {
+  const color = berryColors[item] ?? 0xe04848;
+  graphic
+    .beginFill(0x000000, 0.18)
+    .drawEllipse(x + 8, y + 15, 6, 2)
+    .endFill()
+    .beginFill(0x7a5030)
+    .drawRect(x + 7, y + 8, 2, 7)
+    .endFill()
+    .lineStyle({ width: 1, color: 0x205828, native: true })
+    .beginFill(0x48a048)
+    .drawCircle(x + 8, y + 6, 5.5)
+    .endFill()
+    .lineStyle(0)
+    .beginFill(0x70c060)
+    .drawCircle(x + 6.5, y + 4.5, 2)
+    .endFill();
+  if (ripe) {
+    for (const [dx, dy] of [
+      [4, 7],
+      [11, 5],
+      [8, 10],
+      [10, 9],
+    ]) {
+      graphic
+        .lineStyle({ width: 1, color: 0x202020, alpha: 0.5, native: true })
+        .beginFill(color)
+        .drawCircle(x + dx, y + dy, 1.6)
+        .endFill()
+        .lineStyle(0);
+    }
+  }
+  return graphic;
+}
+
+/** Raid den: a ring of rocks around a glowing hole (16x16 at x, y) */
+export function drawDen(graphic: PIXI.Graphics, x: number, y: number) {
+  graphic
+    .beginFill(0xe0306a, 0.25)
+    .drawEllipse(x + 8, y + 11, 9, 5)
+    .endFill()
+    .lineStyle({ width: 2, color: 0x6a5a5a })
+    .beginFill(0x301828)
+    .drawEllipse(x + 8, y + 11, 7, 3.5)
+    .endFill()
+    .lineStyle(0)
+    .beginFill(0xff5a8a, 0.8)
+    .drawEllipse(x + 8, y + 11, 4, 1.8)
+    .endFill();
+  for (const [dx, dy] of [
+    [1, 10],
+    [15, 10],
+    [4, 14],
+    [12, 14],
+  ]) {
+    graphic
+      .beginFill(0x8a7a70)
+      .drawCircle(x + dx, y + dy, 1.5)
+      .endFill();
+  }
+  return graphic;
+}
+
 /** Pointer callback */
 export type PointerHandler = (type: "down" | "move" | "up", tile: { x: number; y: number }, event: PointerEvent) => void;
 

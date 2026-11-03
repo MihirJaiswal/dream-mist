@@ -5,7 +5,7 @@ import { bring, confirm, guestName, signIn } from "@/components/editor/account-d
 import { importSprite, importTileset } from "@/components/editor/city-dialogs";
 import { DialogHost } from "@/components/editor/dialogs";
 import { useSession } from "@/components/editor/hooks";
-import { banner, BattleScreen, DialogueBox, Fade, Gamepad, hush, MapBanner, QuestBanner, SaveNudge, say } from "@/components/editor/overlays";
+import { ask, banner, BattleScreen, choose, DialogueBox, Fade, Gamepad, hush, MapBanner, QuestBanner, SaveNudge, say } from "@/components/editor/overlays";
 import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
@@ -46,6 +46,8 @@ export function EditorApp() {
     installUi({
       toast: (text, type = "info") => toast[type](text),
       say,
+      ask,
+      choose,
       hush,
       shop,
       banner,

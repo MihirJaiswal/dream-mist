@@ -7,7 +7,8 @@ import { publish, share } from "@/components/editor/share-dialogs";
 import { shortcutsSheet } from "@/components/editor/shortcuts";
 import { timeline } from "@/components/editor/story-timeline";
 import { startTour } from "@/components/editor/tour";
-import { journalDialog, wildDialog } from "@/components/editor/trainer-dialogs";
+import { journalDialog, townMap, wildDialog } from "@/components/editor/trainer-dialogs";
+import { wildIndex } from "@/components/editor/zones-panel";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut } from "@/components/ui/command";
 import { species } from "@/game/assets";
 import { brushes, terrains } from "@/game/brushes";
@@ -28,6 +29,7 @@ import {
   GridFour,
   Image as ImageIcon,
   Keyboard,
+  MagnifyingGlass,
   MapTrifold,
   Notebook,
   PaintBrush,
@@ -107,12 +109,16 @@ export function CommandPalette() {
           {building ? item("redo", "Redo", <ArrowArcRight />, () => editor.redo(), "⇧⌘Z") : null}
           {building ? item("grid", "Show or hide the grid", <GridFour />, () => editor.toggleGrid(), "G") : null}
           {session.mode === "play" ? item("journal", "Journal", <Notebook />, () => journalDialog(), "J", ["quests", "story", "objective"]) : null}
+          {session.mode === "play" ? item("town-map", "Town Map", <MapTrifold />, () => townMap(), "M", ["map", "where", "region"]) : null}
           {session.mode === "play" ? item("wild", "Pokémon here", <PawPrint />, () => wildDialog(), "N", ["dexnav", "wild", "encounters", "fishing"]) : null}
           {building ? item("region", "Region map", <GlobeHemisphereWest />, () => regionMap(), undefined, ["routes", "towns", "world", "connect"]) : null}
           {building ? item("route", "New route", <Path />, () => addOutdoor("route"), undefined, ["map", "outdoor", "road"]) : null}
           {building ? item("town", "New town", <MapTrifold />, () => addOutdoor("town"), undefined, ["map", "outdoor", "city"]) : null}
           {building ? item("timeline", "Story timeline", <TreeStructure />, () => timeline(editor), undefined, ["quests", "side quest", "main story"]) : null}
           {item("center", "Fit the map on screen", <Crosshair />, () => session.map.fit(), "0", ["center", "zoom"])}
+          {session.mode === "edit"
+            ? item("wild-index", "Where Pokémon live", <MagnifyingGlass />, () => wildIndex(), undefined, ["encounters", "wild", "find", "species"])
+            : null}
           {building ? item("share", "Share or invite friends", <ShareNetwork />, () => share(), undefined, ["link", "room", "live"]) : null}
           {building ? item("publish", "Publish on Explore", <Export />, () => publish()) : null}
           {item("new", "New city", <Plus />, () => newCity())}

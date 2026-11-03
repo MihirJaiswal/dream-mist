@@ -2,15 +2,19 @@
 
 import { useEditor } from "@/components/editor/hooks";
 import { SpeciesInput } from "@/components/editor/pokemon-picker";
-import { Hint, NumberInput, TextInput, Tip, useDraft } from "@/components/editor/widgets";
+import { CanvasView, Hint, NumberInput, TextInput, Tip, useDraft } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { assets } from "@/game/assets";
+import { assets, portrait, species } from "@/game/assets";
 import type { Wild, Zone } from "@/game/data";
-import { methodOf } from "@/game/encounters";
+import { type Habitat, habitats, methodOf } from "@/game/encounters";
+import { openDialog } from "@/components/editor/dialogs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { session } from "@/game/session";
+import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Plus, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 
 /** Encounter rate slider (saves when released) */
 function Rate({ zone, onCommit }: { zone: Zone; onCommit: (rate: number) => void }) {
@@ -100,6 +104,71 @@ function Creature({ zone, creature }: { zone: Zone; creature: Wild }) {
   );
 }
 
+/** Where every wild Pokémon of the town lives: open the list, filter by Pokémon, jump to a place */
+export function wildIndex() {
+  return openDialog<void>((close) => <WildIndex close={close} />);
+}
+
+function WildIndex({ close }: { close: () => void }) {
+  const editor = useEditor();
+  const [only, setOnly] = useState(0);
+  const all = habitats(editor.world);
+  const ids = [...new Set(all.map(({ wild }) => wild.species))].filter((id) => !only || id === only).sort((a, b) => a - b);
+  const methods = { walk: "walking", surf: "surfing", fish: "fishing" };
+  const times = { morning: "mornings", day: "daytime", night: "nights" };
+  const jump = ({ map, zone }: Habitat) => {
+    close();
+    session.openArea(map === editor.world ? "" : map.id);
+    session.editor.select("zone");
+    session.editor.setZone(zone + 1);
+    const at = map.zone.indexOf(zone + 1);
+    if (at >= 0) session.map.center((at % map.width) + 0.5, Math.floor(at / map.width) + 0.5);
+  };
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Where Pokémon live</DialogTitle>
+          <DialogDescription>Every wild Pokémon of the town and the maps it lives on. Click a place to go paint there.</DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center gap-2">
+          <SpeciesInput value={only} onChange={setOnly} />
+          {only ? (
+            <Button variant="ghost" size="sm" onClick={() => setOnly(0)}>
+              Show all
+            </Button>
+          ) : null}
+        </div>
+        {ids.length ? null : <Hint>{only ? "This Pokémon doesn't live anywhere in the town yet." : "No wild Pokémon yet: paint an encounter zone."}</Hint>}
+        <ul className="grid gap-2">
+          {ids.map((id) => (
+            <li key={id} className="grid gap-1 rounded-lg border border-border bg-card p-2">
+              <span className="flex items-center gap-2">
+                <CanvasView className="h-[30px] w-[34px] shrink-0 overflow-hidden" make={() => portrait(id, 1)} deps={[id]} />
+                <b className="text-sm">{species(id)?.name ?? `#${id}`}</b>
+              </span>
+              <span className="flex flex-wrap gap-1">
+                {all
+                  .filter(({ wild }) => wild.species === id)
+                  .map((place, i) => (
+                    <button
+                      key={i}
+                      onClick={() => jump(place)}
+                      className="rounded-md border border-border px-2 py-0.5 text-left text-[11px] text-muted-foreground hover:border-ring hover:text-foreground"
+                    >
+                      {place.map === editor.world ? "Outside" : place.map.name} · {methods[methodOf(place.wild)]} · Lv {place.wild.min}–{place.wild.max}
+                      {place.wild.time ? ` · ${times[place.wild.time]}` : ""}
+                    </button>
+                  ))}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Encounter zones: pick a zone, paint where it applies, and choose its Pokémon */
 export function ZonesPanel() {
   const editor = useEditor();
@@ -167,6 +236,10 @@ export function ZonesPanel() {
       <Button variant="outline" size="sm" onClick={() => editor.addZone()}>
         <Plus />
         New zone
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => wildIndex()}>
+        <MagnifyingGlass />
+        Where Pokémon live
       </Button>
     </div>
   );

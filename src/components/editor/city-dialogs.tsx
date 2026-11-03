@@ -25,6 +25,7 @@ import {
   Image as ImageIcon,
   Moon,
   MusicNotes,
+  PawPrint,
   Plus,
   Sparkle,
   Stack,
@@ -505,6 +506,14 @@ function BattleRules({ update }: { update: () => void }) {
         Level caps are the highest level with 0 badges, then 1 badge, and so on (badges of this town). Pokémon at the cap stop gaining experience until the next
         badge. Leave empty for no caps.
       </Hint>
+      <label className="flex cursor-pointer items-center gap-3 rounded-md border border-border p-2.5">
+        <PawPrint size={16} />
+        <div className="min-w-0 flex-1">
+          <b className="block text-sm">Pokémon follow the player</b>
+          <small className="text-xs text-subtle-fg">The lead Pokémon walks one tile behind, like in HeartGold and SoulSilver</small>
+        </div>
+        <Switch checked={rules.followers !== false} onCheckedChange={(on) => (session.setRules({ followers: on ? undefined : false }), update())} />
+      </label>
     </section>
   );
 }

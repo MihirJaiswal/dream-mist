@@ -27,6 +27,8 @@ export type Creature = {
   ability?: string;
   /** Item held in battle */
   held?: ItemId;
+  /** Raid boss: its HP is multiplied (only while the raid lasts) */
+  boss?: number;
 };
 
 /** Trainer profile (shared across all visited cities) */
@@ -49,6 +51,18 @@ export type Trainer = {
   /** People who already gave their gift, or already walked up to talk ("city id:npc index") */
   received?: string[];
   met?: string[];
+  /** Steps walked in all (the VS Seeker recharges with steps, and Day Care Pokémon grow with them) */
+  steps?: number;
+  /** VS Seeker: the step it was last used at, trainers ready for a rematch, and how many rematches each has had ("city id:npc index") */
+  seeker?: number;
+  ready?: string[];
+  rematches?: Record<string, number>;
+  /** Berry trees: when each was last picked (timestamps, "city id:npc index") */
+  picked?: Record<string, number>;
+  /** Raid dens: when each was last beaten (timestamps, "city id:npc index") */
+  raids?: Record<string, number>;
+  /** Pokémon left at the Day Care, and the step count when it was left */
+  daycare?: { creature: Creature; steps: number };
 };
 
 /** Bring an older saved trainer up to date (the bag used to count only Poké Balls and Potions) */
@@ -82,7 +96,7 @@ export function stat(creature: Creature, index: number) {
 
 /** Max HP */
 export function hp(creature: Creature) {
-  return stat(creature, 0);
+  return stat(creature, 0) * (creature.boss ?? 1);
 }
 
 /** Experience needed to reach a level (medium fast growth) */

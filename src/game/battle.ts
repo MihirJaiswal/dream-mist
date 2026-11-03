@@ -10,6 +10,16 @@ import type { Weather } from "./atmosphere";
 /** Battle outcome */
 export type Outcome = "win" | "lose" | "run" | "caught";
 
+/** Places on the battlefield: one per side in single battles, two in double battles */
+export type Slot = "ally" | "ally2" | "foe" | "foe2";
+const slots = ["ally", "ally2", "foe", "foe2"] as const;
+
+/** Slots of each side */
+const sides = { ally: ["ally", "ally2"], foe: ["foe", "foe2"] } as const;
+
+/** Side of a slot */
+export const team = (slot: Slot) => (slot.startsWith("ally") ? "ally" : "foe");
+
 /** Opponent trainer */
 export type Opponent = {
   name: string;
@@ -74,6 +84,7 @@ export function trainerRules<T extends { difficulty?: Difficulty; weather?: Batt
     ...(own.weather ? { weather: own.weather === "clear" ? null : own.weather } : {}),
     ...(own.scene ? { scene: own.scene } : {}),
     ...(own.noItems ? { noItems: true } : {}),
+    ...(own.double ? { double: true } : {}),
   };
 }
 
@@ -127,12 +138,13 @@ export function damage(
   attacker: Creature,
   defender: Creature,
   move: Move,
-  { attack: attackBoost = 1, defense: defenseBoost = 1, power = 1, average = false } = {},
+  { attack: attackBoost = 1, defense: defenseBoost = 1, power = 1, average = false, crit = 0 } = {},
 ) {
   const physical = move.class === "physical";
   const attack = stat(attacker, physical ? 1 : 3) * attackBoost,
     defense = stat(defender, physical ? 2 : 4) * defenseBoost;
-  const critical = !average && Math.random() < 1 / 16;
+  //Critical hits: 1 in 16, more often for moves like Slash (1 in 8, 1 in 4…)
+  const critical = !average && Math.random() < [1 / 16, 1 / 8, 1 / 4, 1 / 3, 1 / 2][Math.min(4, crit)];
   const stab = species(attacker.species).types.includes(move.type) ? 1.5 : 1;
   const multiplier = effectiveness(move.type, defender);
   const base = Math.floor(Math.floor((Math.floor((2 * attacker.level) / 5 + 2) * move.power * power * attack) / defense) / 50) + 2;
@@ -155,6 +167,14 @@ export function choose(attacker: Creature, defender: Creature, difficulty: Diffi
     const move = assets.moves[key];
     if (!move || absorbed(move)) {
       return 0;
+    }
+    //Healing when hurt, Protect now and then
+    if (move.heal) {
+      const hurt = attacker.hp * 2 < hp(attacker);
+      return difficulty === "hard" ? (attacker.hp * 5 < hp(attacker) * 2 ? 0.9 : 0) : hurt ? 70 : 0;
+    }
+    if (move.protect) {
+      return difficulty === "hard" ? 0.05 : 15;
     }
     //Status moves now and then: a condition when the target has none, stat changes otherwise
     if (!move.power) {
@@ -214,10 +234,13 @@ export type BattleView = {
   phase: "intro" | "fight" | "outro";
   foe: BattleSide;
   ally: BattleSide;
+  /** Second Pokémon of each side in double battles */
+  foe2: BattleSide | null;
+  ally2: BattleSide | null;
   log: string;
   menu: null | BattleMenu;
-  /** Move projectile flying from one side to the other */
-  orb: null | { from: "ally" | "foe"; color: string; key: number };
+  /** Attack animation: a projectile flying to the target, an impact on it, or a glow around the user */
+  anim: null | { from: Slot; to: Slot; type: string; mode: "contact" | "projectile" | "self"; key: number; protect?: boolean };
   /** Poké Ball thrown at the foe */
   ball: null | { state: "throw" | "shake" | "caught"; key: number };
   /** Opponent trainer sliding in to say something mid-battle */
@@ -273,6 +296,12 @@ export class Battle {
   /** Mid-battle lines already said */
   readonly #said = new Set<string>();
 
+  /** This turn: who already moved, who flinched, who is protected; and how many Protects in a row each used */
+  readonly #moved = new Set<Creature>();
+  readonly #flinched = new Set<Creature>();
+  readonly #protected = new Set<Creature>();
+  readonly #protects = new Map<Creature, number>();
+
   /** Pending menu choice */
   #choose = null as null | ((index: number) => void);
 
@@ -282,9 +311,23 @@ export class Battle {
   /** Opponent trainer (null for wild battles) */
   readonly #opponent: Opponent | null;
 
-  /** Active creatures */
-  #ally: Creature;
-  #foe: Creature;
+  /** Pokémon on the field, by slot (second slots stay empty in single battles) */
+  readonly #field: Record<Slot, Creature | null> = { ally: null, ally2: null, foe: null, foe2: null };
+
+  /** Double battle: two Pokémon on each side */
+  readonly double: boolean;
+
+  /** Raid den being fought (its boss has more HP, and other players in the room hurt it too), and who to tell about the damage dealt */
+  readonly raid: string | null;
+  readonly #onhit: ((damage: number) => void) | null;
+
+  /** First Pokémon of each side (single battles have only them) */
+  get #ally() {
+    return (this.#field.ally ?? this.#field.ally2)!;
+  }
+  get #foe() {
+    return (this.#field.foe ?? this.#field.foe2)!;
+  }
 
   /** Participants that will share experience */
   readonly #participants = new Set<Creature>();
@@ -311,14 +354,24 @@ export class Battle {
     return stat(creature, 5) * stageMultiplier(this.#stage(creature, "speed")) * (creature.status === "paralysis" ? 0.5 : 1) * weather;
   }
 
-  /** Side a creature is on */
-  #side(creature: Creature) {
-    return creature === this.#ally ? "ally" : "foe";
+  /** Slot a creature stands in (its side's first slot when it isn't on the field) */
+  #side(creature: Creature): Slot {
+    return slots.find((slot) => this.#field[slot] === creature) ?? (this.#foes.includes(creature) ? "foe" : "ally");
+  }
+
+  /** Is a creature the player's */
+  #mine(creature: Creature) {
+    return team(this.#side(creature)) === "ally";
+  }
+
+  /** Creatures standing (not fainted) in the slots of a side */
+  #standing(side: "ally" | "foe") {
+    return sides[side].filter((slot) => (this.#field[slot]?.hp ?? 0) > 0) as Slot[];
   }
 
   /** "Foe Zigzagoon", "Wild Zigzagoon" or your own "Treecko" */
   #who(creature: Creature) {
-    return creature === this.#ally ? named(creature) : `${this.#opponent ? "Foe" : "Wild"} ${named(creature)}`;
+    return this.#mine(creature) ? named(creature) : `${this.#opponent ? "Foe" : this.raid ? "Raid boss" : "Wild"} ${named(creature)}`;
   }
 
   /** Constructor */
@@ -329,35 +382,71 @@ export class Battle {
   }: {
     wild?: Creature;
     opponent?: Opponent | null;
-    rules?: { difficulty?: Difficulty; cap?: number; weather?: BattleWeather; water?: boolean; scene?: Scene; noItems?: boolean };
+    rules?: {
+      difficulty?: Difficulty;
+      cap?: number;
+      weather?: BattleWeather;
+      water?: boolean;
+      scene?: Scene;
+      noItems?: boolean;
+      double?: boolean;
+      raid?: { den: string; onhit?: (damage: number) => void };
+    };
   }) {
     this.water = rules.water ?? false;
     this.scene = rules.scene ?? null;
     this.#noItems = rules.noItems ?? false;
+    this.raid = rules.raid?.den ?? null;
+    this.#onhit = rules.raid?.onhit ?? null;
     this.#opponent = opponent;
     this.#difficulty = rules.difficulty ?? "normal";
     this.#cap = rules.cap ?? 100;
     this.#weather = rules.weather ?? null;
     this.#foes = opponent ? opponent.team : [wild!];
-    this.#foe = this.#foes[0];
-    this.#ally = trainer.lead!;
-    const side = (creature: Creature): BattleSide => ({ creature, entered: 0, fx: "", fxKey: 0, info: false });
-    this.view = { phase: "intro", foe: side(this.#foe), ally: side(this.#ally), log: "", menu: null, orb: null, ball: null, slide: null };
+    //Double battles need two Pokémon able to fight on each side (a trainer battle), single ones otherwise
+    const ready = (trainer.profile?.party ?? []).filter(({ hp }) => hp > 0);
+    this.double = Boolean(rules.double && opponent && this.#foes.filter(({ hp }) => hp > 0).length >= 2 && ready.length >= 2);
+    this.#field.foe = this.#foes.find(({ hp }) => hp > 0) ?? this.#foes[0];
+    this.#field.ally = trainer.lead!;
+    if (this.double) {
+      this.#field.foe2 = this.#foes.find((creature) => creature.hp > 0 && creature !== this.#field.foe)!;
+      this.#field.ally2 = ready.find((creature) => creature !== this.#field.ally)!;
+    }
+    const side = (creature: Creature | null): BattleSide | null => (creature ? { creature, entered: 0, fx: "", fxKey: 0, info: false } : null);
+    this.view = {
+      phase: "intro",
+      foe: side(this.#field.foe)!,
+      ally: side(this.#field.ally)!,
+      foe2: side(this.#field.foe2),
+      ally2: side(this.#field.ally2),
+      log: "",
+      menu: null,
+      anim: null,
+      ball: null,
+      slide: null,
+    };
   }
 
-  /** Send a creature out on a side (replays its entrance when animated) */
-  #render(side: "ally" | "foe", animate = false) {
-    const creature = side === "ally" ? this.#ally : this.#foe;
-    const current = this.view[side];
-    this.view[side] = { ...current, creature, fx: "", entered: current.entered + (animate ? 1 : 0), info: true };
+  /** Send a creature out in a slot (replays its entrance when animated) */
+  #render(slot: Slot, animate = false) {
+    const creature = this.#field[slot];
+    const current = this.view[slot];
+    if (!creature) {
+      return;
+    }
+    this.view[slot] = current
+      ? { ...current, creature, fx: "", entered: current.entered + (animate ? 1 : 0), info: true }
+      : { creature, fx: "", entered: 1, fxKey: 0, info: true };
     this.#emit();
   }
 
-  /** Play an animation on a side */
-  #fx(side: "ally" | "foe", fx: BattleSide["fx"]) {
-    const current = this.view[side];
-    this.view[side] = { ...current, fx, fxKey: current.fxKey + 1 };
-    this.#emit();
+  /** Play an animation in a slot */
+  #fx(slot: Slot, fx: BattleSide["fx"]) {
+    const current = this.view[slot];
+    if (current) {
+      this.view[slot] = { ...current, fx, fxKey: current.fxKey + 1 };
+      this.#emit();
+    }
   }
 
   /** Write a message in the battle log, one letter at a time */
@@ -426,29 +515,42 @@ export class Battle {
     Battle.active = this;
     Battle.#announce();
     sound.music("battle");
-    trainer.see(this.#foe.species);
+    for (const slot of ["foe", "foe2"] as const) {
+      if (this.#field[slot]) trainer.see(this.#field[slot]!.species);
+    }
     await wait(900);
     this.view.phase = "fight";
     this.#render("foe", true);
+    this.#render("foe2", true);
     this.view.ally = { ...this.view.ally, info: false };
+    if (this.view.ally2) this.view.ally2 = { ...this.view.ally2, info: false };
+    const pair = (a: Creature | null, b: Creature | null) => (b ? `${named(a!)} and ${named(b)}` : named(a!));
     if (this.#opponent) {
       await this.#say(`${this.#opponent.name} wants to battle!`);
-      await this.#say(`${this.#opponent.name} sent out ${named(this.#foe)}!`, 500);
+      await this.#say(`${this.#opponent.name} sent out ${pair(this.#field.foe, this.#field.foe2)}!`, 500);
+    } else if (this.raid) {
+      await this.#say(`The raid boss ${named(this.#foe)}${this.#foe.shiny ? " (shiny!)" : ""} appeared!`);
     } else {
       await this.#say(`A wild ${named(this.#foe)}${this.#foe.shiny ? " (shiny!)" : ""} appeared!`);
     }
     this.#render("ally", true);
+    this.#render("ally2", true);
     this.#participants.add(this.#ally);
-    await this.#say(`Go! ${named(this.#ally)}!`, 500);
+    if (this.#field.ally2) this.#participants.add(this.#field.ally2);
+    await this.#say(`Go! ${pair(this.#field.ally, this.#field.ally2)}!`, 500);
     if (this.#weather) {
       await this.#say({ rain: "Rain continues to fall.", sandstorm: "The sandstorm rages.", snow: "Snow continues to fall." }[this.#weather], 600);
     }
-    await this.#enter(this.#foe);
-    await this.#enter(this.#ally);
+    for (const slot of ["foe", "foe2", "ally", "ally2"] as const) {
+      if (this.#field[slot]) await this.#enter(this.#field[slot]!);
+    }
 
     let outcome = null as Outcome | null;
     while (!outcome) {
       outcome = await this.#turn();
+    }
+    if (outcome === "win" && this.raid) {
+      outcome = await this.#raidCatch();
     }
     trainer.save();
     await wait(300);
@@ -463,25 +565,86 @@ export class Battle {
 
   /** Play a turn */
   async #turn(): Promise<Outcome | null> {
-    const profile = trainer.profile!;
-    await this.#say(`What will ${named(this.#ally)} do?`, 0);
+    //Other players brought the raid boss down
+    if (this.#raidDown()) {
+      return this.#fainted("foe");
+    }
+    this.#moved.clear();
+    this.#flinched.clear();
+    this.#protected.clear();
+    //The player's Pokémon choose what to do (items, switching and running happen right away), then the opponents
+    const actions = [] as { slot: Slot; who: Creature; move: Move; aim: Slot | null }[];
+    for (const slot of this.#standing("ally")) {
+      const plan = await this.#plan(slot);
+      if (plan === "back") {
+        return null;
+      }
+      if (typeof plan === "string") {
+        return plan;
+      }
+      if (plan) {
+        actions.push(plan);
+      }
+    }
+    if (this.#raidDown()) {
+      return this.#fainted("foe");
+    }
+    for (const slot of this.#standing("foe")) {
+      const who = this.#field[slot]!;
+      const targets = this.#standing("ally");
+      if (!targets.length) {
+        break;
+      }
+      //Hard trainers go for the weakest of the two, the others pick at random
+      const aim =
+        this.#opponent && this.#difficulty === "hard"
+          ? targets.reduce((a, b) => (this.#field[a]!.hp / hp(this.#field[a]!) <= this.#field[b]!.hp / hp(this.#field[b]!) ? a : b))
+          : targets[Math.floor(Math.random() * targets.length)];
+      actions.push({ slot, who, move: this.#pick(who, this.#field[aim]!), aim });
+    }
+    //Higher priority first, then a Quick Claw now and then, then the faster Pokémon (ties go to the player)
+    const claws = new Map(actions.map(({ who }) => [who, who.held === "quick-claw" && Math.random() < 0.2]));
+    actions.sort((a, b) => b.move.priority - a.move.priority || Number(claws.get(b.who)) - Number(claws.get(a.who)) || this.#speed(b.who) - this.#speed(a.who));
+    for (const { slot, who, move, aim } of actions) {
+      //Fainted, or replaced since the turn began: it doesn't act
+      if (this.#field[slot] !== who || who.hp <= 0) {
+        continue;
+      }
+      const outcome = await this.#attack(slot, move, aim);
+      if (outcome) {
+        return outcome;
+      }
+      if (this.#raidDown()) {
+        return this.#fainted("foe");
+      }
+    }
+    //End of the turn: poison and burns, the weather, Leftovers, then abilities
+    for (const slot of slots) {
+      const outcome = await this.#endTurn(slot);
+      if (outcome) {
+        return outcome;
+      }
+    }
+    return null;
+  }
+
+  /** What one of the player's Pokémon does this turn: a move (and its target), nothing more (an item or a switch was used), going back, or the end of the battle */
+  async #plan(slot: Slot): Promise<{ slot: Slot; who: Creature; move: Move; aim: Slot | null } | null | "back" | Outcome> {
+    const me = this.#field[slot]!;
+    await this.#say(`What will ${named(me)} do?`, 0);
     const action = await this.#menu([
       { label: "FIGHT", value: "fight", color: "#e8505a" },
       { label: "BAG", value: "bag", color: "#e0a030", disabled: this.#noItems },
       { label: "POKéMON", value: "party", color: "#58b048" },
       { label: "RUN", value: "run", color: "#4890d8", disabled: Boolean(this.#opponent) },
     ]);
-
-    let move = null as Move | null;
     switch (action) {
       case "fight": {
-        const usable = this.#ally.moves.filter(({ pp }) => pp > 0);
-        if (!usable.length) {
-          move = struggle;
-          break;
+        if (!me.moves.some(({ pp }) => pp > 0)) {
+          return { slot, who: me, move: struggle, aim: this.#standing("foe")[0] ?? null };
         }
         const choice = await this.#menu<number>([
-          ...this.#ally.moves.map(({ key, pp }, i) => {
+          ...me.moves.map(({ key, pp }, i) => {
             const data = assets.moves[key];
             return {
               label: data?.name ?? key,
@@ -494,21 +657,35 @@ export class Battle {
           { label: "Back", value: -1, detail: "" },
         ]);
         if (choice < 0) {
-          return null;
+          return "back";
         }
-        this.#ally.moves[choice].pp--;
-        move = assets.moves[this.#ally.moves[choice].key];
-        break;
+        const move = assets.moves[me.moves[choice].key];
+        //Double battles: moves aimed at one Pokémon need a target
+        let aim = this.#standing("foe")[0] ?? null;
+        const aimed = move.power > 0 || (!move.effect?.self && !move.heal && !move.protect);
+        if (this.double && aimed && !move.spread && this.#standing("foe").length > 1) {
+          const target = await this.#menu<Slot | "back">([
+            ...this.#standing("foe").map((foe) => ({
+              label: this.#who(this.#field[foe]!),
+              value: foe as Slot | "back",
+              detail: `Lv ${this.#field[foe]!.level}`,
+              color: colors[species(this.#field[foe]!.species).types[0]],
+            })),
+            { label: "Back", value: "back", detail: "" },
+          ]);
+          if (target === "back") {
+            return "back";
+          }
+          aim = target;
+        }
+        me.moves[choice].pp--;
+        return { slot, who: me, move, aim };
       }
       case "bag": {
         const bag = trainer.bag;
         const usable = (id: ItemId) => {
           const item = items[id];
-          return item.kind === "ball"
-            ? !this.#opponent
-            : item.kind === "heal"
-              ? this.#ally.hp < hp(this.#ally)
-              : item.kind === "cure" && Boolean(this.#ally.status);
+          return item.kind === "ball" ? !this.#opponent && !this.raid : item.kind === "heal" ? me.hp < hp(me) : item.kind === "cure" && Boolean(me.status);
         };
         const colorOf = { ball: "#f05038", heal: "#a040a0", cure: "#48a8d0", rod: "#909090", hm: "#909090", hold: "#58a858" };
         const choice = await this.#menu<ItemId | "back">([
@@ -522,7 +699,7 @@ export class Battle {
           { label: "Back", value: "back", detail: bag.length ? "" : "Your bag is empty" },
         ]);
         if (choice === "back") {
-          return null;
+          return "back";
         }
         trainer.take(choice);
         const item = items[choice];
@@ -531,77 +708,38 @@ export class Battle {
             return "caught";
           }
         } else if (item.kind === "heal") {
-          this.#ally.hp = Math.min(hp(this.#ally), this.#ally.hp + item.amount);
+          me.hp = Math.min(hp(me), me.hp + item.amount);
           this.#emit();
-          await this.#say(`${named(this.#ally)} recovered some HP.`);
+          await this.#say(`${named(me)} recovered some HP.`);
         } else {
-          cure(this.#ally);
+          cure(me);
           this.#emit();
-          await this.#say(`${named(this.#ally)} is healthy again!`);
+          await this.#say(`${named(me)} is healthy again!`);
         }
-        break;
+        return null;
       }
-      case "party": {
-        const switched = await this.#switch(true);
-        if (!switched) {
-          return null;
-        }
-        break;
-      }
+      case "party":
+        return (await this.#switch(true, slot)) ? null : "back";
       case "run": {
-        const chance = abilityOf(this.#ally) === "run-away" ? 1 : (this.#speed(this.#ally) * 128) / Math.max(1, this.#speed(this.#foe)) / 256 + 0.3;
+        const chance = abilityOf(me) === "run-away" ? 1 : (this.#speed(me) * 128) / Math.max(1, this.#speed(this.#foe)) / 256 + 0.3;
         if (Math.random() < chance) {
           sound.play("hit");
           await this.#say("Got away safely!");
           return "run";
         }
         await this.#say("Can't escape!");
-        break;
-      }
-    }
-
-    //Resolve turn order
-    const foeMove = this.#pick(this.#foe, this.#ally);
-    const order = [] as ["ally" | "foe", Move][];
-    if (move) {
-      //A Quick Claw sometimes lets its holder go first among moves of the same priority
-      const claw = (creature: Creature) => creature.held === "quick-claw" && Math.random() < 0.2;
-      const [allyClaw, foeClaw] = [claw(this.#ally), claw(this.#foe)];
-      const faster = allyClaw !== foeClaw ? allyClaw : this.#speed(this.#ally) >= this.#speed(this.#foe);
-      const allyFirst = move.priority > foeMove.priority || (move.priority === foeMove.priority && faster);
-      order.push(
-        ...((allyFirst
-          ? [
-              ["ally", move],
-              ["foe", foeMove],
-            ]
-          : [
-              ["foe", foeMove],
-              ["ally", move],
-            ]) as ["ally" | "foe", Move][]),
-      );
-    } else {
-      order.push(["foe", foeMove]);
-    }
-    for (const [side, used] of order) {
-      const outcome = await this.#attack(side, used);
-      if (outcome !== undefined) {
-        return outcome;
-      }
-    }
-    //End of the turn: poison and burns, the weather, Leftovers, then abilities
-    for (const side of ["ally", "foe"] as const) {
-      const outcome = await this.#endTurn(side);
-      if (outcome) {
-        return outcome;
+        return null;
       }
     }
     return null;
   }
 
-  /** What happens to one side at the end of the turn (returns an outcome when the battle ends) */
-  async #endTurn(side: "ally" | "foe"): Promise<Outcome | null> {
-    const creature = side === "ally" ? this.#ally : this.#foe;
+  /** What happens to a Pokémon on the field at the end of the turn (returns an outcome when the battle ends) */
+  async #endTurn(side: Slot): Promise<Outcome | null> {
+    const creature = this.#field[side];
+    if (!creature || creature.hp <= 0) {
+      return null;
+    }
     const ability = abilityOf(creature);
     const types = species(creature.species).types;
     const hurts = [] as [number, string][];
@@ -646,11 +784,11 @@ export class Battle {
   }
 
   /** A creature fainted: say so and go on (returns an outcome when the battle ends) */
-  async #fainted(side: "ally" | "foe") {
-    const creature = side === "ally" ? this.#ally : this.#foe;
-    this.#fx(side, "fainted");
+  async #fainted(slot: Slot) {
+    const creature = this.#field[slot]!;
+    this.#fx(slot, "fainted");
     await this.#say(`${this.#who(creature)} fainted!`);
-    return side === "foe" ? await this.#foeFainted() : await this.#allyFainted();
+    return team(slot) === "foe" ? await this.#foeFainted(slot, creature) : await this.#allyFainted(slot);
   }
 
   /** Abilities that work when a Pokémon comes out (Intimidate) */
@@ -658,17 +796,20 @@ export class Battle {
     if (abilityOf(creature) !== "intimidate" || creature.hp <= 0) {
       return;
     }
-    const target = creature === this.#ally ? this.#foe : this.#ally;
-    const guard = guards[abilityOf(target)];
-    if (guard === "all" || guard === "attack") {
-      await this.#say(`${this.#who(target)}'s ${abilityName(abilityOf(target))} prevents its Attack from falling!`, 700);
-      return;
-    }
-    const before = this.#stage(target, "attack");
-    if (before > -6) {
-      this.#stages.set(target, { ...this.#stages.get(target), attack: before - 1 });
-      this.#fx(this.#side(target), "hurt");
-      await this.#say(`${this.#who(creature)}'s Intimidate cuts ${this.#who(target)}'s Attack!`, 700);
+    //Every opponent on the field
+    for (const slot of this.#standing(this.#mine(creature) ? "foe" : "ally")) {
+      const target = this.#field[slot]!;
+      const guard = guards[abilityOf(target)];
+      if (guard === "all" || guard === "attack") {
+        await this.#say(`${this.#who(target)}'s ${abilityName(abilityOf(target))} prevents its Attack from falling!`, 700);
+        continue;
+      }
+      const before = this.#stage(target, "attack");
+      if (before > -6) {
+        this.#stages.set(target, { ...this.#stages.get(target), attack: before - 1 });
+        this.#fx(slot, "hurt");
+        await this.#say(`${this.#who(creature)}'s Intimidate cuts ${this.#who(target)}'s Attack!`, 700);
+      }
     }
   }
 
@@ -721,11 +862,9 @@ export class Battle {
   }
 
   /** Perform an attack (returns an outcome when battle ends) */
-  async #attack(side: "ally" | "foe", move: Move): Promise<Outcome | null | undefined> {
-    const attacker = side === "ally" ? this.#ally : this.#foe;
-    const defender = side === "ally" ? this.#foe : this.#ally;
-    const target = side === "ally" ? "foe" : "ally";
-    if (attacker.hp <= 0) {
+  async #attack(side: Slot, move: Move, aim: Slot | null = null): Promise<Outcome | null | undefined> {
+    const attacker = this.#field[side]!;
+    if (!attacker || attacker.hp <= 0) {
       return;
     }
     //Sleep and paralysis can stop a move
@@ -743,9 +882,80 @@ export class Battle {
       await this.#say(`${this.#who(attacker)} is paralyzed! It can't move!`);
       return;
     }
+    this.#moved.add(attacker);
+    if (this.#flinched.has(attacker)) {
+      await this.#say(`${this.#who(attacker)} flinched and couldn't move!`);
+      return;
+    }
     await this.#say(`${this.#who(attacker)} used ${move.name}!`, 300);
     this.#fx(side, "lunge");
     await wait(250);
+
+    //Who it hits: the user (Protect, Recover, Swords Dance), every opponent (Surf in a double battle), or one opponent
+    const other = team(side) === "ally" ? "foe" : "ally";
+    const self = Boolean(move.protect || move.heal || (!move.power && move.effect?.self));
+    let targets: Slot[];
+    if (self) {
+      targets = [side];
+    } else if (this.double && move.spread) {
+      const partner = sides[team(side)].find((slot) => slot !== side && (this.#field[slot]?.hp ?? 0) > 0);
+      targets = [...this.#standing(other), ...(move.spread === "all" && partner ? [partner] : [])];
+    } else {
+      const chosen = aim && team(aim) === other && (this.#field[aim]?.hp ?? 0) > 0 ? aim : this.#standing(other)[0];
+      targets = chosen ? [chosen] : [];
+    }
+
+    //Protect: works every time the first time, then half as often for each one in a row
+    const streak = move.protect ? (this.#protects.get(attacker) ?? 0) : 0;
+    this.#protects.set(attacker, move.protect ? streak + 1 : 0);
+    if (move.protect) {
+      if (Math.random() < 1 / 2 ** streak) {
+        this.#protected.add(attacker);
+        this.#animate(side, move, "self");
+        await this.#say(`${this.#who(attacker)} protected itself!`);
+      } else {
+        this.#protects.set(attacker, 0);
+        await this.#say("But it failed!");
+      }
+      return;
+    }
+    //Healing moves (Recover)
+    if (move.heal) {
+      if (attacker.hp >= hp(attacker)) {
+        await this.#say(`${this.#who(attacker)}'s HP is full!`);
+        return;
+      }
+      this.#animate(side, move, "self");
+      attacker.hp = Math.min(hp(attacker), attacker.hp + Math.max(1, Math.floor((hp(attacker) * move.heal) / 100)));
+      this.#emit();
+      await this.#say(`${this.#who(attacker)} regained health!`);
+      return;
+    }
+    if (!targets.length) {
+      await this.#say("But there was no target…");
+      return;
+    }
+    for (const target of targets) {
+      if (attacker.hp <= 0) {
+        break;
+      }
+      const outcome = await this.#strike(side, target, move, targets.length > 1);
+      if (outcome) {
+        return outcome;
+      }
+    }
+    return;
+  }
+
+  /** One hit of a move on one target (moves hitting every opponent strike each of them, at 3/4 power) */
+  async #strike(side: Slot, target: Slot, move: Move, spread: boolean): Promise<Outcome | null | undefined> {
+    const attacker = this.#field[side]!;
+    const defender = this.#field[target]!;
+    //Moves aimed at a protected Pokémon do nothing
+    if (this.#protected.has(defender) && (move.power || !move.effect?.self)) {
+      await this.#say(`${this.#who(defender)} protected itself!`);
+      return;
+    }
 
     const evasion =
       (this.#weather === "sandstorm" && abilityOf(defender) === "sand-veil") || (this.#weather === "snow" && abilityOf(defender) === "snow-cloak") ? 0.8 : 1;
@@ -772,6 +982,7 @@ export class Battle {
     }
     //Status moves: only their effect
     if (!move.power) {
+      this.#animate(side, move, move.effect?.self ? "self" : "projectile", target);
       if (!(await this.#effect(move, attacker, defender))) {
         await this.#say("But it failed!");
       }
@@ -779,21 +990,46 @@ export class Battle {
     }
     const physical = move.class === "physical";
     const burned = physical && attacker.status === "burn" && abilityOf(attacker) !== "guts";
-    const { value, critical, multiplier } = damage(attacker, defender, move, {
-      attack: stageMultiplier(this.#stage(attacker, physical ? "attack" : "spatk")) * (burned ? 0.5 : 1) * attackOf(attacker, physical),
-      defense: stageMultiplier(this.#stage(defender, physical ? "defense" : "spdef")),
-      power: powerOf(attacker, defender, move, this.#weather),
-    });
-    this.#projectile(side, move.type);
-    await wait(350);
-    sound.play(multiplier > 1 ? "hit2" : "hit");
-    //Sturdy: a Pokémon at full HP survives a hit that would knock it out
-    const sturdy = abilityOf(defender) === "sturdy" && defender.hp === hp(defender) && value >= defender.hp;
-    defender.hp = sturdy ? 1 : Math.max(0, defender.hp - value);
-    this.#fx(target, "hurt");
-    await wait(500);
-    if (critical && value) {
-      await this.#say("A critical hit!", 600);
+    //Multi-hit moves: 2 to 5 hits (2 and 3 are the most common), or a set number
+    const [low, high] = move.hits ?? [1, 1];
+    const roll = Math.random();
+    const times = low === high ? low : Math.min(high, low + (roll < 0.375 ? 0 : roll < 0.75 ? 1 : roll < 0.875 ? 2 : 3));
+    let dealt = 0,
+      hits = 0,
+      multiplier = 1,
+      sturdy = false;
+    for (let i = 0; i < times && defender.hp > 0; i++) {
+      const hit = damage(attacker, defender, move, {
+        attack: stageMultiplier(this.#stage(attacker, physical ? "attack" : "spatk")) * (burned ? 0.5 : 1) * attackOf(attacker, physical),
+        defense: stageMultiplier(this.#stage(defender, physical ? "defense" : "spdef")),
+        power: powerOf(attacker, defender, move, this.#weather) * (spread ? 0.75 : 1),
+        crit: move.crit ?? 0,
+      });
+      multiplier = hit.multiplier;
+      this.#animate(side, move, physical ? "contact" : "projectile", target);
+      await wait(physical ? 250 : 380);
+      sound.play(multiplier > 1 ? "hit2" : "hit");
+      //Sturdy: a Pokémon at full HP survives a hit that would knock it out
+      sturdy = abilityOf(defender) === "sturdy" && defender.hp === hp(defender) && hit.value >= defender.hp;
+      const before = defender.hp;
+      defender.hp = sturdy ? 1 : Math.max(0, defender.hp - hit.value);
+      dealt += before - defender.hp;
+      hits++;
+      this.#fx(target, "hurt");
+      await wait(times > 1 ? 350 : 500);
+      if (hit.critical && hit.value) {
+        await this.#say("A critical hit!", 600);
+      }
+      if (multiplier === 0) {
+        break;
+      }
+    }
+    if (times > 1 && multiplier > 0) {
+      await this.#say(`Hit ${hits} time${hits > 1 ? "s" : ""}!`, 600);
+    }
+    //Raids: the others in the room see the boss lose the HP you took
+    if (this.raid && dealt > 0 && team(target) === "foe") {
+      this.#onhit?.(dealt);
     }
     if (multiplier === 0) {
       await this.#say(`It doesn't affect ${named(defender)}…`);
@@ -805,9 +1041,31 @@ export class Battle {
     if (sturdy) {
       await this.#say(`${this.#who(defender)} endured the hit with Sturdy!`, 700);
     }
+    //Draining moves give the user part of the damage back, reckless ones hurt it
+    if (move.drain && dealt > 0) {
+      const amount = Math.max(1, Math.floor((dealt * Math.abs(move.drain)) / 100));
+      if (move.drain > 0 && attacker.hp < hp(attacker)) {
+        attacker.hp = Math.min(hp(attacker), attacker.hp + amount);
+        this.#emit();
+        await this.#say(`${this.#who(defender)} had its energy drained!`, 600);
+      } else if (move.drain < 0) {
+        attacker.hp = Math.max(0, attacker.hp - amount);
+        this.#fx(side, "hurt");
+        await this.#say(`${this.#who(attacker)} is damaged by recoil!`, 600);
+      }
+    }
 
     if (defender.hp <= 0) {
-      return this.#fainted(target);
+      const outcome = await this.#fainted(target);
+      //The user may have fainted from recoil too
+      return outcome ?? (attacker.hp <= 0 ? this.#fainted(side) : null);
+    }
+    if (attacker.hp <= 0) {
+      return this.#fainted(side);
+    }
+    //Flinching: only when the target hasn't moved yet this turn
+    if (move.flinch && !this.#moved.has(defender) && Math.random() * 100 < move.flinch) {
+      this.#flinched.add(defender);
     }
     await this.#berry(defender);
     //Their last Pokémon is low on HP
@@ -892,30 +1150,30 @@ export class Battle {
       }
       stages[name] = after;
       this.#stages.set(creature, stages);
-      this.#fx(creature === this.#ally ? "ally" : "foe", change > 0 ? "lunge" : "hurt");
+      this.#fx(this.#side(creature), change > 0 ? "lunge" : "hurt");
       await this.#say(`${this.#who(creature)}'s ${names[name]} ${change > 0 ? "rose" : "fell"}${Math.abs(change) > 1 ? " sharply" : ""}!`, 700);
       worked = true;
     }
     return worked;
   }
 
-  /** Projectile animation from attacker to defender */
-  #projectile(side: "ally" | "foe", type: string) {
-    const key = (this.view.orb?.key ?? 0) + 1;
-    this.view.orb = { from: side, color: colors[type] ?? "#fff", key };
+  /** Attack animation (the battle screen draws it with Gen 3 sprites) */
+  #animate(side: Slot, move: Move, mode: "contact" | "projectile" | "self", to: Slot = side) {
+    const key = (this.view.anim?.key ?? 0) + 1;
+    this.view.anim = { from: side, to, type: move.type, mode, key, ...(move.protect ? { protect: true } : {}) };
     this.#emit();
     setTimeout(() => {
-      if (this.view.orb?.key === key) {
-        this.view.orb = null;
+      if (this.view.anim?.key === key) {
+        this.view.anim = null;
         this.#emit();
       }
-    }, 700);
+    }, 900);
   }
 
   /** Opponent fainted: grant experience and send next one */
-  async #foeFainted(): Promise<Outcome | null> {
-    const base = species(this.#foe.species).xp;
-    const total = Math.floor(((base * this.#foe.level) / 7) * (this.#opponent ? 1.5 : 1));
+  async #foeFainted(slot: Slot, fallen: Creature): Promise<Outcome | null> {
+    const base = species(fallen.species).xp;
+    const total = Math.floor(((base * fallen.level) / 7) * (this.#opponent ? 1.5 : 1));
     const participants = [...this.#participants].filter((creature) => creature.hp > 0);
     for (const creature of participants) {
       const amount = Math.max(1, Math.floor(total / participants.length));
@@ -929,8 +1187,9 @@ export class Battle {
       }
       await this.#say(`${named(creature)} gained ${amount} EXP. Points!`, 500);
       const messages = grow(creature, amount, this.#cap);
-      if (creature === this.#ally) {
-        this.#render("ally");
+      const at = slots.find((other) => this.#field[other] === creature);
+      if (at) {
+        this.#render(at);
       }
       for (const message of messages) {
         if (message.includes("grew")) {
@@ -947,8 +1206,8 @@ export class Battle {
         if (!trainer.profile!.caught.includes(into)) {
           trainer.profile!.caught.push(into);
         }
-        if (creature === this.#ally) {
-          this.#render("ally", true);
+        if (at) {
+          this.#render(at, true);
         }
         sound.play("victory");
         for (const message of evolved) {
@@ -956,19 +1215,25 @@ export class Battle {
         }
       }
     }
-    const next = this.#foes.find((creature) => creature.hp > 0);
+    //The next one in reserve takes the slot (the battle goes on while the other slot still stands)
+    const onField = (creature: Creature) => slots.some((other) => this.#field[other] === creature);
+    const reserve = this.#foes.filter((creature) => creature.hp > 0 && !onField(creature));
+    const next = reserve[0];
     if (next) {
-      this.#foe = next;
+      this.#field[slot] = next;
       this.#participants.clear();
-      this.#participants.add(this.#ally);
+      this.#standing("ally").forEach((ally) => this.#participants.add(this.#field[ally]!));
       trainer.see(next.species);
       //Sending out their last Pokémon
-      if (this.#foes.filter(({ hp }) => hp > 0).length === 1) {
+      if (reserve.length === 1) {
         await this.#line("last");
       }
       await this.#say(`${this.#opponent!.name} sent out ${named(next)}!`, 400);
-      this.#render("foe", true);
+      this.#render(slot, true);
       await this.#enter(next);
+      return null;
+    }
+    if (this.#standing("foe").length) {
       return null;
     }
     sound.play("victory");
@@ -982,20 +1247,26 @@ export class Battle {
     return "win";
   }
 
-  /** Ally fainted: switch or lose */
-  async #allyFainted(): Promise<Outcome | null> {
-    if (!trainer.lead) {
-      await this.#say(`${trainer.profile!.name} is out of usable Pokémon!`);
-      await this.#say(`${trainer.profile!.name} blacked out!`);
-      return "lose";
+  /** Ally fainted: send another one in its slot, carry on with the other slot, or lose */
+  async #allyFainted(slot: Slot): Promise<Outcome | null> {
+    const onField = (creature: Creature) => slots.some((other) => this.#field[other] === creature);
+    if (trainer.profile!.party.some((creature) => creature.hp > 0 && !onField(creature))) {
+      await this.#switch(false, slot);
+      return null;
     }
-    await this.#switch(false);
-    return null;
+    if (this.#standing("ally").length) {
+      return null;
+    }
+    await this.#say(`${trainer.profile!.name} is out of usable Pokémon!`);
+    await this.#say(`${trainer.profile!.name} blacked out!`);
+    return "lose";
   }
 
-  /** Switch active creature */
-  async #switch(cancellable: boolean) {
+  /** Switch the Pokémon of a slot */
+  async #switch(cancellable: boolean, slot: Slot = "ally") {
     const party = trainer.profile!.party;
+    const current = this.#field[slot]!;
+    const onField = (creature: Creature) => slots.some((other) => this.#field[other] === creature);
     const choice = await this.#menu<number>(
       [
         ...party.map((creature, i) => ({
@@ -1003,7 +1274,7 @@ export class Battle {
           value: i,
           detail: `HP ${creature.hp}/${hp(creature)}`,
           color: colors[species(creature.species).types[0]],
-          disabled: creature.hp <= 0 || creature === this.#ally,
+          disabled: creature.hp <= 0 || onField(creature),
         })),
         ...(cancellable ? [{ label: "Back", value: -1, detail: "" }] : []),
       ],
@@ -1013,30 +1284,65 @@ export class Battle {
       return false;
     }
     if (cancellable) {
-      await this.#say(`Come back, ${named(this.#ally)}!`, 400);
+      await this.#say(`Come back, ${named(current)}!`, 400);
     }
     //Natural Cure heals a condition when its Pokémon leaves the field
-    if (abilityOf(this.#ally) === "natural-cure" && this.#ally.hp > 0) {
-      cure(this.#ally);
+    if (abilityOf(current) === "natural-cure" && current.hp > 0) {
+      cure(current);
     }
-    this.#stages.delete(this.#ally);
-    this.#ally = party[choice];
-    this.#participants.add(this.#ally);
-    this.#render("ally", true);
-    await this.#say(`Go! ${named(this.#ally)}!`, 500);
-    await this.#enter(this.#ally);
+    this.#stages.delete(current);
+    const next = party[choice];
+    this.#field[slot] = next;
+    this.#participants.add(next);
+    this.#render(slot, true);
+    await this.#say(`Go! ${named(next)}!`, 500);
+    await this.#enter(next);
     return true;
   }
 
+  /** Is the raid boss down (other players in the room can knock it out between your moves) */
+  #raidDown() {
+    return Boolean(this.raid && this.#field.foe && this.#field.foe.hp <= 0 && this.view.foe.fx !== "fainted");
+  }
+
+  /** Another player in the room hit the raid boss */
+  hurt(den: string, damage: number) {
+    const boss = this.#field.foe;
+    if (den !== this.raid || !boss || boss.hp <= 0 || this.view.phase === "outro") {
+      return;
+    }
+    boss.hp = Math.max(0, boss.hp - Math.max(0, Math.floor(damage)));
+    this.#fx("foe", "hurt");
+  }
+
+  /** The raid boss is beaten: one throw to catch it, with better odds (the best ball in the bag, or one from the den) */
+  async #raidCatch(): Promise<Outcome> {
+    const boss = this.#foe;
+    delete boss.boss;
+    boss.hp = 1;
+    this.#stages.delete(boss);
+    this.#render("foe", true);
+    await this.#say(`${named(boss)} is worn out! You get one throw!`);
+    const rate = (id: ItemId) => (items[id] as { rate?: number }).rate ?? 1;
+    const ball = trainer.bag
+      .map(({ id }) => id)
+      .filter((id) => items[id].kind === "ball")
+      .sort((a, b) => rate(b) - rate(a))[0];
+    if (ball) {
+      trainer.take(ball);
+    }
+    return (await this.#throw(ball ?? "poke-ball", 2)) ? "caught" : "win";
+  }
+
   /** Throw a ball (gen 3 catch formula, simplified) */
-  async #throw(ball: ItemId) {
+  async #throw(ball: ItemId, bonus = 1) {
     await this.#say(`${trainer.profile!.name} threw ${/^[AEIOU]/i.test(items[ball].name) ? "an" : "a"} ${items[ball].name}!`, 300);
     let key = (this.view.ball?.key ?? 0) + 1;
     this.view.ball = { state: "throw", key };
     this.#emit();
     await wait(600);
     this.#fx("foe", "captured");
-    const { a, b } = catchOdds(this.#foe, (items[ball] as { rate?: number }).rate ?? 1);
+    const { a, b } = catchOdds(this.#foe, ((items[ball] as { rate?: number }).rate ?? 1) * bonus);
     let shakes = 0;
     while (shakes < 4 && (a >= 255 || Math.random() * 65536 < b)) {
       shakes++;

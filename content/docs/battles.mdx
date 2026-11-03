@@ -3,7 +3,7 @@ title: Battles
 description: How turns, damage, abilities, natures, held items, weather, trainer difficulty and level caps work, so you can balance your game.
 ---
 
-DreamMist battles follow the Generation 3 rules, simplified to one-on-one battles. Knowing the numbers helps when you set levels for your trainers and wild Pokémon.
+DreamMist battles follow the Generation 3 rules, simplified, in single and double battles. Knowing the numbers helps when you set levels for your trainers and wild Pokémon.
 
 ## The battle screen
 
@@ -44,6 +44,17 @@ Each turn you choose one of:
 | Run     | Try to escape. Not possible against trainers.                                                       |
 
 The move with the higher priority goes first, then the faster Pokémon. When a Pokémon runs out of PP on every move, it uses **Struggle**.
+
+Moves play their Generation 3 animation: embers, bubbles, leaves, sparks, scratches, punches and more, taken from Pokémon Emerald. Physical moves hit up close, special moves fly across, and moves like Protect or Swords Dance glow on the user.
+
+## Double battles
+
+Trainers set to **Double battle** in the [battle designer](/docs/trainers#battle-rules) send out two Pokémon at once, and so does the player. Each of your Pokémon picks its move, then its target when there are two to choose from.
+
+- Moves that hit every opponent, like Surf or Growl, hit both at 3/4 of their power. A few, like Earthquake, also hit your partner.
+- Hard trainers aim at whichever of your Pokémon has the lowest HP.
+- When one faints, the next one in the team takes its place.
+- A double battle needs two Pokémon able to fight on each side: otherwise it's a single battle.
 
 ## Damage
 
@@ -164,6 +175,18 @@ Stats come from the real base stats of each Pokémon at its level and its nature
 
 Pokémon know the last four moves of their real level-up list for their level, always with at least one that deals damage. When they level up and learn a new move with four already known, they forget the oldest one, but never their last damaging move.
 
+Moves work like in the games:
+
+| Effect        | Examples                 | What it does                                                                   |
+| ------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| Multi-hit     | Fury Attack, Double Kick | Hits 2 to 5 times (2 and 3 most often), or a set number of times.              |
+| Draining      | Absorb, Mega Drain       | Gives the user part of the damage dealt.                                       |
+| Recoil        | Take Down, Double-Edge   | Hurts the user by part of the damage dealt.                                    |
+| Healing       | Recover, Softboiled      | Restores half the user's HP.                                                   |
+| Flinching     | Bite, Headbutt           | May stop the target from moving this turn, if the user moved first.            |
+| High critical | Slash, Razor Leaf        | Lands critical hits more often.                                                |
+| Protect       | Protect, Detect          | Blocks moves this turn. Using it again in a row works half as often each time. |
+
 ## Evolution
 
 Pokémon evolve when they reach the level they evolve at in the games, like Treecko into Grovyle at level 16. It happens after the battle that levelled them up. They keep the damage they took and learn their new form's move for that level. Pokémon that evolve with a stone, by trading or by friendship don't evolve.
@@ -182,6 +205,8 @@ Experience is split between the Pokémon that fought the fainted opponent and ar
 Throw a Poké Ball or a Great Ball (1.5 times better) at a wild Pokémon. The chance uses the Generation 3 catch formula: it goes up as the Pokémon's HP goes down, and depends on its species' catch rate. Easy Pokémon like Zigzagoon are caught often at full HP, while rare ones need to be weakened first.
 
 The ball shakes up to three times before the Pokémon is caught or breaks free. Wild Pokémon have a 1 in 128 chance to be shiny.
+
+[Raid bosses](/docs/people#raid-dens) can't be caught during the fight: once beaten, they give one throw with double the odds.
 
 ## Winning and losing
 

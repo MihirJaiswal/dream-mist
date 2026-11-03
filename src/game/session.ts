@@ -335,7 +335,14 @@ export class Session {
   /** Start play mode on the current map */
   #play(arrive = null as null | { x: number; y: number; dir: Direction }) {
     this.play?.stop();
-    this.play = new Play(this.map, this.area, { world: this.city, arrive, onwarp: (door) => this.#warp(door), onedge: (x, y, dir) => this.#cross(x, y, dir) });
+    this.play = new Play(this.map, this.area, {
+      world: this.city,
+      arrive,
+      onwarp: (door) => this.#warp(door),
+      onedge: (x, y, dir) => this.#cross(x, y, dir),
+      onraid: (den, damage) => this.room?.raid(den, damage),
+      live: () => Boolean(this.room),
+    });
     this.play.start();
   }
 
@@ -818,6 +825,12 @@ export class Session {
           this.notify();
         },
         cursor: (peer) => this.#cursor(peer),
+        raid: ({ den, damage, name }) => {
+          if (Battle.active?.raid === den) {
+            Battle.active.hurt(den, damage);
+            ui.toast(`${name} hit the raid boss for ${damage} HP!`, "info");
+          }
+        },
         chat: (message) => {
           this.chat = [...this.chat.slice(-49), { ...message, at: Date.now() }];
           if (message.from !== this.room?.you.id) {
@@ -1226,6 +1239,7 @@ export class Session {
       const next = { ...this.city.rules, ...rules };
       if (!next.difficulty || next.difficulty === "normal") delete next.difficulty;
       if (!next.caps?.length) delete next.caps;
+      if (next.followers !== false) delete next.followers;
       if (Object.keys(next).length) this.city.rules = next;
       else delete this.city.rules;
       this.broadcastCity();

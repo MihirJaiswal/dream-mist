@@ -2,7 +2,7 @@
 import * as PIXI from "pixi.js";
 import type { Layer } from "./data";
 import { creatureLook } from "./sprites";
-import { range, sprite as custom } from "./tilesets";
+import { range, ruleOf, sprite as custom } from "./tilesets";
 
 /** Tileset columns (copyrighted/textures/rse/tileset.tsx) */
 export const columns = 113;
@@ -41,6 +41,20 @@ export type Move = {
   priority: number;
   /** What it does besides damage: a condition, or stat changes (on the user when self), with a chance in percent */
   effect?: { ailment?: "sleep" | "poison" | "paralysis" | "burn"; stats?: [Stage, number][]; self?: boolean; chance: number };
+  /** Hits several times (Fury Attack: 2 to 5) */
+  hits?: [number, number];
+  /** Percent of the damage dealt the user gets back (Absorb), or takes in recoil when below zero (Take Down) */
+  drain?: number;
+  /** Percent of its max HP the user heals (Recover) */
+  heal?: number;
+  /** Chance in percent to make the target flinch, when the user moves first (Bite) */
+  flinch?: number;
+  /** Raised critical hit ratio (Slash) */
+  crit?: number;
+  /** Protects the user from moves this turn (Protect, Detect) */
+  protect?: boolean;
+  /** Hits every opponent ("foes", like Surf) or everyone else ("all", like Earthquake) in a double battle */
+  spread?: "foes" | "all";
 };
 
 /** Battle stats moves can raise or lower */
@@ -159,6 +173,10 @@ export async function load(progress: (text: string) => void) {
 /** Usual layer of built-in tiles (values are frame + 1): ground when all are ground tiles, above when most are, otherwise objects. Null for custom tilesets */
 export function layerOf(values: number[]): Layer | null {
   const frames = values.filter(Boolean).map((value) => value - 1);
+  //Emerald tiles: walkable ones are ground (see-through ones still move to Objects when painted), the rest objects
+  if (frames.length && frames.every((frame) => ruleOf(frame + 1))) {
+    return frames.every((frame) => ruleOf(frame + 1)!.solid === 0 && !ruleOf(frame + 1)!.behavior) ? "ground" : "decor";
+  }
   if (!frames.length || frames.some((frame) => frame + 1 >= range)) {
     return null;
   }

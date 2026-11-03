@@ -9,6 +9,10 @@ export const items = {
   "good-rod": { name: "Good Rod", price: 0, kind: "rod", tier: 1, about: "Fish while facing water. Hooks more Pokémon than the Old Rod" },
   "super-rod": { name: "Super Rod", price: 0, kind: "rod", tier: 2, about: "Fish while facing water. Hooks every Pokémon that lives there" },
   "hm-flash": { name: "HM05 Flash", price: 0, kind: "hm", about: "Lights up dark caves" },
+  "hm-cut": { name: "HM01 Cut", price: 0, kind: "hm", about: "Cuts down small trees in the way" },
+  "hm-strength": { name: "HM04 Strength", price: 0, kind: "hm", about: "Pushes big boulders around" },
+  "hm-rock-smash": { name: "HM06 Rock Smash", price: 0, kind: "hm", about: "Smashes cracked rocks" },
+  "vs-seeker": { name: "VS Seeker", price: 0, kind: "hm", about: "Press V: trainers you beat nearby want a rematch. Recharges as you walk" },
   "oran-berry": { name: "Oran Berry", price: 100, kind: "hold", heal: 10, about: "Held: restores 10 HP when HP falls to half" },
   "sitrus-berry": { name: "Sitrus Berry", price: 400, kind: "hold", heal: 0.25, about: "Held: restores 1/4 of HP when HP falls to half" },
   "lum-berry": { name: "Lum Berry", price: 500, kind: "hold", about: "Held: cures any condition once" },
@@ -59,8 +63,13 @@ export function isItem(id: string): id is ItemId {
   return id in items;
 }
 
-/** "3 Potions", "a Great Ball" */
+/** "Potions", "Oran Berries" */
+export function plural(name: string) {
+  return /[^aeiou]y$/i.test(name) ? `${name.slice(0, -1)}ies` : `${name}s`;
+}
+
+/** "3 Potions", "a Great Ball", "2 Oran Berries" */
 export function itemCount(id: ItemId, count: number) {
   const { name } = items[id];
-  return count === 1 ? `${/^[AEIOU]/i.test(name) ? "an" : "a"} ${name}` : `${count} ${name}s`;
+  return count === 1 ? `${/^[AEIOU]/i.test(name) ? "an" : "a"} ${name}` : `${count} ${plural(name)}`;
 }

@@ -4,7 +4,7 @@
  */
 
 //Imports
-import type { Action, ActionKind, City, Direction, Who } from "./data";
+import type { Action, ActionKind, Check, City, Direction, Who } from "./data";
 import { isItem } from "./items";
 
 /** Directions */
@@ -25,7 +25,42 @@ export const kinds: Record<ActionKind, { label: string; hint: string; make: () =
   heal: { label: "Heal", hint: "Heal the party", make: () => ({ do: "heal" }) },
   step: { label: "Story step", hint: "Complete a story step", make: () => ({ do: "step", step: "" }) },
   warp: { label: "Warp", hint: "Take the player to another map (ends the script)", make: () => ({ do: "warp", to: "", x: 0, y: 0 }) },
+  ask: { label: "Ask Yes/No", hint: "Ask a question, then do something for each answer", make: () => ({ do: "ask", text: "", yes: [], no: [] }) },
+  if: {
+    label: "If…",
+    hint: "Check an item, a step, money, a Pokémon or badges, then do one thing or another",
+    make: () => ({ do: "if", check: { has: "item", item: "potion", count: 1 }, then: [], else: [] }),
+  },
+  take: { label: "Take item", hint: "Take items from the bag (a trade, a toll)", make: () => ({ do: "take", item: "potion", count: 1 }) },
 };
+
+/** Every kind of check, with its name in the editor and a new one */
+export const checks: Record<Check["has"], { label: string; make: () => Check }> = {
+  item: { label: "Has an item", make: () => ({ has: "item", item: "potion", count: 1 }) },
+  step: { label: "Did a story step", make: () => ({ has: "step", step: "" }) },
+  money: { label: "Has money", make: () => ({ has: "money", amount: 500 }) },
+  pokemon: { label: "Has a Pokémon in the party", make: () => ({ has: "pokemon", species: 25 }) },
+  badges: { label: "Has badges", make: () => ({ has: "badges", count: 1 }) },
+};
+
+/** A valid check (null when it can't be read) */
+function check(raw: unknown): Check | null {
+  const c = raw as Record<string, unknown>;
+  switch (c?.has) {
+    case "item":
+      return isItem(`${c.item}`) ? { has: "item", item: c.item as Extract<Check, { has: "item" }>["item"], count: int(c.count, 1, 999) } : null;
+    case "step":
+      return { has: "step", step: `${c.step ?? ""}` };
+    case "money":
+      return { has: "money", amount: int(c.amount, 0, 999999) };
+    case "pokemon":
+      return { has: "pokemon", species: int(c.species, 1, 100000) };
+    case "badges":
+      return { has: "badges", count: int(c.count, 0, 99) };
+    default:
+      return null;
+  }
+}
 
 /** Clamp a number */
 function int(value: unknown, min: number, max: number) {
@@ -79,13 +114,23 @@ export function actions(raw: unknown): Action[] {
       case "pokemon":
         return [{ do: "pokemon", species: int(a.species, 1, 100000), level: int(a.level, 1, 100) }];
       case "money":
-        return [{ do: "money", amount: int(a.amount, 0, 999999) }];
+        return [{ do: "money", amount: int(a.amount, -999999, 999999) }];
       case "heal":
         return [{ do: "heal" }];
       case "step":
         return [{ do: "step", step: `${a.step ?? ""}` }];
       case "warp":
         return [{ do: "warp", to: `${a.to ?? ""}`, x: int(a.x, 0, 999), y: int(a.y, 0, 999) }];
+      case "ask": {
+        const by = who(a.who, false);
+        return [{ do: "ask", text: `${a.text ?? ""}`.slice(0, 1000), ...(by !== null ? { who: by as number } : {}), yes: actions(a.yes), no: actions(a.no) }];
+      }
+      case "if": {
+        const valid = check(a.check);
+        return valid ? [{ do: "if", check: valid, then: actions(a.then), else: actions(a.else) }] : [];
+      }
+      case "take":
+        return isItem(`${a.item}`) ? [{ do: "take", item: a.item as Extract<Action, { do: "take" }>["item"], count: int(a.count, 1, 99) }] : [];
       default:
         return [];
     }
@@ -97,9 +142,20 @@ export function actor(action: Action): number | null {
   return "who" in action && typeof action.who === "number" ? action.who : null;
 }
 
-/** Every script of a map: those of its people, and those of its triggers */
+/** The lists of actions inside an action (the answers of a question, the two sides of a check) */
+export function branches(action: Action): Action[][] {
+  return action.do === "ask" ? [action.yes, action.no] : action.do === "if" ? [action.then, action.else] : [];
+}
+
+/** Every action of a list, those inside questions and checks included */
+export function flatten(list: Action[]): Action[] {
+  return list.flatMap((action) => [action, ...branches(action).flatMap(flatten)]);
+}
+
+/** Every list of actions of a map: the scripts of its people and of its triggers, and every list inside them */
 export function scripts(city: City) {
-  return [...city.npcs.flatMap(({ script }) => (script ? [script.actions] : [])), ...city.triggers.map(({ actions }) => actions)];
+  const lists = (list: Action[]): Action[][] => [list, ...list.flatMap((action) => branches(action).flatMap(lists))];
+  return [...city.npcs.flatMap(({ script }) => (script ? lists(script.actions) : [])), ...city.triggers.flatMap(({ actions }) => lists(actions))];
 }
 
 /** Someone was removed from a map: actions about them are dropped, and those about people after them follow their new index */

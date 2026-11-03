@@ -9,6 +9,7 @@ import { type Daytime, daytimes, type Period, type Weather, weathers } from "./a
 import { frames } from "./brushes";
 import type { ItemId } from "./items";
 import type { Nature } from "./natures";
+import type { Field } from "./fields";
 import type { Tileset } from "./tilesets";
 import type { Sprite } from "./sprites";
 import { isBehavior } from "./behaviors";
@@ -100,6 +101,8 @@ export type BattleRules = {
   weather?: (typeof battleWeathers)[number];
   scene?: Scene;
   noItems?: boolean;
+  /** Two against two (when both sides have two Pokémon able to fight) */
+  double?: boolean;
 };
 
 /** How hard trainers battle */
@@ -107,7 +110,7 @@ export const difficulties = ["easy", "normal", "hard"] as const;
 export type Difficulty = (typeof difficulties)[number];
 
 /** Battle rules of a town: how smart trainers are, and the highest level Pokémon reach for each number of badges earned there */
-export type Rules = { difficulty?: Difficulty; caps?: number[] };
+export type Rules = { difficulty?: Difficulty; caps?: number[]; followers?: false };
 
 /** Highest level a Pokémon can reach with a number of badges of the town (100 without caps, the last cap past the end of the list) */
 export function levelCap(rules: Rules | undefined, badges: number) {
@@ -180,7 +183,7 @@ export type Action =
   | { do: "back"; who: number }
   /** Wait a moment */
   | { do: "wait"; seconds: number }
-  /** Give the player an item, a Pokémon or money */
+  /** Give the player an item, a Pokémon or money (less than zero takes it) */
   | { do: "give"; item: ItemId; count: number }
   | { do: "pokemon"; species: number; level: number }
   | { do: "money"; amount: number }
@@ -191,7 +194,21 @@ export type Action =
   /** Complete a story step (people come and go, gates open) */
   | { do: "step"; step: string }
   /** Take the player to another map ("" = outside) and tile. Ends the script */
-  | { do: "warp"; to: string; x: number; y: number };
+  | { do: "warp"; to: string; x: number; y: number }
+  /** Ask a YES/NO question, then play the actions of the answer */
+  | { do: "ask"; text: string; who?: number; yes: Action[]; no: Action[] }
+  /** Check something about the player, then play the actions of what's true */
+  | { do: "if"; check: Check; then: Action[]; else: Action[] }
+  /** Take items from the bag (a trade, a toll): as many as they have, up to the count */
+  | { do: "take"; item: ItemId; count: number };
+
+/** Something a script can check about the player */
+export type Check =
+  | { has: "item"; item: ItemId; count: number }
+  | { has: "step"; step: string }
+  | { has: "money"; amount: number }
+  | { has: "pokemon"; species: number }
+  | { has: "badges"; count: number };
 
 /** Kind of action */
 export type ActionKind = Action["do"];
@@ -255,14 +272,21 @@ export type Npc = {
   dir: Direction;
   name: string;
   dialogue: string;
-  /** "wild" battles the player as a wild Pokémon (it can be caught, and is gone once beaten), "shop" runs a Poké Mart, "item" is an item ball (its `gift`) */
-  role: "talk" | "trainer" | "healer" | "wild" | "shop" | "item";
+  /**
+   * "wild" battles the player as a wild Pokémon (it can be caught, and is gone once beaten), "raid" is a raid den (a boss with 5× HP, fought together in live rooms, back the next day),
+   * "shop" runs a Poké Mart, "item" is an item ball (its `gift`)
+   */
+  role: "talk" | "trainer" | "healer" | "wild" | "shop" | "item" | "obstacle" | "daycare" | "raid";
+  /** Obstacle cleared by a field move: a small tree (Cut), a cracked rock (Rock Smash) or a boulder (Strength) */
+  field?: Field;
   /** Items a Poké Mart clerk sells (all of them when not set) */
   shop?: ItemId[];
   /** Item handed to the player the first time they talk (or found in an item ball) */
   gift?: { item: ItemId; count: number };
   /** Item hidden on the ground instead of a ball: found by facing its tile and pressing Space */
   hidden?: boolean;
+  /** A berry tree instead of a ball: its `gift` grows back this many hours after being picked (real time) */
+  grow?: number;
   /** Small cutscene played when talked to, instead of their usual part */
   script?: Script;
   /** Walks up to the player and talks the first time they see them (a small cutscene) */
@@ -493,6 +517,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
     city.rules = {
       ...(rules.difficulty === "easy" || rules.difficulty === "hard" ? { difficulty: rules.difficulty } : {}),
       ...(caps.length ? { caps } : {}),
+      ...(rules.followers === false ? { followers: false as const } : {}),
     };
   }
   city.id = `${raw.id ?? city.id}`;
