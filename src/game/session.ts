@@ -2,7 +2,7 @@
 import * as PIXI from "pixi.js";
 import { load as loadAssets, size } from "./assets";
 import { sound } from "./audio";
-import { frames, template } from "./brushes";
+import { frames, starterDoors, template } from "./brushes";
 import { type Card, cloud, isCloudId } from "./cloud";
 import { crossing, walkable } from "./region";
 import {
@@ -583,10 +583,25 @@ export class Session {
     }
     await this.persist();
     await this.open(city);
+    if (start.kind === "starter") {
+      await this.#furnish();
+    }
     if (cloud.user) {
       await this.upload().catch((error) => ui.toast(message(error), "error"));
     }
     ui.toast(previous ? `${previous} is saved in Your cities. Have fun with ${city.name}!` : `Started ${city.name}`, "success");
+  }
+
+  /** Give the starter town's Pokémon Center and house their interiors (Emerald's rooms), and lead their doors there */
+  async #furnish() {
+    for (const [key, at] of Object.entries(starterDoors(this.city))) {
+      const door = this.city.doors.find(({ x, y, to }) => x === at.x && y === at.y && to === "?");
+      if (door) {
+        door.to = (await this.newInterior(key)).id;
+      }
+    }
+    this.openArea("");
+    this.changed();
   }
 
   /** Import a city file or share link */
@@ -1450,6 +1465,9 @@ export class Session {
         }
       } else {
         await this.open(last ? sanitize(last) : template(blank({ name: "My Town" })));
+        if (!last) {
+          await this.#furnish();
+        }
       }
     }
     this.ready = true;

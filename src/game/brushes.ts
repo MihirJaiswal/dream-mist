@@ -173,32 +173,51 @@ function tree(city: City, x: number, y: number) {
   stamp(city, "Tree", x, y - 1);
 }
 
-/** Starter content for a new city: tree border, paths, a Pokémon Center, houses and tall grass */
+/** Doors of the starter town's Pokémon Center and house (in its stamps: the Pokémon Center's at its second column, the house's at its fourth) */
+export function starterDoors({ width, height }: { width: number; height: number }) {
+  const cx = Math.floor(width / 2),
+    cy = Math.floor(height / 2);
+  return { center: { x: cx + 5, y: cy - 2 }, house: { x: cx - 6, y: cy - 2 } };
+}
+
+/**
+ * Starter content for a new city: a tree border, two paths crossing in the middle and leading out on every side (where routes can join),
+ * a Pokémon Center and a house with their doors (their interiors are added when the town opens), and tall grass
+ */
 export function template(city: City) {
   const { width: W, height: H } = city;
   city.layers.ground.fill(frames.grass + 1);
-  //Tree border
-  for (let x = 0; x < W; x += 2) {
-    tree(city, x, 0);
-    tree(city, x, H - 2);
-  }
-  for (let y = 2; y < H - 2; y += 2) {
-    tree(city, 0, y);
-    tree(city, W - 2, y);
-  }
-  //Paths
   const cx = Math.floor(W / 2),
     cy = Math.floor(H / 2);
-  for (let x = 2; x < W - 2; x++) {
+  //Tree border, open where the paths leave the town
+  const across = (from: number, path: number) => from + 1 >= path && from <= path + 1;
+  for (let x = 0; x < W; x += 2) {
+    if (!across(x, cx)) {
+      tree(city, x, 0);
+      tree(city, x, H - 2);
+    }
+  }
+  for (let y = 2; y < H - 2; y += 2) {
+    if (!across(y, cy)) {
+      tree(city, 0, y);
+      tree(city, W - 2, y);
+    }
+  }
+  //Paths, from edge to edge
+  for (let x = 0; x < W; x++) {
     city.layers.ground[cy * W + x] = city.layers.ground[(cy + 1) * W + x] = frames.sand + 1;
   }
-  for (let y = 2; y < H - 2; y++) {
+  for (let y = 0; y < H; y++) {
     city.layers.ground[y * W + cx] = city.layers.ground[y * W + cx + 1] = frames.sand + 1;
   }
-  //Buildings
+  //Buildings, with doors (they lead nowhere until the interiors are made)
   stamp(city, "Pokémon Center", cx + 4, cy - 5);
   stamp(city, "House", cx - 9, cy - 6);
   stamp(city, "Sign", cx - 2, cy - 1);
+  for (const { x, y } of Object.values(starterDoors(city))) {
+    city.doors.push({ x, y, to: "?", tx: -1, ty: -1 });
+    city.solid[y * W + x] = 0;
+  }
   //Tall grass
   for (let y = cy + 4; y < Math.min(H - 3, cy + 9); y++) {
     for (let x = 4; x < Math.min(cx - 2, 14); x++) {
@@ -218,7 +237,6 @@ export function template(city: City) {
   //People
   city.npcs.push(
     { x: cx - 2, y: cy - 1, sprite: "", dir: "down", name: "Sign", dialogue: `Welcome to ${city.name}!\n\nBuilt with DreamMist.`, role: "talk", wander: false },
-    { x: cx + 5, y: cy - 1, sprite: "shopkeeper_f", dir: "down", name: "Nurse", dialogue: "Welcome to the Pokémon Center!", role: "healer", wander: false },
     {
       x: cx - 6,
       y: cy + 3,

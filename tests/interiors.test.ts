@@ -51,3 +51,22 @@ describe("item icons", () => {
     }
   });
 });
+
+describe("starter town", () => {
+  test("its paths lead out on every side, and its Pokémon Center and house have doors", async () => {
+    const { frames, starterDoors, template } = await import("@/game/brushes");
+    const city = template(blank({ width: 40, height: 30 }));
+    const { width: W, height: H } = city;
+    const [cx, cy] = [W / 2, H / 2];
+    const sand = frames.sand + 1;
+    for (const index of [cx, W * (H - 1) + cx, cy * W, cy * W + W - 1]) {
+      expect(city.layers.ground[index]).toBe(sand);
+      expect(city.solid[index]).toBe(0);
+      expect(city.layers.decor[index]).toBe(0);
+    }
+    const doors = starterDoors(city);
+    expect(city.doors.map(({ x, y }) => ({ x, y }))).toEqual([doors.center, doors.house]);
+    expect(city.doors.every(({ x, y, to }) => to === "?" && city.solid[y * W + x] === 0)).toBe(true);
+    expect(city.npcs.some(({ role }) => role === "healer")).toBe(false);
+  });
+});
