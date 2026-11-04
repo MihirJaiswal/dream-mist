@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Editor",
-  description: "Build your Pokémon town, write its story and play it.",
+  description: "Make your Pokémon game: build its towns and routes, write its story and play it.",
 };
 
 /** Editor and game (runs entirely in the browser) */

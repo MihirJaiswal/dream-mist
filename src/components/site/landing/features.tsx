@@ -7,7 +7,7 @@ const stats = [
   { value: "1,025", label: "Pokémon" },
   { value: "6,328", label: "Hoenn tiles" },
   { value: "60", label: "real towns and routes" },
-  { value: "40", label: "maps in one town" },
+  { value: "40", label: "maps in one game" },
 ];
 
 /** Feature card: a chunky game panel with the map in its own window and the games' location sign */
@@ -61,16 +61,16 @@ export function Features() {
       </Heading>
       <div className="mx-auto mt-14 grid max-w-7xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Feature number={1} accent="#f06aa6" title="Paint real Hoenn tiles" image="/site/maps/petalburg-city.png" place="Petalburg City">
-          Houses, Pokémon Centers and trees, terrains that draw their own borders, or your own tileset.
+          Houses, trees and Emerald&apos;s real rooms (Pokémon Centers, Marts, gyms), terrains that draw their own borders, or your own tileset.
         </Feature>
-        <Feature number={2} accent="#b9a6ff" title="Join routes and towns" image="/site/maps/rustboro-city.png" place="Rustboro City">
-          Put routes and other towns side by side, and walk from one to the next across their edges.
+        <Feature number={2} accent="#b9a6ff" title="Build a whole region" image="/site/maps/rustboro-city.png" place="Rustboro City">
+          Join towns, routes, caves and buildings into one world, and walk from map to map across their edges and doors.
         </Feature>
         <Feature number={3} accent="#5ee07a" title="Start from real places" image="/site/maps/fortree-city.png" place="Fortree City">
           Begin from any of the 60 towns and routes of Hoenn, or from a blank field.
         </Feature>
         <Feature number={4} accent="#6db6ff" title="Build with friends" image="/site/maps/littleroot-town.png" place="Littleroot Town">
-          Share an invite link and build the same town at the same time, then publish it to Explore.
+          Share an invite link and make the same game at the same time, then publish it to Explore for everyone to play.
         </Feature>
       </div>
       <dl className="mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-y-8 md:grid-cols-4">

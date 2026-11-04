@@ -7,7 +7,7 @@ const columns = [
   {
     title: "Play",
     links: [
-      { href: "/explore", label: "Explore towns" },
+      { href: "/explore", label: "Explore games" },
       { href: edit(), label: "Open the editor" },
     ],
   },
@@ -34,7 +34,7 @@ export function SiteFooter() {
               <span className="font-pixel text-[20px] text-[#f06aa6] [text-shadow:2px_2px_0_#4a1640]">DreamMist</span>
             </Link>
             <p className="mt-3 max-w-[36ch] font-game text-[15px] leading-relaxed text-[#c9b8f5]">
-              A fan-made Pokémon town builder for friends. Build a town, then let them play it.
+              A fan-made Pokémon game maker for friends. Make a game, then let them play it.
             </p>
           </div>
           {columns.map(({ title, links }) => (

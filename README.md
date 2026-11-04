@@ -1,8 +1,8 @@
 # DreamMist
 
-Build your own Pokémon town, play it, and share it with friends.
+Make your own Pokémon game, play it, and share it with friends.
 
-DreamMist is a browser-based town builder for Pokémon fans. Paint maps with the Generation 3 tileset, place people, Pokémon and signs, write a small story with events that unlock paths, add interiors, then play it with battles and catching. Publish it to Explore so others can play, like and fork it.
+DreamMist is a browser-based Pokémon game maker for fans. Paint maps with the Generation 3 tileset, place people, Pokémon and signs, write a small story with events that unlock paths, add interiors, then play it with battles and catching. Publish it to Explore so others can play, like and fork it.
 
 ## Features
 

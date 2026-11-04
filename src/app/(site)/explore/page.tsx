@@ -2,8 +2,8 @@ import { ExploreGallery } from "@/components/site/explore-gallery";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Explore towns",
-  description: "Play, like and fork Pokémon towns made with DreamMist.",
+  title: "Explore games",
+  description: "Play, like and fork Pokémon games made with DreamMist.",
 };
 
 /** Explore page */

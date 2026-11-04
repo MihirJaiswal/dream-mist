@@ -24,11 +24,11 @@ export function PressStart() {
       <div className="relative flex flex-col items-center text-center">
         <Anim id={517} w={45} h={43} scale={3} className="float h-auto w-28" />
         <h2 className="mt-4 flex flex-col items-center gap-3">
-          <Sticker className="text-[26px] sm:text-[40px]">Your dream town</Sticker>
+          <Sticker className="text-[26px] sm:text-[40px]">Your dream game</Sticker>
           <span className="font-pixel text-[26px] text-white [text-shadow:4px_4px_0_#0b0616] sm:text-[40px]">is waiting.</span>
         </h2>
         <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <PixelButton href={edit()}>Start building</PixelButton>
+          <PixelButton href={edit()}>Start making</PixelButton>
           <PixelButton href="/docs/first-game" tone="lilac">
             Make your first game
           </PixelButton>

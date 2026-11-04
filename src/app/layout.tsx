@@ -11,8 +11,9 @@ const pixel = Silkscreen({ subsets: ["latin"], weight: ["400"], variable: "--fon
 const game = Pixelify_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-pixelify" });
 
 export const metadata: Metadata = {
-  title: { default: "DreamMist: build your own Pokémon town", template: "%s | DreamMist" },
-  description: "Build a Pokémon town with real Gen 3 tiles, write a little story, and share it with friends to play, like and fork.",
+  title: { default: "DreamMist: make your own Pokémon game", template: "%s | DreamMist" },
+  description:
+    "Make your own Pokémon game in the browser: real Gen 3 tiles, towns and routes, a story, trainers, gyms and battles. Share it with friends to play, like and fork.",
   icons: { icon: "/site/dreammist.png" },
 };
 

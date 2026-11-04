@@ -6,8 +6,8 @@ import { Anim, Heading, Hp, Pink } from "./sprite";
 export function BattleStage() {
   return (
     <section className="relative px-4 pb-20 pt-24">
-      <Heading lead="Press Play and walk the town you just built">
-        Battle everyone in <Pink>your dream town.</Pink>
+      <Heading lead="Press Play and step into the game you just made">
+        Battle your way through <Pink>your own game.</Pink>
       </Heading>
       <p className="mx-auto mt-5 max-w-[52ch] text-center font-game text-[16px] leading-relaxed text-[#c9b8f5]">
         Wild Pokémon hide in tall grass, trainers walk up when they spot you, and Gym Leaders wait behind the doors you placed.

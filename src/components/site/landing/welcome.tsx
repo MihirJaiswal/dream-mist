@@ -15,7 +15,7 @@ export function Welcome() {
           speaker="Professor"
           pages={[
             "Welcome to the world of DreamMist!",
-            "Here, you build the town: the routes, the tall grass, the gym and the story.",
+            "Here, you make the game: the towns, the routes, the trainers, the gyms and the story.",
             "Then your friends walk in and live the adventure you made. Ready?",
           ]}
         />

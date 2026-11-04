@@ -65,10 +65,10 @@ export function ExploreGallery() {
         <h1 className="relative font-pixel text-[32px] leading-[1.15] sm:text-[48px]">
           <span className="text-[#f06aa6]">Explore</span>
           <br />
-          <span className="text-white">towns</span>
+          <span className="text-white">games</span>
         </h1>
         <p className="relative mx-auto mt-4 max-w-[52ch] font-game text-[16px] leading-relaxed text-[#c9b8f5]">
-          Play towns made by other trainers, or fork one and build your own version on top.
+          Play games made by other trainers, or fork one and make your own version on top.
         </p>
         <div className="relative mt-7 flex justify-center">
           <PixelButton href={edit()}>
@@ -84,8 +84,8 @@ export function ExploreGallery() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search towns or creators"
-            aria-label="Search towns"
+            placeholder="Search games or creators"
+            aria-label="Search games"
             className="w-80 max-w-full"
           />
           <div role="tablist" aria-label="Sort" className="flex flex-wrap gap-2">
@@ -115,10 +115,10 @@ export function ExploreGallery() {
             <div className="stepped col-span-full flex flex-col items-center gap-3 bg-[#1d1038] px-4 py-16 text-center shadow-[inset_0_0_0_3px_#3f2c74]">
               <img src="/site/sprites/anim-517.gif" alt="" width={45} height={43} className="pixelated float h-auto w-20" />
               <b className="font-pixel text-[16px] text-white">
-                {error ? "Explore isn't available" : query ? "No town matches your search" : "No towns published yet"}
+                {error ? "Explore isn't available" : query ? "No game matches your search" : "No games published yet"}
               </b>
               <p className="max-w-[46ch] font-game text-[15px] text-[#c9b8f5]">
-                {error || (query ? "Try another name or creator." : "Build a town, then press Publish in the editor to share it here.")}
+                {error || (query ? "Try another name or creator." : "Make a game, then press Publish in the editor to share it here.")}
               </p>
               {!error && !query ? (
                 <PixelButton href={edit()} small className="mt-3">

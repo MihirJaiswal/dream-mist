@@ -21,7 +21,7 @@ export function SiteHeader() {
     me().then(setUser);
   }, []);
   return (
-    <header className="sticky top-0 z-30 border-b-[3px] border-[#2d1a52] bg-[#0d0720]/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b-[3px] border-[#2d1a52] bg-[#130f2e] backdrop-blur">
       <div className="flex h-16 items-center gap-4 px-4 sm:gap-8 md:px-8">
         <Link href="/" aria-label="DreamMist home" className="flex shrink-0 items-center gap-2.5">
           <img src="/site/dreammist.png" alt="" width={28} height={28} className="pixelated" />

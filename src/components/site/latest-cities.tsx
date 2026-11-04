@@ -24,7 +24,7 @@ export function LatestCities() {
         <h2 className="font-pixel text-[30px] leading-[1.15] sm:text-[44px]">
           <span className="text-[#f06aa6]">Latest</span>
           <br />
-          <span className="text-white">towns</span>
+          <span className="text-white">games</span>
         </h2>
         <p className="mt-3 font-game text-[15px] text-[#c9b8f5]">Fresh from other trainers</p>
       </div>
@@ -35,7 +35,7 @@ export function LatestCities() {
       </div>
       <div className="mt-10 text-center">
         <PixelButton href="/explore" tone="lilac">
-          See all towns
+          See all games
         </PixelButton>
       </div>
     </section>
