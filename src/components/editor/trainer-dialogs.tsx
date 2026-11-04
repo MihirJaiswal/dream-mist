@@ -7,10 +7,9 @@ import { TypeBadge } from "@/components/editor/pokemon-picker";
 import { CanvasView, Field, Hint } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { assets, npc as texture, portrait, preview, species } from "@/game/assets";
-import { colors, statusLabels } from "@/game/battle";
+import { colors } from "@/game/battle";
 import { bestRod, type ItemId, itemCount, items } from "@/game/items";
 import { period } from "@/game/atmosphere";
 import { living } from "@/game/encounters";
@@ -19,9 +18,7 @@ import type { City } from "@/game/data";
 import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
 import { type Entry, goal, journal } from "@/game/story";
-import { abilityOf, type Creature, hp, named, starters, type Status, trainer } from "@/game/trainer";
-import { abilityAbout, abilityName } from "@/game/abilities";
-import { natureLabel } from "@/game/natures";
+import { starters, trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
 import { Flag, Medal, Minus, Plus, Scroll, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -122,168 +119,42 @@ function Onboarding({ close }: { close: () => void }) {
 }
 
 //=================================================================================================
-// Party and PC box
+// Pokédex (start menu)
 
-export function party() {
-  return openDialog<void>((close) => <Party close={close} />);
+export function pokedex() {
+  return openDialog<void>((close) => <Pokedex close={close} />);
 }
 
-/** Condition badge (SLP, PSN, PAR, BRN) */
-export function StatusBadge({ status }: { status: Status }) {
-  const { label, color } = statusLabels[status];
-  return (
-    <span className="rounded px-1.5 font-mono text-[10px] font-bold text-white" style={{ background: color }}>
-      {label}
-    </span>
-  );
-}
-
-/** Give a Pokémon an item from the bag to hold in battle, or take it back */
-function HoldItem({ creature }: { creature: Creature }) {
-  const held = creature.held;
-  const options = trainer.bag.filter(({ id }) => items[id].kind === "hold" && id !== held);
-  if (!held && !options.length) {
-    return null;
-  }
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline">
-          {held ? "Item" : "Give item"}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {held ? <DropdownMenuItem onSelect={() => session.hold(creature, null)}>Take the {items[held].name}</DropdownMenuItem> : null}
-        {options.map(({ id, count }) => (
-          <DropdownMenuItem key={id} onSelect={() => session.hold(creature, id)}>
-            {held ? `Swap for ${items[id].name}` : items[id].name}
-            <span className="ml-auto pl-4 text-xs text-muted-foreground">x{count}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** Use a Potion or a cure from the bag on a Pokémon */
-function UseItem({ creature }: { creature: Creature }) {
-  const usable = trainer.bag.filter(({ id }) => {
-    const item = items[id];
-    return item.kind === "heal" ? creature.hp > 0 && creature.hp < hp(creature) : item.kind === "cure" ? Boolean(creature.status) : false;
-  });
-  if (!usable.length) {
-    return null;
-  }
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline">
-          Use item
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {usable.map(({ id, count }) => (
-          <DropdownMenuItem key={id} onSelect={() => session.useItem(id, creature) && toast.success(`${items[id].name} used on ${named(creature)}`)}>
-            {items[id].name}
-            <span className="ml-auto pl-4 text-xs text-muted-foreground">x{count}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function CreatureRow({ creature, children }: { creature: Creature; children: React.ReactNode }) {
-  const ratio = creature.hp / hp(creature);
-  return (
-    <div className={cn("flex items-center gap-3 rounded-md border border-border p-2", creature.hp <= 0 && "opacity-60")}>
-      <CanvasView
-        className="h-[60px] w-[68px] overflow-hidden"
-        make={() => portrait(creature.species, 1, creature.art)}
-        deps={[creature.species, creature.art]}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <b className="text-sm">
-            {named(creature)}
-            {creature.shiny ? " ✨" : ""}
-          </b>
-          <span className="rounded bg-muted px-1.5 text-[11px]">Lv {creature.level}</span>
-          {species(creature.species).types.map((type) => (
-            <TypeBadge key={type} type={type} />
-          ))}
-          {creature.status ? <StatusBadge status={creature.status} /> : null}
-        </div>
-        <div className="my-1 h-1.5 rounded-full bg-muted">
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${ratio * 100}%`, background: ratio > 0.5 ? "#48d058" : ratio > 0.2 ? "#f8c030" : "#f05038" }}
-          />
-        </div>
-        <small className="block truncate text-[11px] text-subtle-fg">
-          HP {creature.hp}/{hp(creature)} · {creature.moves.map(({ key }) => assets.moves[key]?.name ?? key).join(", ")}
-        </small>
-        <small className="block truncate text-[11px] text-subtle-fg">
-          <span title={abilityAbout(abilityOf(creature))}>{abilityName(abilityOf(creature)) || "No ability"}</span>
-          {creature.nature ? ` · ${natureLabel(creature.nature)}` : ""}
-          {creature.held ? ` · holds ${items[creature.held].name}` : ""}
-        </small>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Party({ close }: { close: () => void }) {
-  useSession();
+function Pokedex({ close }: { close: () => void }) {
   const profile = trainer.profile;
   if (!profile) {
     return null;
   }
+  const seen = [...new Set(profile.seen)].sort((a, b) => a - b);
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Your Pokémon</DialogTitle>
+          <DialogTitle>Pokédex</DialogTitle>
           <DialogDescription>
-            ₽{profile.money.toLocaleString()} ·{" "}
-            {trainer.bag.length ? trainer.bag.map(({ id, count }) => `${count} ${items[id].name}`).join(" · ") : "Your bag is empty"}
+            {seen.length} seen · {profile.caught.length} caught
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-1.5">
-          {profile.party.map((creature, i) => (
-            <CreatureRow key={i} creature={creature}>
-              <UseItem creature={creature} />
-              <HoldItem creature={creature} />
-              {i ? (
-                <Button size="sm" variant="outline" title="Send first in battle" onClick={() => session.moveCreature("lead", i)}>
-                  Lead
-                </Button>
-              ) : (
-                <span className="rounded bg-muted px-2 py-1 text-xs">Lead</span>
-              )}
-              {profile.party.length > 1 ? (
-                <Button size="sm" variant="ghost" onClick={() => session.moveCreature("box", i)}>
-                  To box
-                </Button>
-              ) : null}
-            </CreatureRow>
+        {seen.length ? null : <Hint>Pokémon you meet show up here.</Hint>}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-1.5">
+          {seen.map((id) => (
+            <div key={id} className="flex items-center gap-1.5 rounded-md border border-border p-1.5">
+              <CanvasView className="h-[34px] w-[40px] shrink-0 overflow-hidden" make={() => portrait(id, 0.6)} deps={[id]} />
+              <div className="min-w-0">
+                <small className="block font-mono text-[10px] text-subtle-fg">No. {String(id).padStart(3, "0")}</small>
+                <b className="block truncate text-xs">
+                  {species(id)?.name}
+                  {profile.caught.includes(id) ? <span className="ml-1 inline-block size-1.5 rounded-full bg-red-500 align-middle" title="Caught" /> : null}
+                </b>
+              </div>
+            </div>
           ))}
         </div>
-        {profile.box.length ? (
-          <div className="grid gap-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">PC Box ({profile.box.length})</p>
-            {profile.box.map((creature, i) => (
-              <CreatureRow key={i} creature={creature}>
-                {profile.party.length < 6 ? (
-                  <Button size="sm" variant="outline" onClick={() => session.moveCreature("party", i)}>
-                    To party
-                  </Button>
-                ) : null}
-              </CreatureRow>
-            ))}
-          </div>
-        ) : null}
       </DialogContent>
     </Dialog>
   );

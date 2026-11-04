@@ -52,11 +52,22 @@ export const obstacles = [
   { name: "Posts", tile: 1907, message: "Wooden posts block the way." },
 ];
 
-/** Interior templates */
+/** Interior templates: Emerald's real rooms (game/data/rooms.json, built by `npm run data -- pret`), and an empty room */
 export const templates = [
-  { key: "house", label: "House" },
   { key: "center", label: "Pokémon Center" },
-  { key: "gym", label: "Gym" },
+  { key: "mart", label: "Poké Mart" },
+  { key: "house", label: "House" },
+  { key: "house-2", label: "House (bigger)" },
+  { key: "house-3", label: "House (with plants)" },
+  { key: "home", label: "Player's house (with upstairs)" },
+  { key: "lab", label: "Pokémon Lab" },
+  { key: "school", label: "Trainer's School" },
+  { key: "daycare", label: "Day Care" },
+  { key: "bike-shop", label: "Bike shop" },
+  { key: "gym", label: "Gym (Rustboro)" },
+  { key: "gym-dark", label: "Dark gym (Dewford)" },
+  { key: "cave", label: "Cave (Granite Cave)" },
+  { key: "woods", label: "Woods (Petalburg Woods)" },
   { key: "empty", label: "Empty room" },
 ] as const;
 export type Template = (typeof templates)[number]["key"];

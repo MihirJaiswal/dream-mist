@@ -81,7 +81,9 @@ export const shortcuts = [
     group: "Play mode",
     keys: [
       ["WASD, arrow keys", "Walk (Shift runs)"],
-      ["Space, Enter, Z, E", "Talk, read, continue"],
+      ["Space, Z, E", "Talk, read, continue"],
+      ["Enter", "Open the menu (Pokédex, Pokémon, Bag…)"],
+      ["X, Esc", "Go back (menus, battles)"],
       ["J", "Open the Journal"],
       ["N", "See the wild Pokémon living on this map"],
       ["M", "Open the Town Map"],

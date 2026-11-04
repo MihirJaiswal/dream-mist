@@ -4,7 +4,8 @@ import { Atmosphere, type Daytime, hour, type Weather } from "./atmosphere";
 import { size, sprite } from "./assets";
 import { type City, type Layer, layers } from "./data";
 import { neighbors } from "./region";
-import { arrow, ICE, ledge, WATER } from "./behaviors";
+import { topOf } from "./tilesets";
+import { arrow, COUNTER, ICE, ledge, WATER } from "./behaviors";
 
 /** Display object */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,11 +114,12 @@ export class CityMap {
   /** World container (camera) */
   readonly world: Display;
 
-  /** Layer containers */
-  readonly containers = {} as Record<Layer | "neighbors" | "blockers" | "actors" | "overlay", Display>;
+  /** Layer containers ("over" holds the top layer of Emerald tiles, like tree tops and roofs, drawn over people like in the game) */
+  readonly containers = {} as Record<Layer | "over" | "neighbors" | "blockers" | "actors" | "overlay", Display>;
 
-  /** Tile sprites per layer */
+  /** Tile sprites per layer, and the parts of them drawn over people */
   readonly sprites = {} as Record<Layer, (Display | null)[]>;
+  readonly #tops = {} as Record<Layer, (Display | null)[]>;
 
   /** Overlays */
   readonly overlays = {
@@ -150,7 +152,7 @@ export class CityMap {
     this.app = new PIXI.Application({ resizeTo: host, backgroundColor: 0x0a0a0a, antialias: false });
     host.appendChild(this.app.view);
     this.world = this.app.stage.addChild(new PIXI.Container());
-    for (const name of ["neighbors", ...layers.slice(0, 2), "blockers", "actors", layers[2], "overlay"] as const) {
+    for (const name of ["neighbors", "ground", "decor", "blockers", "actors", "over", "above", "overlay"] as const) {
       this.containers[name] = this.world.addChild(new PIXI.Container());
     }
     this.containers.actors.sortableChildren = true;
@@ -204,9 +206,11 @@ export class CityMap {
   load(city: City) {
     this.city = city;
     this.drawNeighbors();
+    this.containers.over.removeChildren().forEach((child: Display) => child.destroy());
     for (const layer of layers) {
       this.containers[layer].removeChildren().forEach((child: Display) => child.destroy());
       this.sprites[layer] = new Array(city.width * city.height).fill(null);
+      this.#tops[layer] = new Array(city.width * city.height).fill(null);
       city.layers[layer].forEach((value, index) => this.set(layer, index, value));
     }
     this.redraw();
@@ -258,15 +262,20 @@ export class CityMap {
   /** Update a tile */
   set(layer: Layer, index: number, value: number) {
     this.city.layers[layer][index] = value;
-    const current = this.sprites[layer][index];
-    if (current) {
-      current.destroy();
-      this.sprites[layer][index] = null;
+    for (const sprites of [this.sprites[layer], this.#tops[layer]]) {
+      sprites[index]?.destroy();
+      sprites[index] = null;
     }
     if (value) {
+      const [x, y] = [(index % this.city.width) * size, Math.floor(index / this.city.width) * size];
       const tile = sprite(value);
-      tile.position.set((index % this.city.width) * size, Math.floor(index / this.city.width) * size);
+      tile.position.set(x, y);
       this.sprites[layer][index] = this.containers[layer].addChild(tile);
+      const top = layer === "above" ? null : topOf(value);
+      if (top) {
+        top.position.set(x, y);
+        this.#tops[layer][index] = this.containers.over.addChild(top);
+      }
     }
     this.ontiles?.();
   }
@@ -296,7 +305,7 @@ export class CityMap {
     solid.endFill();
   }
 
-  /** Draw tile behaviors overlay: ledge and push arrows, water waves, ice */
+  /** Draw tile behaviors overlay: ledge and push arrows, water waves, ice, counters */
   drawBehaviors() {
     const { behavior } = this.overlays;
     behavior.clear();
@@ -357,6 +366,16 @@ export class CityMap {
           .moveTo(x + 4, y + 7)
           .lineTo(x + 7, y + 4)
           .lineStyle(0);
+      } else if (value === COUNTER) {
+        //A counter: a speech mark, people are talked to across it
+        behavior
+          .beginFill(0x58c890, 0.35)
+          .drawRect(x + 1, y + 1, size - 2, size - 2)
+          .endFill()
+          .beginFill(0xe0fff0, 0.95)
+          .drawRoundedRect(x + 4, y + 4, 8, 6, 2)
+          .drawPolygon([x + 6, y + 10, x + 9, y + 10, x + 6, y + 13])
+          .endFill();
       }
     });
   }

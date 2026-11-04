@@ -4,7 +4,7 @@ import { artwork, assets, creatureSprite, npc as texture, preview, size, species
 import { fields } from "./fields";
 import { frames } from "./brushes";
 import { type Action, type Check, type City, type Direction, type Door, levelCap, type Npc, type Trigger } from "./data";
-import { arrow, ICE, ledge, WATER } from "./behaviors";
+import { arrow, COUNTER, ICE, ledge, WATER } from "./behaviors";
 import { period } from "./atmosphere";
 import { pool, roll } from "./encounters";
 import { type CityMap, drawBall, drawDen, drawTree } from "./map";
@@ -123,11 +123,14 @@ class Actor {
       hop = -Math.sin((Math.min(2, travelled) / 2) * Math.PI) * 7;
     }
     this.sprite.position.set(this.x * size + size / 2, (this.y + 1) * size + (this.#still ? 2 : 0) + hop + this.lift);
-    this.sprite.zIndex = this.y;
+    this.sprite.zIndex = this.y + this.depth;
   }
 
   /** Extra height (riding a Pokémon while surfing) */
   lift = 0;
+
+  /** Drawing order nudge on the same row (the follower stays behind the player when they cross) */
+  depth = 0;
 
   /** Remove */
   destroy() {
@@ -188,8 +191,9 @@ export class Play {
   #tap = null as Direction | null;
   #busy = false;
   #running = false;
-  /** Tall grass drawn over the player's feet */
+  /** Wild grass drawn over the player's feet, and the part of each kind of grass tile it shows */
   #grass = null as unknown as PIXI.Sprite;
+  readonly #grasses = new Map<number, PIXI.Texture>();
   readonly #ticker: (dt: number) => void;
   readonly #listeners = [] as [string, EventListener][];
   /** Whole city (story and progress live there), arrival position and door handler */
@@ -338,8 +342,12 @@ export class Play {
     const { actors } = this.#map.containers;
     const spawn = this.#arrive ?? { ...this.#city.spawn, dir: "down" as Direction };
     this.#player = new Actor({ x: spawn.x, y: spawn.y, dir: spawn.dir, name: trainer.profile?.sprite ?? "may", parent: actors });
-    const grass = PIXI.Texture.from(`${frames.tall}`);
-    this.#grass = actors.addChild(new PIXI.Sprite(new PIXI.Texture(grass.baseTexture, new PIXI.Rectangle(grass.frame.x, grass.frame.y + 9, size, size - 9))));
+    //The lower part of each wild grass tile, drawn over the player's feet
+    for (const frame of [frames.tall, frames.long[1]]) {
+      const grass = PIXI.Texture.from(`${frame}`);
+      this.#grasses.set(frame + 1, new PIXI.Texture(grass.baseTexture, new PIXI.Rectangle(grass.frame.x, grass.frame.y + 9, size, size - 9)));
+    }
+    this.#grass = actors.addChild(new PIXI.Sprite(this.#grasses.get(frames.tall + 1)));
     this.#grass.visible = false;
     this.#city.npcs.forEach((data, index) => {
       if (data.role === "obstacle") {
@@ -424,6 +432,7 @@ export class Play {
     this.#listeners.forEach(([type, listener]) => document.removeEventListener(type, listener));
     this.#player.destroy();
     this.#grass.destroy();
+    this.#grasses.forEach((texture) => texture.destroy());
     this.#npcs.forEach(({ actor, bubble }) => (actor.destroy(), bubble?.destroy()));
     this.#balls.forEach(({ graphic }) => graphic.destroy());
     this.#obstacles.forEach(({ sprite }) => sprite.destroy());
@@ -449,6 +458,11 @@ export class Play {
   }
 
   /** Virtual pad input (touch devices) */
+  /** Open the start menu (the touch START button) */
+  openMenu() {
+    void this.#menu();
+  }
+
   press(dir: Direction | "action", down: boolean) {
     if (dir === "action") {
       if (down) {
@@ -489,11 +503,30 @@ export class Play {
       }
     } else if (key === "shift") {
       this.#running = true;
-    } else if ([" ", "enter", "z", "e"].includes(key) && !event.repeat) {
+    } else if (key === "enter" && !event.repeat) {
+      event.preventDefault();
+      void this.#menu();
+    } else if ([" ", "z", "e"].includes(key) && !event.repeat) {
       event.preventDefault();
       this.#interact();
     } else if (key === "v" && !event.repeat) {
       void this.#seek();
+    }
+  }
+
+  /** Open the start menu (the player stops while it's open) */
+  async #menu() {
+    if (this.#busy || this.#player.moving) {
+      return;
+    }
+    this.#busy = true;
+    this.#held.length = 0;
+    this.#tap = null;
+    await ui.menu();
+    this.#busy = false;
+    //A new lead picked in the party takes over following
+    if (this.#follower && trainer.lead && trainer.lead.species !== this.#followed) {
+      this.#follow();
     }
   }
 
@@ -567,6 +600,8 @@ export class Play {
       creature: lead.species,
       look: undefined,
     });
+    follower.depth = -0.05;
+    follower.place();
     follower.sprite.visible = room && !this.#surfing;
     this.#follower = follower;
     this.#followed = lead.species;
@@ -883,8 +918,11 @@ export class Play {
 
     //Tall grass covers the player's feet
     const tile = Math.round(player.y) * this.#city.width + Math.round(player.x);
-    const tall = frames.tall + 1;
-    this.#grass.visible = !player.jump && (this.#city.layers.ground[tile] === tall || this.#city.layers.decor[tile] === tall);
+    const tall = [this.#city.layers.decor[tile], this.#city.layers.ground[tile]].find((value) => this.#grasses.has(value));
+    this.#grass.visible = !player.jump && Boolean(tall);
+    if (tall) {
+      this.#grass.texture = this.#grasses.get(tall)!;
+    }
     this.#grass.position.set(player.x * size, player.y * size + 9);
     this.#grass.zIndex = player.y + 0.5;
 
@@ -1476,6 +1514,8 @@ export class Play {
     }
     const { x: dx, y: dy } = deltas[this.#player.dir];
     const [x, y] = [this.#player.x + dx, this.#player.y + dy];
+    //Across a counter (a Poké Mart, a Pokémon Center), whoever stands behind it answers
+    const [px, py] = this.#behavior(x, y) === COUNTER ? [x + dx, y + dy] : [x, y];
     //Obstacles of field moves (trees, rocks, boulders)
     const obstacle = this.#obstacle(x, y);
     if (obstacle) {
@@ -1511,7 +1551,7 @@ export class Play {
         return false;
       }
       const actor = this.#npcs.find((npc) => npc.index === i)?.actor;
-      return actor ? Math.round(actor.x) === x && Math.round(actor.y) === y : data.x === x && data.y === y;
+      return actor ? Math.round(actor.x) === px && Math.round(actor.y) === py : data.x === px && data.y === py;
     });
     //An empty raid den
     if (index < 0 && this.#dens.some(({ index, graphic }) => graphic.visible && this.#city.npcs[index].x === x && this.#city.npcs[index].y === y)) {

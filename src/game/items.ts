@@ -53,6 +53,30 @@ export const sellable = itemIds.filter((id) => items[id].price > 0);
 /** Items a Pokémon can hold */
 export const holdable = itemIds.filter((id) => items[id].kind === "hold");
 
+/** Bag pockets, in the order of Emerald's bag (`frame` is the bag picture of each pocket) */
+export const pockets = [
+  { id: "items", name: "ITEMS", frame: 1 },
+  { id: "balls", name: "POKé BALLS", frame: 3 },
+  { id: "tms", name: "TMs & HMs", frame: 4 },
+  { id: "berries", name: "BERRIES", frame: 5 },
+  { id: "key", name: "KEY ITEMS", frame: 2 },
+] as const;
+
+/** Bag pocket */
+export type Pocket = (typeof pockets)[number]["id"];
+
+/** Pocket an item goes in: Poké Balls, HMs, berries, key items (rods, VS Seeker), or items (healing, held items) */
+export function pocketOf(id: ItemId): Pocket {
+  const { kind } = items[id];
+  return kind === "ball" ? "balls" : id.startsWith("hm-") ? "tms" : id.endsWith("-berry") ? "berries" : kind === "rod" || kind === "hm" ? "key" : "items";
+}
+
+/** Emerald icon of an item (HMs are colored by their move's type) */
+export function iconOf(id: ItemId) {
+  const own: Partial<Record<ItemId, string>> = { "hm-flash": "hm_normal", "hm-cut": "hm_normal", "hm-strength": "hm_normal", "hm-rock-smash": "hm_fighting" };
+  return `/game/items/${own[id] ?? id.replace(/-/g, "_")}.png`;
+}
+
 /** Best rod in a bag (null without one) */
 export function bestRod(count: (id: ItemId) => number) {
   return (["super-rod", "good-rod", "old-rod"] as const).find((id) => count(id) > 0) ?? null;

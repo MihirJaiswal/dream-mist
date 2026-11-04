@@ -1,7 +1,7 @@
 //Imports
 import * as PIXI from "pixi.js";
 import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
-import { brushes, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
+import { brushes, joint, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
 import { arrow, ICE } from "../behaviors";
 import { type Action, type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
 import { type CityMap, drawBall, drawDen, drawTree } from "../map";
@@ -9,6 +9,7 @@ import { flatten, reindex } from "../scripts";
 import { fields } from "../fields";
 import { collides, isOutdoor, type Side, spot } from "../region";
 import { scaleOf } from "../sprites";
+import { buildRoom, type Interior } from "../interiors";
 import { custom as sheets, decode, encode, range, ruleOf } from "../tilesets";
 import { ui } from "../ui-bridge";
 import {
@@ -22,7 +23,6 @@ import {
   placing,
   type Stamp,
   type Target,
-  type Template,
   type Tool,
   targets,
   tools,
@@ -36,7 +36,7 @@ type Change = { grid: Grid; index: number; before: number; after: number };
 type Entry = { changes: Change[] } | { snapshot: { before: string; after: string } } | { town: { before: string; after: string } };
 
 /** Is a tile value tall grass (a brush that brings wild Pokémon, or an Emerald tile that is tall grass in the game) */
-const tall = (value: number) => value > 0 && (brushes.some(({ zone, tiles }) => zone && tiles[0] === value) || Boolean(ruleOf(value)?.grass));
+const tall = (value: number) => value > 0 && (brushes.some(({ zone, tiles }) => zone && tiles.includes(value)) || Boolean(ruleOf(value)?.grass));
 
 /** Grids that can be hidden in the editor (people, spawn and doors are always shown) */
 const hideable = ["ground", "decor", "above", "solid", "zone", "story"] as readonly string[];
@@ -306,7 +306,7 @@ export class EditorEngine {
     this.#map.overlays.zone.visible = false;
     this.#map.overlays.gate.visible = false;
     this.#map.overlays.grid.visible = false;
-    for (const layer of layers) {
+    for (const layer of [...layers, "over"] as const) {
       this.#map.containers[layer].alpha = 1;
       this.#map.containers[layer].visible = true;
     }
@@ -697,6 +697,15 @@ export class EditorEngine {
       j = (((y - origin.y) % h) + h) % h;
     const pool = this.#random ? tiles.filter(Boolean) : [];
     const value = pool.length ? pool[Math.floor(Math.random() * pool.length)] : tiles[j * w + i];
+    //Round trees in a column share a tile where a trunk meets the crown top of the tree below, like Emerald's forests
+    const at = y * this.#city.width + x;
+    const joined = value && layer === "decor" ? joint(value, this.#city.layers.decor[at]) || joint(this.#city.layers.above[at], value) : 0;
+    if (joined) {
+      this.#set("above", x, y, 0);
+      this.#set("decor", x, y, joined);
+      this.#collide("decor", x, y);
+      return;
+    }
     //Tree tops go on the Above layer, over whatever stands behind them
     if (value && layer === "decor" && j < (this.#stamp.top ?? 0) && !pool.length) {
       this.#set("above", x, y, value);
@@ -1315,40 +1324,24 @@ export class EditorEngine {
   //=================================================================================================
   // Maps (outside and interiors)
 
-  /** Create an interior from a template (with an exit door leading outside) */
-  newInterior(template: Template) {
-    const floors = { house: "tiles", center: "stone", gym: "brick", empty: "stone" } as const;
-    const floor = terrains.find(({ id }) => id === floors[template])!.tiles[4];
-    const names = { house: "House", center: "Pokémon Center", gym: "Gym", empty: "Room" };
-    const count = this.#world.interiors.filter(({ name }) => name.startsWith(names[template])).length;
-    const map = interior(this.#world, { name: count ? `${names[template]} ${count + 1}` : names[template], width: 14, height: 10, floor });
+  /** Create an empty room (with an exit door leading outside) */
+  newInterior() {
+    const floor = terrains.find(({ id }) => id === "stone")!.tiles[4];
+    const count = this.#world.interiors.filter(({ name }) => name.startsWith("Room")).length;
+    const map = interior(this.#world, { name: count ? `Room ${count + 1}` : "Room", width: 14, height: 10, floor });
     const mid = Math.floor(map.width / 2);
     map.doors.push({ x: mid, y: map.height - 1, to: "", tx: -1, ty: -1 });
     map.solid[(map.height - 1) * map.width + mid] = 0;
     map.layers.ground[(map.height - 1) * map.width + mid] = floor;
-    const person = (npc: Partial<Npc>) =>
-      map.npcs.push({ x: mid, y: 3, sprite: "generic_f1", dir: "down", name: "", dialogue: "", role: "talk", wander: false, ...npc } as Npc);
-    if (template === "center") {
-      person({ sprite: "shopkeeper_f", name: "Nurse", dialogue: "Welcome to the Pokémon Center!", role: "healer" });
-    } else if (template === "gym") {
-      person({
-        sprite: "roxanne",
-        name: "Gym Leader",
-        dialogue: "Welcome, challenger! Show me what you've got!",
-        role: "trainer",
-        trainer: {
-          team: [
-            { species: 74, level: 12 },
-            { species: 299, level: 15 },
-          ],
-          gym: true,
-          badge: "",
-          defeat: "You've earned this badge!",
-        },
-      });
-    } else if (template === "house") {
-      person({ sprite: "mom", name: "Mom", dialogue: "Make yourself at home!", wander: true });
-    }
+    this.onmaps?.();
+    this.#notify();
+    return map;
+  }
+
+  /** Create an interior from one of Emerald's rooms; `sheets` are the indexes of its two tilesets among the city's tilesets */
+  addRoom(room: Interior, sheets: { primary: number; secondary: number }) {
+    const count = this.#world.interiors.filter(({ name }) => name.startsWith(room.label)).length;
+    const map = buildRoom(this.#world, room, sheets, count ? `${room.label} ${count + 1}` : room.label);
     this.onmaps?.();
     this.#notify();
     return map;
@@ -1690,18 +1683,13 @@ export class EditorEngine {
     this.#notify();
   }
 
-  /** Where the selected door leads ("" = outside, "new:<template>" creates an interior) */
+  /** Where the selected door leads ("" = outside, or a map id) */
   setDoorDestination(value: string) {
     const door = this.#city.doors[this.#door];
     if (!door) {
       return;
     }
-    if (value.startsWith("new:")) {
-      const map = this.newInterior(value.slice(4) as Template);
-      this.mutate(() => (door.to = map.id));
-    } else {
-      this.mutate(() => (door.to = value));
-    }
+    this.mutate(() => (door.to = value));
     this.#markersRefresh();
     this.#notify();
   }
@@ -2175,6 +2163,8 @@ export class EditorEngine {
       this.#map.containers[layer].alpha = this.#target === "ground" && layer !== "ground" ? 0.7 : 1;
       this.#map.containers[layer].visible = !this.#hidden.has(layer);
     }
+    //The parts of Emerald tiles drawn over people are only needed when someone walks under them
+    this.#map.containers.over.visible = false;
   }
 
   /** Rebuild the cursor ghost (brush or clipboard preview) */

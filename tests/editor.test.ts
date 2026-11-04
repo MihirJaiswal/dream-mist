@@ -50,8 +50,9 @@ describe("tree stamps", () => {
     const { stamp } = await import("@/game/brushes");
     const { blank } = await import("@/game/data");
     const city = blank({ width: 10, height: 10 });
-    stamp(city, "Tree", 2, 2);
-    stamp(city, "Tree", 3, 3);
+    //Their crowns at 2 and 3 (the top of each crown sticks out a row above)
+    stamp(city, "Tree", 2, 1);
+    stamp(city, "Tree", 3, 2);
     const at = (x: number, y: number) => y * city.width + x;
     //The back tree keeps its trunk where the front tree's top overlaps it
     expect(city.layers.decor[at(3, 3)]).toBe(326);
@@ -86,6 +87,44 @@ describe("tiles with see-through parts", () => {
     expect([fixed.layers.ground[5], fixed.layers.decor[5]]).toEqual([frames.grass + 1, frames.tall + 1]);
     //Something already stands there: left as it was
     expect([fixed.layers.ground[6], fixed.layers.decor[6]]).toEqual([frames.tall + 1, 999]);
+  });
+
+  test("long grass shows whole, and towns painted with its cut-off bottom get Emerald's wild grass", async () => {
+    const { stamp, frames } = await import("@/game/brushes");
+    const { blank, sanitize } = await import("@/game/data");
+    const city = blank({ width: 4, height: 4, ground: frames.grass + 1 });
+    stamp(city, "Long grass (wild Pokémon)", 1, 1);
+    expect([city.layers.above[5], city.layers.decor[9], city.zone[9], city.solid[9]]).toEqual([frames.long[0] + 1, frames.long[1] + 1, 1, 0]);
+    city.layers.decor[2] = frames.cut + 1;
+    city.layers.ground[3] = frames.cut + 1;
+    const fixed = sanitize(JSON.parse(JSON.stringify(city)));
+    expect([fixed.layers.decor[2], fixed.layers.decor[3], fixed.layers.ground[3]]).toEqual([frames.tall + 1, frames.tall + 1, frames.grass + 1]);
+    //Long grass keeps its bottom
+    expect(fixed.layers.decor[9]).toBe(frames.long[1] + 1);
+  });
+
+  test("round trees have their whole crown, stack like Emerald's forests, and older towns get the top of it back", async () => {
+    const { stamp, frames } = await import("@/game/brushes");
+    const { blank, sanitize } = await import("@/game/data");
+    const [crown, middle, trunk] = frames.tree;
+    const city = blank({ width: 4, height: 8, ground: frames.grass + 1 });
+    stamp(city, "Tree", 0, 0);
+    expect([city.layers.above[0], city.layers.above[4], city.layers.decor[8], city.solid[4], city.solid[8]]).toEqual([crown + 1, middle + 1, trunk + 1, 0, 1]);
+    //A tree stacked below: its crown top and the trunk above share one tile, whichever is painted first
+    stamp(city, "Tree", 0, 2);
+    expect([city.layers.decor[8], city.layers.decor[9], city.layers.above[8], city.solid[8]]).toEqual([frames.joint + 1, frames.joint + 2, 0, 1]);
+    const below = blank({ width: 4, height: 8, ground: frames.grass + 1 });
+    stamp(below, "Tree", 0, 2);
+    stamp(below, "Tree", 0, 0);
+    expect([below.layers.decor[8], below.layers.above[8]]).toEqual([frames.joint + 1, 0]);
+    //An older column of trees: crowns and trunks only
+    const old = blank({ width: 4, height: 8, ground: frames.grass + 1 });
+    for (const y of [1, 3]) {
+      old.layers.above[y * 4 + 1] = middle + 2;
+      old.layers.decor[(y + 1) * 4 + 1] = trunk + 2;
+    }
+    const fixed = sanitize(JSON.parse(JSON.stringify(old)));
+    expect([fixed.layers.above[1], fixed.layers.decor[9], fixed.layers.above[9]]).toEqual([crown + 2, frames.joint + 2, 0]);
   });
 
   test("Hoenn maps get sea where they have nothing, and ground under see-through tiles", async () => {

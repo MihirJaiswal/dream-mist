@@ -6,6 +6,7 @@ import { type ItemId, items } from "./items";
 import { abilityName, absorbs, contact, guards, pinch, shields, swimmers } from "./abilities";
 import type { BattleRules, Difficulty, Scene } from "./data";
 import type { Weather } from "./atmosphere";
+import { ui } from "./ui-bridge";
 
 /** Battle outcome */
 export type Outcome = "win" | "lose" | "run" | "caught";
@@ -226,8 +227,17 @@ export type BattleSide = {
   info: boolean;
 };
 
-/** Menu shown below the battle log */
-export type BattleMenu = { columns: number; choices: { label: string; detail: string; color?: string; disabled?: boolean }[] };
+/**
+ * Menu shown below the battle log: its entries, the one the cursor is on, whether X goes back,
+ * and the moves box (moves in a 2×2 grid, the PP and type of the one under the cursor beside them)
+ */
+export type BattleMenu = {
+  columns: number;
+  cursor: number;
+  back: boolean;
+  kind?: "moves";
+  choices: { label: string; detail: string; color?: string; disabled?: boolean; pp?: string; type?: string }[];
+};
 
 /** Everything the interface needs to draw a battle */
 export type BattleView = {
@@ -460,34 +470,79 @@ export class Battle {
     await wait(delay);
   }
 
-  /** Pick a menu entry (from the interface) */
+  /** Pick a menu entry (from the interface), or go back with -1 */
   choose(index: number) {
     this.#choose?.(index);
   }
 
-  /** Show menu buttons and wait for a choice (number keys pick entries too) */
-  #menu<T>(choices: { label: string; value: T; detail?: string; color?: string; disabled?: boolean }[], { columns = 2 } = {}) {
+  /** Move the menu cursor onto an entry (pointing at it) */
+  point(index: number) {
+    const menu = this.view.menu;
+    if (menu && menu.choices[index] && index !== menu.cursor) {
+      this.view.menu = { ...menu, cursor: index };
+      this.#emit();
+    }
+  }
+
+  /**
+   * Show a menu and wait for a choice, like the Game Boy Advance games: the arrow keys (or WASD) move the cursor,
+   * Space, Enter, Z or E pick, number keys pick directly, and X or Escape go back when `back` is given (its value is returned)
+   */
+  #menu<T>(
+    choices: { label: string; value: T; detail?: string; color?: string; disabled?: boolean; pp?: string; type?: string }[],
+    { columns = 2, back, kind }: { columns?: number; back?: T; kind?: "moves" } = {},
+  ) {
     return new Promise<T>((solve) => {
-      const done = (index: number) => {
-        if (!choices[index] || choices[index].disabled) {
-          return;
-        }
+      const finish = (value: T) => {
         document.removeEventListener("keydown", keys, true);
         this.#choose = null;
         this.view.menu = null;
         this.#emit();
-        solve(choices[index].value);
+        solve(value);
       };
-      const keys = (event: KeyboardEvent) => {
-        const index = Number(event.key) - 1;
+      const done = (index: number) => {
+        if (index < 0 && back !== undefined) {
+          return finish(back);
+        }
         if (choices[index] && !choices[index].disabled) {
-          event.stopPropagation();
-          done(index);
+          finish(choices[index].value);
+        }
+      };
+      const steps: Record<string, number> = { arrowleft: -1, a: -1, arrowright: 1, d: 1, arrowup: -columns, w: -columns, arrowdown: columns, s: columns };
+      const keys = (event: KeyboardEvent) => {
+        const key = event.key.toLowerCase();
+        const number = Number(event.key) - 1;
+        const handled = (key in steps || [" ", "enter", "z", "e", "x", "escape"].includes(key) || choices[number]) && this.view.menu;
+        if (!handled) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (choices[number]) {
+          return done(number);
+        }
+        if (key === "x" || key === "escape") {
+          return done(-1);
+        }
+        if (key in steps) {
+          return this.point(this.view.menu!.cursor + steps[key]);
+        }
+        if (!event.repeat) {
+          done(this.view.menu!.cursor);
         }
       };
       document.addEventListener("keydown", keys, true);
       this.#choose = done;
-      this.view.menu = { columns, choices: choices.map(({ label, detail, color, disabled }, i) => ({ label, detail: detail ?? `${i + 1}`, color, disabled })) };
+      this.view.menu = {
+        columns,
+        cursor: Math.max(
+          0,
+          choices.findIndex(({ disabled }) => !disabled),
+        ),
+        back: back !== undefined,
+        kind,
+        choices: choices.map(({ label, detail, color, disabled, pp, type }, i) => ({ label, detail: detail ?? `${i + 1}`, color, disabled, pp, type })),
+      };
       this.#emit();
     });
   }
@@ -643,8 +698,8 @@ export class Battle {
         if (!me.moves.some(({ pp }) => pp > 0)) {
           return { slot, who: me, move: struggle, aim: this.#standing("foe")[0] ?? null };
         }
-        const choice = await this.#menu<number>([
-          ...me.moves.map(({ key, pp }, i) => {
+        const choice = await this.#menu<number>(
+          me.moves.map(({ key, pp }, i) => {
             const data = assets.moves[key];
             return {
               label: data?.name ?? key,
@@ -652,10 +707,12 @@ export class Battle {
               detail: `${data?.type.toUpperCase()} · PP ${pp}/${data?.pp}`,
               color: colors[data?.type],
               disabled: pp <= 0,
+              pp: `${pp}/${data?.pp}`,
+              type: data?.type ?? "",
             };
           }),
-          { label: "Back", value: -1, detail: "" },
-        ]);
+          { back: -1, kind: "moves" },
+        );
         if (choice < 0) {
           return "back";
         }
@@ -664,15 +721,15 @@ export class Battle {
         let aim = this.#standing("foe")[0] ?? null;
         const aimed = move.power > 0 || (!move.effect?.self && !move.heal && !move.protect);
         if (this.double && aimed && !move.spread && this.#standing("foe").length > 1) {
-          const target = await this.#menu<Slot | "back">([
-            ...this.#standing("foe").map((foe) => ({
+          const target = await this.#menu<Slot | "back">(
+            this.#standing("foe").map((foe) => ({
               label: this.#who(this.#field[foe]!),
               value: foe as Slot | "back",
               detail: `Lv ${this.#field[foe]!.level}`,
               color: colors[species(this.#field[foe]!.species).types[0]],
             })),
-            { label: "Back", value: "back", detail: "" },
-          ]);
+            { back: "back" },
+          );
           if (target === "back") {
             return "back";
           }
@@ -687,18 +744,9 @@ export class Battle {
           const item = items[id];
           return item.kind === "ball" ? !this.#opponent && !this.raid : item.kind === "heal" ? me.hp < hp(me) : item.kind === "cure" && Boolean(me.status);
         };
-        const colorOf = { ball: "#f05038", heal: "#a040a0", cure: "#48a8d0", rod: "#909090", hm: "#909090", hold: "#58a858" };
-        const choice = await this.#menu<ItemId | "back">([
-          ...bag.map(({ id, count }) => ({
-            label: items[id].name,
-            value: id as ItemId | "back",
-            detail: `x${count} · ${items[id].about}`,
-            color: colorOf[items[id].kind],
-            disabled: !usable(id),
-          })),
-          { label: "Back", value: "back", detail: bag.length ? "" : "Your bag is empty" },
-        ]);
-        if (choice === "back") {
+        //The bag screen, like the games (only items that help right now can be used)
+        const choice = await ui.bag({ battle: { usable: (id) => bag.some((entry) => entry.id === id) && usable(id) } });
+        if (!choice) {
           return "back";
         }
         trainer.take(choice);
@@ -1267,19 +1315,16 @@ export class Battle {
     const party = trainer.profile!.party;
     const current = this.#field[slot]!;
     const onField = (creature: Creature) => slots.some((other) => this.#field[other] === creature);
-    const choice = await this.#menu<number>(
-      [
-        ...party.map((creature, i) => ({
-          label: `${named(creature)} Lv${creature.level}`,
-          value: i,
-          detail: `HP ${creature.hp}/${hp(creature)}`,
-          color: colors[species(creature.species).types[0]],
-          disabled: creature.hp <= 0 || onField(creature),
-        })),
-        ...(cancellable ? [{ label: "Back", value: -1, detail: "" }] : []),
-      ],
-      { columns: 2 },
-    );
+    //The party screen, like the games (a fainted Pokémon has to be replaced: there's no way back then)
+    const picked = await ui.party({
+      message: "Choose a Pokémon.",
+      action: "SHIFT",
+      cancel: cancellable,
+      can: (creature) =>
+        creature.hp <= 0 ? `${named(creature)} has no energy left to battle!` : onField(creature) ? `${named(creature)} is already in battle!` : true,
+    });
+    //Without an interface (or when it gives none back), the next Pokémon able to fight goes in
+    const choice = picked ?? (cancellable ? -1 : party.findIndex((creature) => creature.hp > 0 && !onField(creature)));
     if (choice < 0) {
       return false;
     }

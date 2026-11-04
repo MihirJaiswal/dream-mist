@@ -18,11 +18,13 @@ export const behaviors = [
   { value: 8, key: "arrow-down", label: "Push ↓", dir: "down", hint: "Pushes the player down until they reach a normal tile" },
   { value: 9, key: "arrow-left", label: "Push ←", dir: "left", hint: "Pushes the player left until they reach a normal tile" },
   { value: 10, key: "arrow-right", label: "Push →", dir: "right", hint: "Pushes the player right until they reach a normal tile" },
+  { value: 11, key: "counter", label: "Counter", dir: null, hint: "Whoever stands behind it is talked to across it, like a Poké Mart clerk" },
 ] as const satisfies readonly { value: number; key: string; label: string; dir: Direction | null; hint: string }[];
 
 /** Behavior values with a name */
 export const WATER = 5;
 export const ICE = 6;
+export const COUNTER = 11;
 
 /** Direction a ledge is jumped off (null when not a ledge) */
 export function ledge(value: number): Direction | null {

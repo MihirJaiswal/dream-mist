@@ -125,6 +125,7 @@ The `behavior` grid gives tiles a special effect, on top of `solid`:
 | `5` | Surf water | Crossed by surfing once a party Pokémon is Water type; `solid` is ignored on it. Paint it on water tiles (which stay `solid` 1) and keep the shore walkable |
 | `6` | Ice | The player slides until something stops them or they leave the ice. Needs `solid` 0 |
 | `7` `8` `9` `10` | Push tile up, down, left, right | Moves the player along until a normal tile. Needs `solid` 0 |
+| `11` | Counter | Blocked (`solid` 1); whoever stands behind it is talked to across it. Put a Poké Mart clerk or a Nurse behind a counter |
 
 People and Pokémon on the map never walk onto ledges or surf water. Without a Water type in the party, surf water is just a wall, so don't put the main path behind it.
 

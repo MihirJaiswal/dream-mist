@@ -34,6 +34,7 @@ import { dataURL, load as loadTilesets, prepare, range } from "./tilesets";
 import { type Creature, cure, hp, teamOf, type Trainer, trainer, upgrade } from "./trainer";
 import { Battle, battleWeather, trainerRules } from "./battle";
 import { type ItemId, items } from "./items";
+import { type Interior, loadRooms, sheetName } from "./interiors";
 import type { Daytime, Weather } from "./atmosphere";
 import { type SignInReason, ui } from "./ui-bridge";
 
@@ -1048,6 +1049,40 @@ export class Session {
     });
   }
 
+  /**
+   * Add an interior from a template: one of Emerald's real rooms (with its tilesets, the people who work there,
+   * and the floors its stairs lead to), or an empty room
+   */
+  async newInterior(key: string) {
+    const rooms = await loadRooms();
+    const room = rooms.find((room) => room.key === key);
+    if (!room) {
+      return this.editor.newInterior();
+    }
+    const built = new Map<string, City>();
+    const make = async (room: Interior): Promise<City> => {
+      const sheets = {
+        primary: await this.addEmeraldTileset({ name: sheetName(room.primary), file: room.primary }),
+        secondary: await this.addEmeraldTileset({ name: sheetName(room.secondary), file: room.secondary }),
+      };
+      const map = this.editor.addRoom(room, sheets);
+      built.set(room.key, map);
+      //Stairs: the other floor is made too, and each floor's stairs lead to the other
+      for (const { x, y, to } of room.stairs) {
+        const floor = rooms.find((other) => other.key === to);
+        if (floor) {
+          const other = built.get(floor.key) ?? (await make(floor));
+          map.doors.push({ x, y, to: other.id, tx: -1, ty: -1 });
+          map.solid[y * map.width + x] = 0;
+        }
+      }
+      return map;
+    };
+    const map = await make(room);
+    this.editor.onmaps?.();
+    return map;
+  }
+
   /** Add a tileset of Pokémon Emerald (built from pret/pokeemerald, served with the game); returns its index among the city's tilesets */
   async addEmeraldTileset({ name, file }: { name: string; file: string }) {
     const url = `/game/tilesets/emerald/${file}`;
@@ -1281,6 +1316,16 @@ export class Session {
     }
     trainer.save();
     this.notify();
+  }
+
+  /** Swap two Pokémon of the party (the first one leads) */
+  swapCreatures(a: number, b: number) {
+    const party = trainer.profile!.party;
+    if (party[a] && party[b]) {
+      [party[a], party[b]] = [party[b], party[a]];
+      trainer.save();
+      this.notify();
+    }
   }
 
   /** Erase the trainer, party, badges and story progress */

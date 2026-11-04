@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditor, useSession } from "@/components/editor/hooks";
+import { templates } from "@/game/editor/constants";
 import { Field, Hint } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,10 +44,13 @@ export function DoorsPanel() {
     ...(door.to === "?" ? [{ value: "?", label: "Choose a destination…" }] : []),
     ...(editor.mapId ? [{ value: "outside", label: "Outside" }] : []),
     ...editor.world.interiors.filter((map) => map !== editor.city).map((map) => ({ value: map.id, label: map.name })),
-    { value: "new:house", label: "+ New house" },
-    { value: "new:center", label: "+ New Pokémon Center" },
-    { value: "new:gym", label: "+ New gym" },
+    ...templates.map(({ key, label }) => ({ value: `new:${key}`, label: `+ New ${label}` })),
   ];
+  //A new interior is made first (Emerald rooms bring their tilesets), then the door leads there
+  const lead = async (value: string) => {
+    const to = value.startsWith("new:") ? (await session.newInterior(value.slice(4))).id : value === "outside" ? "" : value;
+    editor.setDoorDestination(to);
+  };
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="flex items-center justify-between">
@@ -58,7 +62,7 @@ export function DoorsPanel() {
         </Button>
       </div>
       <Field label="Leads to" hint="Visitors arrive at the matching door on the other side.">
-        <Select value={door.to === "" ? "outside" : door.to} onValueChange={(value) => editor.setDoorDestination(value === "outside" ? "" : value)}>
+        <Select value={door.to === "" ? "outside" : door.to} onValueChange={(value) => void lead(value)}>
           <SelectTrigger className="h-8">
             <SelectValue />
           </SelectTrigger>

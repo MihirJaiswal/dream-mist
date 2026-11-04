@@ -5,6 +5,7 @@
  */
 
 import type { ItemId } from "./items";
+import type { Creature } from "./trainer";
 
 /** Picture beside the dialogue box: large artwork, or a map sprite drawn bigger */
 export type Portrait = { src: string; kind: "art" | "sprite" };
@@ -25,6 +26,12 @@ export type UiBridge = {
   ask(text: string, options?: { speaker?: string; portrait?: Portrait }): Promise<boolean>;
   /** Pick one of a few answers in the dialogue box (the last one is the way out), resolves with its index */
   choose(text: string, choices: string[], options?: { speaker?: string; portrait?: Portrait }): Promise<number>;
+  /** Start menu (Pokédex, Pokémon, Bag…), resolves when it closes */
+  menu(): Promise<void>;
+  /** Party screen to choose a Pokémon (switching in battle): resolves with its index, null when cancelled */
+  party(pick: { message: string; action?: string; can?: (creature: Creature, index: number) => true | string; cancel?: boolean }): Promise<number | null>;
+  /** Bag screen in battle: resolves with the item to use, null when closed */
+  bag(options: { battle: { usable: (id: ItemId) => boolean } }): Promise<ItemId | null>;
   /** Close the dialogue box right away, dropping pending lines (their conversation never continues) */
   hush(): void;
   /** Poké Mart: buy items with the trainer's money (resolves when they leave) */
@@ -52,6 +59,9 @@ export const ui: UiBridge = {
   say: async () => {},
   ask: async () => false,
   choose: async (_text, choices) => choices.length - 1,
+  menu: async () => {},
+  party: async () => null,
+  bag: async () => null,
   hush: () => {},
   shop: async () => {},
   banner: () => {},

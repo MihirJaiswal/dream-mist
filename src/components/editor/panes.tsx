@@ -115,7 +115,7 @@ export function MapsPane() {
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-subtle-fg">Interiors, through a door</DropdownMenuLabel>
               {templates.map(({ key, label }) => (
-                <DropdownMenuItem key={key} onSelect={() => session.openArea(editor.newInterior(key).id)}>
+                <DropdownMenuItem key={key} onSelect={async () => session.openArea((await session.newInterior(key)).id)}>
                   <DoorOpen />
                   {label}
                 </DropdownMenuItem>

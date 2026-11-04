@@ -6,7 +6,7 @@
 
 //Imports
 import { type Daytime, daytimes, type Period, type Weather, weathers } from "./atmosphere";
-import { frames } from "./brushes";
+import { frames, joint } from "./brushes";
 import type { ItemId } from "./items";
 import type { Nature } from "./natures";
 import type { Field } from "./fields";
@@ -456,11 +456,35 @@ export function sanitize(raw: Partial<City>, root?: City): City {
   city.behavior = grid(raw.behavior).map((value) => (isBehavior(value) ? value : 0));
   city.zone = grid(raw.zone);
   city.gate = grid(raw.gate);
-  //Tall grass used to be painted on the ground, where its see-through edges showed black: it now stands on grass as an object
+  //Wild grass used to be painted on the ground, where its see-through edges showed black: it now stands on grass as an object
   city.layers.ground.forEach((value, i) => {
-    if (value === frames.tall + 1 && !city.layers.decor[i]) {
+    if ((value === frames.tall + 1 || value === frames.cut + 1) && !city.layers.decor[i]) {
       city.layers.decor[i] = value;
       city.layers.ground[i] = frames.grass + 1;
+    }
+  });
+  //It also used to be the bottom half of long grass, cut off: it becomes Emerald's wild grass (long grass, with its top above it, stays)
+  city.layers.decor.forEach((value, i) => {
+    const top = i >= city.width ? i - city.width : -1;
+    if (value === frames.cut + 1 && !(top >= 0 && layers.some((layer) => city.layers[layer][top] === frames.long[0] + 1))) {
+      city.layers.decor[i] = frames.tall + 1;
+    }
+  });
+  //Round trees used to miss the very top of their crown: it's added over them, where nothing else stands above,
+  //and where it meets the trunk of a tree above, the two share Emerald's joined tile
+  const [crown, middle, trunk] = frames.tree;
+  city.layers.above.forEach((value, i) => {
+    const side = value - middle - 1,
+      top = i - city.width;
+    if ((side === 0 || side === 1) && top >= 0 && !city.layers.above[top] && city.layers.decor[i + city.width] === trunk + 1 + side) {
+      city.layers.above[top] = crown + 1 + side;
+    }
+  });
+  city.layers.above.forEach((value, i) => {
+    const joined = joint(value, city.layers.decor[i]);
+    if (joined) {
+      city.layers.decor[i] = joined;
+      city.layers.above[i] = 0;
     }
   });
   city.zones = Array.isArray(raw.zones) ? raw.zones.filter((zone) => zone && typeof zone === "object").map(cleanZone) : city.zones;

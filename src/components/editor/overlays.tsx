@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { artwork, battleSprite, npc as texture, preview } from "@/game/assets";
 import { CanvasView } from "@/components/editor/widgets";
 import { scaleOf } from "@/game/sprites";
-import { Battle, type BattleSide, type BattleView, type Slot, statusLabels } from "@/game/battle";
+import { Battle, type BattleMenu, type BattleSide, type BattleView, type Slot, statusLabels } from "@/game/battle";
 import { hour } from "@/game/atmosphere";
 import { cloud } from "@/game/cloud";
 import { autoScene, type Scene, sceneOf, scenePicture, typeOf } from "@/game/data";
@@ -258,13 +258,20 @@ function Side({ side, view, foe }: { side: Slot; view: BattleSide; foe: boolean 
   const [failed, setFailed] = useState("");
   const custom = Boolean(creature.art);
   const still = custom || failed === sprite.src;
+  //The entrance plays once when sent out, not again when a hit or a faint animation is cleared afterwards
+  const [entrance, setEntrance] = useState({ entered: view.entered, fxKey: view.fxKey });
+  if (entrance.entered !== view.entered) {
+    setEntrance({ entered: view.entered, fxKey: view.fxKey });
+  }
+  const entering = view.fxKey === entrance.fxKey && !view.fx;
   return (
     <div className={`side ${foe ? "foe" : "ally"}`} data-slot={side}>
       <div className="platform" />
-      <div className="stand">
+      {/* Not sent out yet: only its platform shows */}
+      <div className="stand" style={view.entered ? undefined : { visibility: "hidden" }}>
         <img
           key={`${view.entered}:${view.fxKey}`}
-          className={cn("mon", still ? "still" : sprite.animated ? "animated" : "big", view.fx, view.entered && !view.fx ? "enter" : "")}
+          className={cn("mon", still ? "still" : sprite.animated ? "animated" : "big", view.fx, entering ? "enter" : "")}
           alt=""
           draggable={false}
           src={custom ? creature.art : still ? artwork(creature.species, { back: !foe, shiny: creature.shiny }) : sprite.src}
@@ -443,21 +450,34 @@ export function BattleScreen() {
         </div>
       </div>
       <div className="panel">
-        <div className="log">{view.log}</div>
-        <div className="menu" style={{ gridTemplateColumns: `repeat(${view.menu?.columns ?? 2}, 1fr)` }}>
-          {view.menu?.choices.map(({ label, detail, color, disabled }, i) => (
-            <button
-              key={i}
-              className="action"
-              disabled={disabled}
-              style={color ? { ["--accent" as string]: color } : undefined}
-              onClick={() => battle.choose(i)}
-            >
-              <b>{label}</b>
-              {/^\d+$/.test(detail) ? null : <small>{detail}</small>}
-            </button>
-          ))}
-        </div>
+        {view.menu?.kind === "moves" ? (
+          <Moves menu={view.menu} battle={battle} />
+        ) : (
+          <>
+            <div className="log">{view.log}</div>
+            <div className="menu" style={{ gridTemplateColumns: `repeat(${view.menu?.columns ?? 2}, 1fr)` }}>
+              {view.menu?.choices.map(({ label, detail, color, disabled }, i) => (
+                <button
+                  key={i}
+                  className={cn("action", i === view.menu!.cursor && "picked")}
+                  disabled={disabled}
+                  style={color ? { ["--accent" as string]: color } : undefined}
+                  onMouseEnter={() => battle.point(i)}
+                  onClick={() => battle.choose(i)}
+                >
+                  <b>{label}</b>
+                  {/^\d+$/.test(detail) ? null : <small>{detail}</small>}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {/* Touch screens have no X key: a B button goes back */}
+        {view.menu?.back ? (
+          <button className="back" aria-label="Back" onClick={() => battle.choose(-1)}>
+            B
+          </button>
+        ) : null}
       </div>
       {view.anim ? <Attack key={view.anim.key} anim={view.anim} /> : null}
       {view.ball ? <div key={view.ball.key} className={`pokeball ${view.ball.state}`} /> : null}
@@ -465,6 +485,36 @@ export function BattleScreen() {
   );
 }
 const noop = () => () => {};
+
+/** Moves box, like the Game Boy Advance games: the four moves in a 2×2 grid, and the PP and type of the one under the cursor */
+function Moves({ menu, battle }: { menu: BattleMenu; battle: Battle }) {
+  const current = menu.choices[menu.cursor];
+  return (
+    <>
+      <div className="moves" role="listbox" aria-label="Moves">
+        {menu.choices.map(({ label, disabled }, i) => (
+          <button
+            key={i}
+            role="option"
+            aria-selected={i === menu.cursor}
+            className={cn(i === menu.cursor && "picked")}
+            disabled={disabled}
+            onMouseEnter={() => battle.point(i)}
+            onClick={() => battle.choose(i)}
+          >
+            {label.toUpperCase()}
+          </button>
+        ))}
+      </div>
+      <div className="move-info">
+        <span>PP</span>
+        <b className={cn(current?.disabled && "empty")}>{current?.pp}</b>
+        <span>TYPE/</span>
+        <b>{current?.type?.toUpperCase()}</b>
+      </div>
+    </>
+  );
+}
 
 //=================================================================================================
 // Play mode helpers
@@ -489,7 +539,12 @@ export function Gamepad() {
         {pad("right", "▶")}
         {pad("down", "▼")}
       </div>
-      {pad("action", "A")}
+      <div className="buttons">
+        <button className="pad-start" onClick={() => session.play?.openMenu()}>
+          START
+        </button>
+        {pad("action", "A")}
+      </div>
     </div>
   );
 }

@@ -18,6 +18,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { message, session } from "@/game/session";
 import { installUi } from "@/game/ui-bridge";
+import { menu, StartMenu } from "@/components/editor/start-menu";
+import { bag, party } from "@/components/editor/gba-screens";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -48,6 +50,9 @@ export function EditorApp() {
       say,
       ask,
       choose,
+      menu,
+      party,
+      bag,
       hush,
       shop,
       banner,
@@ -98,6 +103,7 @@ export function EditorApp() {
         {session.ready ? <StatusBar /> : null}
       </div>
       <DialogueBox />
+      <StartMenu />
       <QuestBanner />
       <BattleScreen />
       <Gamepad />

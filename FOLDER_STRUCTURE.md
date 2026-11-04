@@ -107,6 +107,9 @@ DreamMist is one Next.js app. The website, the docs and the editor all live in `
 | Event script actions                      | `src/game/scripts.ts`, `#act` in `src/game/play.ts`, `src/components/editor/script-editor.tsx`                    |
 | Battle rules                              | `src/game/battle.ts`, `src/game/trainer.ts`, `src/game/abilities.ts` and `src/game/natures.ts`                    |
 | Move animations                           | `Attack` in `src/components/editor/overlays.tsx`, sprites from `animations` in `scripts/pret.mts`                 |
+| Start menu (Enter in Play)                | `src/components/editor/start-menu.tsx`, `bag` and `pokedex` in `src/components/editor/trainer-dialogs.tsx`        |
+| Party, summary, PC box and bag screens    | `src/components/editor/gba-screens.tsx` (also used in battles through `ui.party` and `ui.bag`)                    |
+| Interior templates (Emerald rooms)        | `src/game/interiors.ts`, built by `interiors` in `scripts/pret.mts` into `public/game/data/rooms.json`            |
 | Field moves, berry trees, Day Care, raids | `src/game/fields.ts`, `#field`, `#pick`, `#daycare` and `#raid` in `src/game/play.ts`                             |
 | Wild encounters, fishing                  | `src/game/encounters.ts`, `#stepped` and `#fish` in `src/game/play.ts`, `src/components/editor/zones-panel.tsx`   |
 | Emerald graphics (pret)                   | `scripts/pret.mts`, rebuilt with `npm run data -- pret --force`                                                   |

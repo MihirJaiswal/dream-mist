@@ -9,19 +9,29 @@ A city has an **Outside** map and up to 40 **interiors**. They're listed under *
 
 There are two ways:
 
-- **From a door**: select the **Doors** layer (<kbd>7</kbd>), click the door of a building, and in **Leads to** choose **+ New house**, **+ New Pokémon Center** or **+ New gym**. The door is linked right away.
+- **From a door**: select the **Doors** layer (<kbd>7</kbd>), click the door of a building, and in **Leads to** pick one of the **+ New** templates. The door is linked right away.
 - **From the Maps list**: press **+ Map** and pick an interior template, then add a door to it.
 
 Routes and other towns are joined at their edges instead of through doors: see [Routes and the region](/docs/routes).
 
-| Template       | What you get                                                  |
-| -------------- | ------------------------------------------------------------- |
-| House          | A tiled floor, and a Mom who walks around.                    |
-| Pokémon Center | A stone floor and a Nurse who heals.                          |
-| Gym            | A brick floor and a Gym Leader with a Geodude and a Nosepass. |
-| Empty room     | A stone floor and nobody inside.                              |
+The templates are Pokémon Emerald's real rooms, with their tiles, furniture and collision, the exit mats as doors, and the people who work there:
 
-Every template is 14 × 10 tiles with walls around it and an exit door at the bottom that leads back outside. Change the size in **City settings** while the interior is open.
+| Template                                   | What you get                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------- |
+| Pokémon Center                             | The counter and a Nurse who heals, talked to across the counter.           |
+| Poké Mart                                  | The shelves, and a clerk behind the counter.                               |
+| House, House (bigger), House (with plants) | Emerald's houses.                                                          |
+| Player's house (with upstairs)             | Brendan's house with Mom, and the bedroom upstairs, joined by the stairs.  |
+| Pokémon Lab                                | Professor Birch's lab, with the Professor.                                 |
+| Trainer's School                           | Rustboro's school.                                                         |
+| Day Care                                   | The Day Care, with the Day Care Lady.                                      |
+| Bike shop                                  | Mauville's bike shop.                                                      |
+| Gym (Rustboro), Dark gym (Dewford)         | The gym and its leader (Roxanne or Brawly), with a team you can change.    |
+| Cave (Granite Cave)                        | A cave floor.                                                              |
+| Woods (Petalburg Woods)                    | A forest with exits at both ends.                                          |
+| Empty room                                 | A 14 × 10 stone floor with walls, an exit at the bottom and nobody inside. |
+
+The rooms add the Emerald tilesets they're made of to the city, so you can keep painting them with the same tiles. Edit them like any other map: move the furniture, add people, change the size in **City settings** while the interior is open.
 
 Rename an interior in the Maps list. The trash button deletes it, along with every door leading to it.
 

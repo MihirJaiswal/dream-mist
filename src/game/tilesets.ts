@@ -5,11 +5,21 @@ import { size } from "./assets";
 /** Custom tileset (uploaded by a user, stored in the city) */
 export type Tileset = { id: string; name: string; url: string; tile: number; columns: number; rows: number };
 
-/** What each tile of a tileset does (Emerald tilesets ship with it): blocked (1), walkable (0) or unknown (-1), a behavior, tall grass */
-export type Rules = { solid: number[]; behavior: number[]; grass: number[] };
+/**
+ * What each tile of a tileset does (Emerald tilesets ship with it): blocked (1), walkable (0) or unknown (-1), a behavior, tall grass,
+ * and the tiles whose top layer the game draws over people (tree tops, roofs), kept in a "-top" sheet next to the tileset
+ */
+export type Rules = { solid: number[]; behavior: number[]; grass: number[]; over?: number[] };
 
-/** Loaded custom tileset */
-type Loaded = Tileset & { textures: unknown[]; palette: HTMLCanvasElement; empty: Set<number>; clear: Set<number>; rules?: Rules };
+/** Loaded custom tileset (`tops` are the textures drawn over people, by frame) */
+type Loaded = Tileset & {
+  textures: unknown[];
+  palette: HTMLCanvasElement;
+  empty: Set<number>;
+  clear: Set<number>;
+  rules?: Rules;
+  tops?: Map<number, PIXI.Texture>;
+};
 
 /** Tile values range reserved per custom tileset (built-in RSE tileset uses values below 10000) */
 export const range = 10000;
@@ -94,7 +104,34 @@ export async function prepare(tileset: Tileset): Promise<Loaded> {
       .then((response) => (response.ok ? response.json() : undefined))
       .catch(() => undefined);
   }
-  return { ...tileset, columns, rows, textures, palette, empty, clear, rules };
+  let tops: Map<number, PIXI.Texture> | undefined;
+  if (rules?.over?.length) {
+    try {
+      const top = PIXI.BaseTexture.from(await image(tileset.url.replace(/\.png$/, "-top.png")), { scaleMode: PIXI.SCALE_MODES.NEAREST });
+      tops = new Map(
+        rules.over.map((frame) => [frame, new PIXI.Texture(top, new PIXI.Rectangle((frame % columns) * tile, Math.floor(frame / columns) * tile, tile, tile))]),
+      );
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+  return { ...tileset, columns, rows, textures, palette, empty, clear, rules, tops };
+}
+
+/** The part of a tile drawn over people, like the game does for tree tops and roofs (null when it has none) */
+export function topOf(value: number) {
+  if (value < range) {
+    return null;
+  }
+  const { index, frame } = decode(value);
+  const tileset = custom.get(index);
+  const texture = tileset?.tops?.get(frame);
+  if (!tileset || !texture) {
+    return null;
+  }
+  const sprite = new PIXI.Sprite(texture);
+  sprite.scale.set(size / tileset.tile);
+  return sprite;
 }
 
 /** What a tile of a custom tileset does, when its tileset knows (Emerald ones): null otherwise */

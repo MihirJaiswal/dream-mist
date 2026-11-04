@@ -4,8 +4,11 @@
  *   game/battle/<scene>.png             battle backgrounds (240×112, the battle bases drawn in) and <scene>-edge.png to widen them
  *   game/textures/rse/people.{png,json} every walking overworld person, as a sprite sheet (names start with "em_")
  *   game/tilesets/emerald/<name>.png    every Emerald tileset, its metatiles as 16px tiles, and index.json listing them
+ *   game/tilesets/emerald/<name>-top.png the top layer of the metatiles the game draws over people (tree tops, roofs), at the same place
  *   game/tilesets/emerald/<name>.json   what each of its tiles does: blocked (learned from the real maps), a behavior, tall grass
  *   game/battle/anims/<name>.png        attack animation sprites (frames stacked from top to bottom), and index.json with their frame sizes
+ *   game/items/<name>.png               every item icon (24px), and the bag (bag_male/bag_female: its pocket pictures stacked from top to bottom)
+ *   game/data/rooms.json                interior templates: Emerald's real rooms (Pokémon Center, Mart, houses, lab, gyms…) with their exits and who works there
  *
  * The repository is cloned once into .cache/pret (only the folders used here). Its files are only read as data.
  * GBA graphics are 8×8 tiles in 4-bit indexed PNGs, tile maps of 16-bit entries (tile, flips, palette) and JASC palettes.
@@ -32,18 +35,21 @@ const sources = [
   "/include/constants/metatile_behaviors.h",
   "data/layouts",
   "graphics/battle_anims/sprites",
+  "graphics/items/icons",
+  "graphics/items/icon_palettes",
+  "graphics/bag",
+  "/data/maps/*/map.json",
 ];
 
 type Color = [number, number, number];
 type Indexed = { width: number; height: number; pixels: Uint8Array };
 
-/** Clone the decompilation (once, only the folders used) */
+/** Clone the decompilation (once, only the folders used; folders added to `sources` later are fetched on the next run) */
 function clone(log: (text: string) => void) {
-  if (existsSync(join(repo, "graphics"))) {
-    return;
+  if (!existsSync(join(repo, "graphics"))) {
+    log("downloading pret/pokeemerald graphics (first run only)");
+    execFileSync("git", ["clone", "--depth", "1", "--filter=blob:none", "--sparse", "https://github.com/pret/pokeemerald.git", repo], { stdio: "inherit" });
   }
-  log("downloading pret/pokeemerald graphics (first run only)");
-  execFileSync("git", ["clone", "--depth", "1", "--filter=blob:none", "--sparse", "https://github.com/pret/pokeemerald.git", repo], { stdio: "inherit" });
   execFileSync("git", ["sparse-checkout", "set", "--no-cone", ...sources], { cwd: repo, stdio: "inherit" });
 }
 
@@ -277,6 +283,136 @@ function animations(out: string) {
 }
 
 //=================================================================================================
+// Items and the bag
+
+/** Icons drawn with another palette than their own: the icon, then the palette */
+const recolored = {
+  super_potion: ["potion", "super_potion"],
+  hm_normal: ["hm", "normal_tm_hm"],
+  hm_fighting: ["hm", "fighting_tm_hm"],
+  hm_water: ["hm", "water_tm_hm"],
+  hm_flying: ["hm", "flying_tm_hm"],
+};
+
+/** Draw an indexed image with a palette (color 0 stays see-through) */
+function paint(sheet: Indexed, colors: Color[]) {
+  const { png, set } = canvas(sheet.width, sheet.height);
+  for (let y = 0; y < sheet.height; y++) {
+    for (let x = 0; x < sheet.width; x++) {
+      const color = sheet.pixels[y * sheet.width + x];
+      if (color && colors[color]) set(x, y, colors[color]);
+    }
+  }
+  return png;
+}
+
+/** Every item icon with its palette, and the bag */
+function items(out: string) {
+  const folder = join(repo, "graphics/items");
+  const pairs = new Map<string, [string, string]>(Object.entries(recolored) as [string, [string, string]][]);
+  for (const file of readdirSync(join(folder, "icons"))) {
+    const name = basename(file, ".png");
+    if (file.endsWith(".png") && existsSync(join(folder, "icon_palettes", `${name}.pal`))) pairs.set(name, [name, name]);
+  }
+  for (const [name, [icon, palette]] of pairs) {
+    write(join(out, "items", `${name}.png`), paint(indexed(join(folder, "icons", `${icon}.png`)), jasc(join(folder, "icon_palettes", `${palette}.pal`))));
+  }
+  for (const bag of ["bag_male", "bag_female"]) {
+    write(join(out, "items", `${bag}.png`), paint(indexed(join(repo, "graphics/bag", `${bag}.png`)), jasc(join(repo, "graphics/bag/bag.pal"))));
+  }
+  return pairs.size;
+}
+
+//=================================================================================================
+// Interior templates
+
+/** Emerald's rooms offered as interior templates (layout folders), in menu order; upper floors come with the room their stairs lead from */
+const rooms = [
+  { key: "center", label: "Pokémon Center", layout: "PokemonCenter_1F" },
+  { key: "mart", label: "Poké Mart", layout: "Mart" },
+  { key: "house", label: "House", layout: "House1" },
+  { key: "house-2", label: "House (bigger)", layout: "House2" },
+  { key: "house-3", label: "House (with plants)", layout: "House3" },
+  { key: "home", label: "Player's house", layout: "LittlerootTown_BrendansHouse_1F" },
+  { key: "home-2f", label: "Player's room", layout: "LittlerootTown_BrendansHouse_2F", floor: true },
+  { key: "lab", label: "Pokémon Lab", layout: "LittlerootTown_ProfessorBirchsLab" },
+  { key: "school", label: "Trainer's School", layout: "RustboroCity_PokemonSchool" },
+  { key: "daycare", label: "Day Care", layout: "Route117_PokemonDayCare" },
+  { key: "bike-shop", label: "Bike shop", layout: "MauvilleCity_BikeShop" },
+  { key: "gym", label: "Gym (Rustboro)", layout: "RustboroCity_Gym" },
+  { key: "gym-dark", label: "Dark gym (Dewford)", layout: "DewfordTown_Gym" },
+  { key: "cave", label: "Cave (Granite Cave)", layout: "GraniteCave_1F" },
+  { key: "woods", label: "Woods (Petalburg Woods)", layout: "PetalburgWoods" },
+];
+
+/**
+ * Each room: its size, its Emerald tilesets (sheet files), its blocks (metatile, collision and elevation bits),
+ * the tiles leading outside, stairs to its other floors, the people who stand there (named after their picture) and the kind of place
+ */
+function interiors(out: string) {
+  const layouts = JSON.parse(readFileSync(join(repo, "data/layouts/layouts.json"), "utf8")).layouts as {
+    id: string;
+    width: number;
+    height: number;
+    primary_tileset: string;
+    secondary_tileset: string;
+    blockdata_filepath: string;
+  }[];
+  const maps = readdirSync(join(repo, "data/maps"))
+    .filter((name) => existsSync(join(repo, "data/maps", name, "map.json")))
+    .map((name) => JSON.parse(readFileSync(join(repo, "data/maps", name, "map.json"), "utf8")));
+  type Warp = { x: number; y: number; dest_map: string };
+  //A warp leads outside when it goes to the town around the room, or anywhere but another floor of it
+  const outside = (id: string) => {
+    const base = id.replace(/_[^_]+$/, "");
+    return ({ dest_map }: Warp) => id.startsWith(`${dest_map}_`) || !dest_map.startsWith(base);
+  };
+  const layoutOf = (folder: string) => layouts.find((entry) => entry?.blockdata_filepath?.includes(`/${folder}/`));
+  const list = [];
+  for (const { key, label, layout, floor = false } of rooms) {
+    const data = layoutOf(layout);
+    //A map using the room, in a regular town if there is one (the Battle Frontier's lead elsewhere)
+    const candidates = maps
+      .filter((entry) => entry.layout === data?.id)
+      .sort((a, b) => Number(/FRONTIER|UNUSED/.test(a.id)) - Number(/FRONTIER|UNUSED/.test(b.id)));
+    const map = candidates.find((entry) => (entry.warp_events ?? []).some(outside(entry.id))) ?? candidates[0];
+    if (!data || !map) continue;
+    const blocks = readFileSync(join(repo, data.blockdata_filepath));
+    const warps = (map.warp_events ?? []) as Warp[];
+    const exits = warps.filter(outside(map.id)).map(({ x, y }) => ({ x, y }));
+    //Stairs to another floor that is a template too
+    const stairs = warps
+      .filter((warp) => !outside(map.id)(warp))
+      .map(({ x, y, dest_map }) => {
+        const target = maps.find((entry) => entry.id === dest_map);
+        const room = rooms.find((other) => layoutOf(other.layout)?.id === target?.layout);
+        return room ? { x, y, to: room.key } : null;
+      })
+      .filter(Boolean);
+    const people = (map.object_events ?? [])
+      .filter(({ graphics_id }: { graphics_id?: string }) => graphics_id?.startsWith("OBJ_EVENT_GFX_"))
+      .map(({ graphics_id, x, y }: { graphics_id: string; x: number; y: number }) => ({ x, y, look: graphics_id.replace("OBJ_EVENT_GFX_", "").toLowerCase() }));
+    list.push({
+      key,
+      label,
+      floor,
+      stairs,
+      width: data.width,
+      height: data.height,
+      primary: `primary-${folderOf(data.primary_tileset)}.png`,
+      secondary: `${folderOf(data.secondary_tileset)}.png`,
+      blocks: Array.from({ length: data.width * data.height }, (_, i) => blocks.readUInt16LE(i * 2)),
+      exits,
+      people,
+      kind: map.map_type === "MAP_TYPE_UNDERGROUND" ? "cave" : map.map_type === "MAP_TYPE_ROUTE" ? "outdoor" : "indoor",
+      dark: Boolean(map.requires_flash),
+    });
+  }
+  writeFileSync(join(out, "data/rooms.json"), JSON.stringify(list));
+  return list.length;
+}
+
+//=================================================================================================
 // Overworld people
 
 /** Walking overworld people: 9 frames (down, up, left standing, then two walking frames each), drawn with their real palette */
@@ -381,10 +517,14 @@ function dreammist(name = "") {
   if (/^MB_(POND_WATER|INTERIOR_DEEP_WATER|DEEP_WATER|SOOTOPOLIS_DEEP_WATER|OCEAN_WATER|NO_SURFACING|\w+WARD_CURRENT)$/.test(name)) return 5;
   if (/^MB_(ICE|THIN_ICE|CRACKED_ICE)$/.test(name)) return 6;
   if (/^MB_(WALK|SLIDE)_(EAST|WEST|NORTH|SOUTH)$/.test(name)) return { NORTH: 7, SOUTH: 8, WEST: 9, EAST: 10 }[dir!]!;
+  if (name === "MB_COUNTER") return 11;
   return 0;
 }
 
-/** Every tileset as a sheet of its 16px metatiles (8 per row), bottom and top layers drawn together (color 0 stays see-through, as in the game) */
+/**
+ * Every tileset as a sheet of its 16px metatiles (8 per row), bottom and top layers drawn together (color 0 stays see-through, as in the game),
+ * and a sheet of the top layers the game draws over people, for the metatiles that have one
+ */
 function tilesets(out: string) {
   const root = join(repo, "data/tilesets");
   mkdirSync(join(out, "tilesets/emerald"), { recursive: true });
@@ -444,17 +584,17 @@ function tilesets(out: string) {
         return existsSync(file) ? jasc(file) : [];
       }),
       metatiles: readFileSync(join(folder, "metatiles.bin")),
+      attributes: readFileSync(join(folder, "metatile_attributes.bin")),
     };
   };
   const index = [] as { name: string; file: string; kind: string; count: number }[];
   const render = (name: string, kind: "primary" | "secondary", own: ReturnType<typeof load>, primary: ReturnType<typeof load>) => {
-    writeFileSync(
-      join(out, "tilesets/emerald", `${kind === "primary" ? "primary-" : ""}${name}.json`),
-      JSON.stringify(rules(name, join(root, kind, name), own.metatiles.length / 16)),
-    );
     const count = own.metatiles.length / 16;
     const rows = Math.ceil(count / 8);
     const { png, set } = canvas(8 * 16, rows * 16);
+    //Top layers drawn over people: every layer type but "covered" (1) puts its top layer above them
+    const top = canvas(8 * 16, rows * 16);
+    const over = new Set<number>();
     //Primary tiles and palettes 0 to 5 come from the primary tileset, the rest from the secondary one
     const palettes = primary.palettes.map((colors, i) => (i < 6 || kind === "primary" ? colors : own.palettes[i]));
     for (let m = 0; m < count; m++) {
@@ -463,17 +603,28 @@ function tilesets(out: string) {
           const entry = own.metatiles.readUInt16LE(m * 16 + (layer * 4 + part) * 2);
           const number = entry & 0x3ff;
           const sheet = number < 512 ? primary.sheet : own.sheet;
-          tile(sheet, number < 512 ? number : number - 512, palettes[entry >> 12] ?? [], set, {
+          const at = {
             x: (m % 8) * 16 + (part % 2) * 8,
             y: Math.floor(m / 8) * 16 + Math.floor(part / 2) * 8,
             hflip: Boolean(entry & 0x400),
             vflip: Boolean(entry & 0x800),
-          });
+          };
+          tile(sheet, number < 512 ? number : number - 512, palettes[entry >> 12] ?? [], set, at);
+          if (layer === 1 && m * 2 + 1 < own.attributes.length && ((own.attributes.readUInt16LE(m * 2) >> 12) & 0xf) !== 1) {
+            tile(sheet, number < 512 ? number : number - 512, palettes[entry >> 12] ?? [], (x, y, color) => (over.add(m), top.set(x, y, color)), at);
+          }
         }
       }
     }
     const file = `${kind === "primary" ? "primary-" : ""}${name}.png`;
     write(join(out, "tilesets/emerald", file), png);
+    if (over.size) {
+      write(join(out, "tilesets/emerald", file.replace(/\.png$/, "-top.png")), top.png);
+    }
+    writeFileSync(
+      join(out, "tilesets/emerald", file.replace(/\.png$/, ".json")),
+      JSON.stringify({ ...rules(name, join(root, kind, name), count), over: [...over].sort((a, b) => a - b) }),
+    );
     index.push({ name, file, kind, count });
   };
   const primaries = new Map(readdirSync(join(root, "primary")).map((name) => [name, load("primary", name)]));
@@ -498,5 +649,7 @@ export function pret(out: string, log: (text: string) => void) {
   battles(out);
   log(`exported ${animations(out)} attack animation sprites`);
   log(`packed ${people(out)} overworld people`);
+  log(`exported ${items(out)} item icons and the bag`);
+  log(`built ${interiors(out)} interior templates from Emerald's rooms`);
   log(`drew ${tilesets(out)} tilesets`);
 }

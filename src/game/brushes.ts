@@ -25,26 +25,43 @@ function brush(name: string, rows: number[][], options: Partial<Brush> = {}): Br
   return { name, w: rows[0].length, h: rows.length, tiles: rows.flat().map((frame) => (frame ? frame + 1 : 0)), ...options };
 }
 
-/** Tileset frames used by templates */
-export const frames = { grass: 113, tall: 206, sand: 4977, water: 2374 };
+/**
+ * Tileset frames used by templates.
+ * `tall` is Emerald's wild grass, `long` the taller grass of Route 120 (its top, then its bottom),
+ * and `cut` the bottom of long grass alone, which towns used to paint as their wild grass
+ */
+export const frames = { grass: 113, tall: 94, long: [93, 206], cut: 206, sand: 4977, water: 2374, tree: [98, 211, 324], joint: 437 };
+
+/**
+ * Round trees in a column share a tile, like Emerald's forests: where a tree's trunk meets the top of the crown below it, one tile (`joint`) holds both.
+ * The tile joining a crown top and a trunk of the same side, 0 when they don't join
+ */
+export function joint(top: number, trunk: number) {
+  const side = top - frames.tree[0] - 1;
+  return (side === 0 || side === 1) && trunk === frames.tree[2] + 1 + side ? frames.joint + 1 + side : 0;
+}
 
 /** Quick brushes (frames picked from the RSE tileset and real Hoenn maps) */
 export const brushes: Brush[] = [
   brush("Grass", [[frames.grass]], { layer: "ground" }),
   //Tall grass has see-through edges, so it stands on the grass as an object (walkable) like in the real maps
   brush("Tall grass (wild Pokémon)", [[frames.tall]], { layer: "decor", solid: "none", zone: true }),
+  //Its top stands on the Above layer, so the player walks behind it
+  brush("Long grass (wild Pokémon)", [[frames.long[0]], [frames.long[1]]], { layer: "decor", solid: "none", zone: true, top: 1 }),
   brush("Sand path", [[frames.sand]], { layer: "ground" }),
   brush("Gravel path", [[2607]], { layer: "ground" }),
   brush("Pavement", [[4974]], { layer: "ground" }),
   brush("Water", [[frames.water]], { layer: "ground", solid: "all" }),
   brush("Flowers", [[658]], { layer: "decor", solid: "none" }),
+  //Crown top, crown, trunk: only the trunk blocks, the rest stands on the Above layer
   brush(
     "Tree",
     [
-      [211, 212],
-      [324, 325],
+      [frames.tree[0], frames.tree[0] + 1],
+      [frames.tree[1], frames.tree[1] + 1],
+      [frames.tree[2], frames.tree[2] + 1],
     ],
-    { layer: "decor", top: 1 },
+    { layer: "decor", top: 2 },
   ),
   brush(
     "Pine tree",
@@ -123,16 +140,26 @@ export function stamp(city: City, name: string, x: number, y: number) {
   for (let j = 0; j < h; j++) {
     for (let i = 0; i < w; i++) {
       const value = tiles[j * w + i];
-      if (!value || x + i >= city.width || y + j >= city.height) {
+      if (!value || x + i < 0 || y + j < 0 || x + i >= city.width || y + j >= city.height) {
         continue;
       }
       const index = (y + j) * city.width + x + i;
       if (j < top) {
-        //Tree tops go above, over whatever stands behind, and don't block
-        city.layers.above[index] = value;
+        //Tree tops go above, over whatever stands behind, and don't block (a crown top meeting a trunk joins it instead)
+        const joined = joint(value, city.layers.decor[index]);
+        if (joined) {
+          city.layers.decor[index] = joined;
+        } else {
+          city.layers.above[index] = value;
+        }
         continue;
       }
-      city.layers[layer][index] = value;
+      //A trunk meeting the crown top of a tree below joins it
+      const joined = layer === "decor" ? joint(city.layers.above[index], value) : 0;
+      if (joined) {
+        city.layers.above[index] = 0;
+      }
+      city.layers[layer][index] = joined || value;
       city.solid[index] = solid === "all" ? 1 : solid === "none" ? 0 : layer === "decor" ? 1 : 0;
       if (zone) {
         city.zone[index] = 1;
@@ -141,18 +168,23 @@ export function stamp(city: City, name: string, x: number, y: number) {
   }
 }
 
+/** A round tree whose crown and trunk stand at y and y + 1 (its crown top sticks out a row above) */
+function tree(city: City, x: number, y: number) {
+  stamp(city, "Tree", x, y - 1);
+}
+
 /** Starter content for a new city: tree border, paths, a Pokémon Center, houses and tall grass */
 export function template(city: City) {
   const { width: W, height: H } = city;
   city.layers.ground.fill(frames.grass + 1);
   //Tree border
   for (let x = 0; x < W; x += 2) {
-    stamp(city, "Tree", x, 0);
-    stamp(city, "Tree", x, H - 2);
+    tree(city, x, 0);
+    tree(city, x, H - 2);
   }
   for (let y = 2; y < H - 2; y += 2) {
-    stamp(city, "Tree", 0, y);
-    stamp(city, "Tree", W - 2, y);
+    tree(city, 0, y);
+    tree(city, W - 2, y);
   }
   //Paths
   const cx = Math.floor(W / 2),
@@ -218,8 +250,8 @@ export function route(city: City, entrance: Side) {
   if (vertical) {
     const cx = Math.floor(W / 2) - 1;
     for (let y = 0; y < H; y += 2) {
-      stamp(city, "Tree", 0, y);
-      stamp(city, "Tree", W - 2, y);
+      tree(city, 0, y);
+      tree(city, W - 2, y);
     }
     for (let y = 0; y < H; y++) {
       sand(cx, y);
@@ -232,8 +264,8 @@ export function route(city: City, entrance: Side) {
   } else {
     const cy = Math.floor(H / 2) - 1;
     for (let x = 0; x < W; x += 2) {
-      stamp(city, "Tree", x, 0);
-      stamp(city, "Tree", x, H - 2);
+      tree(city, x, 0);
+      tree(city, x, H - 2);
     }
     for (let x = 0; x < W; x++) {
       sand(x, cy);
@@ -258,19 +290,19 @@ export function town(city: City, entrance: Side) {
   for (let x = 0; x < W; x += 2) {
     const gap = Math.abs(x - cx) < 2;
     if (!(gap && facing === "up")) {
-      stamp(city, "Tree", x, 0);
+      tree(city, x, 0);
     }
     if (!(gap && facing === "down")) {
-      stamp(city, "Tree", x, H - 2);
+      tree(city, x, H - 2);
     }
   }
   for (let y = 2; y < H - 2; y += 2) {
     const gap = Math.abs(y - cy) < 2;
     if (!(gap && facing === "left")) {
-      stamp(city, "Tree", 0, y);
+      tree(city, 0, y);
     }
     if (!(gap && facing === "right")) {
-      stamp(city, "Tree", W - 2, y);
+      tree(city, W - 2, y);
     }
   }
   //Path from the way in to the middle of town
