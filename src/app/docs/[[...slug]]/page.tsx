@@ -27,6 +27,9 @@ export function generateStaticParams() {
   return source.generateParams();
 }
 
+//Only the pages built ahead of time exist: any other path is a static 404, never rendered on a server
+export const dynamicParams = false;
+
 export async function generateMetadata(props: { params: Promise<{ slug?: string[] }> }): Promise<Metadata> {
   const params = await props.params;
   const page = source.getPage(params.slug);
