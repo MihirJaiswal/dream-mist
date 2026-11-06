@@ -1,5 +1,6 @@
 "use client";
 
+import { openLogin } from "@/components/login";
 import { PixelButton } from "@/components/site/landing/pixel";
 import { edit, me } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -55,9 +56,9 @@ export function SiteHeader() {
             {user.username[0].toUpperCase()}
           </a>
         ) : user === null ? (
-          <a href={edit()} className="hidden shrink-0 font-pixel text-[12px] uppercase tracking-wide text-[#c9b8f5] hover:text-white sm:inline">
+          <button onClick={() => openLogin()} className="shrink-0 font-pixel text-[12px] uppercase tracking-wide text-[#c9b8f5] hover:text-white">
             Log in
-          </a>
+          </button>
         ) : null}
         <PixelButton href={edit()} small className="shrink-0">
           <span className="sm:hidden">Editor</span>

@@ -30,6 +30,27 @@ export type Card = {
   liked?: boolean;
 };
 
+/** Where a login comes back to: the page it started on (Supabase's redirect URLs allow every page of the site) */
+function back() {
+  return `${location.origin}${location.pathname}${location.search}`;
+}
+
+/** Continue with Google: leaves the page, Google and Supabase bring the player back to it signed in */
+export async function loginWithGoogle() {
+  const { error } = await supabase().auth.signInWithOAuth({ provider: "google", options: { redirectTo: back() } });
+  if (error) {
+    throw error;
+  }
+}
+
+/** Email a sign-in link (new addresses get an account): the link brings the player back to this page signed in */
+export async function loginWithEmail(email: string) {
+  const { error } = await supabase().auth.signInWithOtp({ email, options: { emailRedirectTo: back() } });
+  if (error) {
+    throw error;
+  }
+}
+
 /** Current user (null when logged out, undefined when online features aren't set up or unreachable) */
 export async function me() {
   if (!configured) {

@@ -20,6 +20,7 @@ import { cloud } from "@/game/cloud";
 import { storage } from "@/game/data";
 import { message, session } from "@/game/session";
 import type { SignInReason } from "@/game/ui-bridge";
+import { LoginWindow } from "@/components/login";
 import { Folder, SignOut, Upload } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -44,78 +45,22 @@ export function confirm(title: string, { text = "", action = "Confirm", danger =
   )).then(Boolean);
 }
 
-/** Why someone is asked to sign in */
-const reasons: Record<SignInReason, { title: string; text: string }> = {
-  default: { title: "Welcome to DreamMist", text: "Log in to keep your towns and trainer safe, and take them to any device." },
-  save: { title: "Keep your towns safe", text: "Right now your towns only live in this browser. Log in to save them to your account." },
-  new: { title: "Keep your towns safe", text: "Log in before starting a new town, so both are saved to your account." },
-  publish: { title: "Log in to publish", text: "Published towns belong to an account, so you can update them and see their likes." },
-  share: { title: "Log in for short links", text: "Towns in your account get short links that always show your latest version." },
-  room: { title: "Log in to build together", text: "Live rooms are saved in your account, so everyone's changes are kept." },
-  upload: { title: "Log in to upload", text: "Uploads go to your account, so images can be bigger and share links stay short." },
-};
-
-/** Google "G" in its four colors */
-function GoogleLogo() {
-  return (
-    <svg viewBox="0 0 48 48" className="size-[18px] shrink-0" aria-hidden="true">
-      <path
-        fill="#EA4335"
-        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-      />
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path
-        fill="#FBBC05"
-        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-      />
-      <path
-        fill="#34A853"
-        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-      />
-    </svg>
-  );
-}
-
-/** Sign in (Google accounts only for now) */
+/** Sign in with the DreamMist login window (Google, or an emailed link): the town is saved first, and the editor finishes signing in on return */
 export function signIn(reason: SignInReason = "default") {
   if (!cloud.available) {
     toast.error("Online features aren't set up yet: see the README to connect Supabase.");
     return Promise.resolve();
   }
-  return openDialog<void>((close) => <SignIn reason={reason} close={close} />).then(() => undefined);
-}
-
-function SignIn({ reason, close }: { reason: SignInReason; close: () => void }) {
-  const [busy, setBusy] = useState(false);
-  //Google sends the player back to the editor, which finishes signing in
-  const google = async () => {
-    setBusy(true);
-    try {
-      await session.persist();
-      storage.set("signin-pending", true);
-      await cloud.google();
-    } catch (error) {
-      toast.error("Couldn't continue with Google", { description: message(error) });
-      setBusy(false);
-    }
-  };
-  return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{reasons[reason].title}</DialogTitle>
-          <DialogDescription>{reasons[reason].text}</DialogDescription>
-        </DialogHeader>
-        <Button size="lg" variant="outline" disabled={busy} onClick={google}>
-          <GoogleLogo />
-          {busy ? "Opening Google…" : "Continue with Google"}
-        </Button>
-        <p className="text-center text-[11px] text-subtle-fg">
-          Your towns in this browser stay here either way. After logging in you can bring them into your account.
-        </p>
-      </DialogContent>
-    </Dialog>
-  );
+  return openDialog<void>((close) => (
+    <LoginWindow
+      reason={reason}
+      onClose={() => close()}
+      prepare={async () => {
+        await session.persist();
+        storage.set("signin-pending", true);
+      }}
+    />
+  )).then(() => undefined);
 }
 
 /** Offer to save this browser's towns to the account */

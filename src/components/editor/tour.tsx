@@ -3,12 +3,10 @@
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { useSpeaker } from "@/components/editor/overlays";
 import { share } from "@/components/editor/share-dialogs";
-import { Button } from "@/components/ui/button";
 import { brushes } from "@/game/brushes";
 import { library, type Npc, storage } from "@/game/data";
 import { trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Circle, Sparkle, X } from "@phosphor-icons/react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 //=================================================================================================
@@ -52,6 +50,8 @@ export function Tour() {
   );
   const [start, setStart] = useState<null | Start>(null);
   const [talked, setTalked] = useState(false);
+  //Folded down to its header, to see more of the map
+  const [small, setSmall] = useState(false);
 
   //Open by itself once for new players
   useEffect(() => {
@@ -143,60 +143,86 @@ export function Tour() {
   const ready = (index: number) => index < 3 || (index === 3 ? added.length > 0 : Boolean(speaking));
 
   return (
-    <section aria-label="Getting started" className="absolute bottom-3 left-3 z-20 w-72 rounded-lg border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
-      <header className="mb-2 flex items-center gap-2">
-        <Sparkle size={16} weight="fill" className="text-select" />
-        <b className="flex-1 text-sm">{current < 0 ? "You made a game!" : "Your first game"}</b>
-        <span className="font-mono text-[11px] text-subtle-fg">
-          {count} / {steps.length}
-        </span>
-        <button
-          aria-label="Close the tour"
-          title="Close the tour"
-          onClick={() => close(current < 0 ? "done" : "skipped")}
-          className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <X size={13} />
-        </button>
+    <section
+      aria-label="Getting started"
+      className="absolute bottom-3 left-3 z-20 w-[min(20rem,calc(100%-1.5rem))] border-4 border-[#0b0616] bg-[#1d1038] text-white shadow-[inset_0_4px_0_#3f2c74,6px_6px_0_#0b0616]"
+    >
+      <div className="h-1.5 bg-[#f06aa6]" aria-hidden="true" />
+      <header className="flex items-center gap-3 px-3 pt-3">
+        {/* The dream potion (its black background melts into the panel) */}
+        <img src="/site/potion.avif" alt="" width={56} height={63} className="pixelated float h-16 w-auto shrink-0 mix-blend-screen" />
+        <div className="min-w-0 flex-1">
+          <p className="font-pixel text-[10px] uppercase tracking-wide text-[#f06aa6]">Trainer guide</p>
+          <b className="block font-pixel text-[14px] leading-snug font-normal">{current < 0 ? "You made a game!" : "Your first game"}</b>
+          <span className="font-game text-[12px] text-[#9b8cc9]">
+            {count} of {steps.length} done
+          </span>
+        </div>
+        <div className="flex shrink-0 gap-1 self-start">
+          <button
+            aria-label={small ? "Show the steps" : "Hide the steps"}
+            title={small ? "Show the steps" : "Hide the steps"}
+            onClick={() => setSmall(!small)}
+            className="stepped grid size-7 place-items-center bg-[#0b0616]/60 font-pixel text-[12px] text-[#c9b8f5] hover:text-white"
+          >
+            {small ? "+" : "−"}
+          </button>
+          <button
+            aria-label="Close the guide"
+            title="Close the guide"
+            onClick={() => close(current < 0 ? "done" : "skipped")}
+            className="stepped grid size-7 place-items-center bg-[#0b0616]/60 font-pixel text-[12px] text-[#c9b8f5] hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
       </header>
-      <div className="mb-2 h-1 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-select transition-[width]" style={{ width: `${(count / steps.length) * 100}%` }} />
+      {/* One block per step, filled pink when done */}
+      <div className="mx-3 mt-3 grid grid-cols-5 gap-1" aria-hidden="true">
+        {steps.map(({ title, done }) => (
+          <span key={title} className={cn("h-2", done ? "bg-[#f06aa6]" : "bg-[#0b0616]")} />
+        ))}
       </div>
-      {current < 0 ? (
-        <div className="grid gap-2">
-          <p className="text-xs leading-relaxed text-muted-foreground">
+      {small ? (
+        <div className="h-3" />
+      ) : current < 0 ? (
+        <div className="grid gap-3 p-3">
+          <p className="font-game text-[14px] leading-relaxed text-[#c9b8f5]">
             Someone in your town now talks to visitors. Share it with a friend, or keep building: add a house, a trainer, or a story.
           </p>
           <div className="flex gap-2">
-            <Button size="sm" className="flex-1" onClick={() => (close("done"), share())}>
+            <button onClick={() => (close("done"), share())} className={cn(action, "flex-1 bg-[#f06aa6] text-[#2a0a1e]")}>
               Share it
-            </Button>
-            <Button size="sm" variant="outline" className="flex-1" onClick={async () => (close("done"), await build())}>
+            </button>
+            <button onClick={async () => (close("done"), await build())} className={cn(action, "flex-1 bg-[#b9a6ff] text-[#1c1240]")}>
               Keep building
-            </Button>
+            </button>
           </div>
         </div>
       ) : (
-        <ol className="grid gap-1">
+        <ol className="grid gap-1 p-3">
           {steps.map((step, index) => (
-            <li key={step.title} className={cn("rounded-md px-2 py-1.5", index === current && "bg-muted")}>
-              <div className="flex items-center gap-2 text-sm">
-                {step.done ? (
-                  <CheckCircle size={16} weight="fill" className="shrink-0 text-success" />
-                ) : (
-                  <Circle size={16} className="shrink-0 text-subtle-fg" />
-                )}
-                <span className={cn(step.done ? "text-muted-foreground line-through" : index === current ? "text-foreground" : "text-muted-foreground")}>
+            <li key={step.title} className={cn("border-l-4 px-2.5 py-2", index === current ? "border-[#f06aa6] bg-[#2a1a50]" : "border-transparent")}>
+              <div className="flex items-center gap-2.5">
+                {/* A Poké Ball for each step: caught when done, wobbling for the one to do now */}
+                <img
+                  src="/site/sprites/ball-poke.png"
+                  alt=""
+                  width={16}
+                  height={16}
+                  className={cn("pixelated size-5 shrink-0", !step.done && index !== current && "opacity-30 grayscale", index === current && "tour-wobble")}
+                />
+                <span className={cn("font-game text-[14px]", step.done ? "text-[#9b8cc9] line-through" : index === current ? "text-white" : "text-[#9b8cc9]")}>
                   {step.title}
                 </span>
               </div>
               {index === current ? (
-                <div className="mt-1.5 flex items-center gap-2 pl-6">
-                  <p className="flex-1 text-[11px] leading-snug text-muted-foreground">{step.hint}</p>
+                <div className="mt-2 flex items-center gap-2 pl-[30px]">
+                  <p className="flex-1 font-game text-[12px] leading-snug text-[#c9b8f5]">{step.hint}</p>
                   {ready(index) ? (
-                    <Button size="sm" variant="secondary" className="h-7 shrink-0 px-2 text-xs" onClick={() => void step.show()}>
+                    <button onClick={() => void step.show()} className={cn(action, "shrink-0 bg-[#f06aa6] px-2.5 py-1.5 text-[10px] text-[#2a0a1e]")}>
                       Show me
-                    </Button>
+                    </button>
                   ) : null}
                 </div>
               ) : null}
@@ -207,3 +233,7 @@ export function Tour() {
     </section>
   );
 }
+
+/** Chunky pixel button of the guide */
+const action =
+  "border-[3px] border-[#0b0616] px-3 py-2 font-pixel text-[11px] uppercase tracking-wide shadow-[3px_3px_0_#0b0616] transition-[translate,box-shadow] duration-100 ease-[steps(2)] hover:-translate-y-0.5 hover:shadow-[3px_5px_0_#0b0616]";

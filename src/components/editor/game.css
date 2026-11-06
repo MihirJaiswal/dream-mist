@@ -2246,3 +2246,21 @@
 .infobox .gender.female {
   color: #f04848;
 }
+
+/* Getting started guide: the Poké Ball of the step to do now wobbles */
+.tour-wobble {
+  animation: tour-wobble 1.2s ease-in-out infinite;
+}
+@keyframes tour-wobble {
+  0%,
+  55%,
+  100% {
+    rotate: 0deg;
+  }
+  70% {
+    rotate: -18deg;
+  }
+  85% {
+    rotate: 18deg;
+  }
+}

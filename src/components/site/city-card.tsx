@@ -1,5 +1,6 @@
 "use client";
 
+import { openLogin } from "@/components/login";
 import { Badge } from "@/components/site/badge";
 import { PixelButton } from "@/components/site/landing/pixel";
 import { type Card, edit, like } from "@/lib/api";
@@ -30,10 +31,7 @@ export function CityCard({ city: initial, user }: { city: Card; user?: string | 
   ].filter(Boolean);
   const toggle = async () => {
     if (!user) {
-      return toast.warning("Log in to like cities", {
-        description: "Likes belong to your account.",
-        action: { label: "Log in", onClick: () => location.assign(edit()) },
-      });
+      return openLogin("like");
     }
     try {
       const result = await like(city.id);

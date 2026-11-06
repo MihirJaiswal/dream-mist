@@ -52,7 +52,7 @@ export const cloud = {
     this.listeners.forEach((listener) => listener());
   },
 
-  /** Load the current session and follow sign-ins and sign-outs (also finishes Google sign-in on return) */
+  /** Load the current session and follow sign-ins and sign-outs (also finishes signing in on return from Google or an emailed link) */
   async init() {
     if (!this.available) {
       return this.changed();
@@ -80,14 +80,6 @@ export const cloud = {
     const { data } = await supabase().from("profiles").select("username").eq("id", account.id).maybeSingle();
     this.user = { id: account.id, username: data?.username ?? "trainer", email: account.email ?? "" };
     this.changed();
-  },
-
-  /** Continue with Google (leaves the page, Supabase brings the player back to the editor) */
-  async google() {
-    const { error } = await supabase().auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${location.origin}/editor` } });
-    if (error) {
-      fail(error);
-    }
   },
 
   /** Log out */
