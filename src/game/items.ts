@@ -122,8 +122,20 @@ export type ItemId = keyof typeof items;
 /** Every item, in shop order */
 export const itemIds = Object.keys(items) as ItemId[];
 
-/** Items a Poké Mart sells unless the clerk has a list: balls, healing, cures, revives, repels and Escape Ropes */
-export const sold = itemIds.filter((id) => items[id].price > 0 && ["ball", "heal", "cure", "revive", "repel", "rope"].includes(items[id].kind));
+/** Items a Poké Mart sells unless the clerk has a list, like an early Emerald Mart (stronger items are for clerks given a list) */
+export const sold: ItemId[] = [
+  "poke-ball",
+  "great-ball",
+  "potion",
+  "super-potion",
+  "antidote",
+  "paralyze-heal",
+  "awakening",
+  "burn-heal",
+  "full-heal",
+  "repel",
+  "escape-rope",
+];
 
 /** Items a Poké Mart can be set to sell (key items like rods are only handed out) */
 export const sellable = itemIds.filter((id) => items[id].price > 0);

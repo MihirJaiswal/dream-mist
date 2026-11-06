@@ -9,6 +9,7 @@
  *   game/battle/anims/<name>.png        attack animation sprites (frames stacked from top to bottom), and index.json with their frame sizes
  *   game/items/<name>.png               every item icon (24px), and the bag (bag_male/bag_female: its pocket pictures stacked from top to bottom)
  *   game/intro/<name>.png               the new game's opening: Professor Birch, and Brendan and May
+ *   game/sprites/<name>.png             small sprites: the map's item ball, Poké Balls thrown in battle, berry trees, the "!" emote, the heal machine's balls
  *   game/data/rooms.json                interior templates: Emerald's real rooms (Pokémon Center, Mart, houses, lab, gyms…) with their exits and who works there
  *
  * The repository is cloned once into .cache/pret (only the folders used here). Its files are only read as data.
@@ -41,6 +42,12 @@ const sources = [
   "graphics/bag",
   "/data/maps/*/map.json",
   "graphics/birch_speech",
+  "graphics/balls",
+  "/graphics/object_events/pics/misc/item_ball.png",
+  "/graphics/object_events/pics/misc/birchs_bag.png",
+  "/graphics/object_events/pics/berry_trees/*",
+  "/graphics/field_effects/pics/emotion_exclamation.png",
+  "/graphics/field_effects/pics/pokeball_glow.png",
   "/graphics/trainers/front_pics/brendan.png",
   "/graphics/trainers/front_pics/may.png",
   "/graphics/trainers/palettes/brendan.pal",
@@ -257,7 +264,9 @@ const anims = [
 
 /** Export the animation sprites as they are (color 0 see-through), with their frame size (square frames, stacked) */
 function animations(out: string) {
-  const index = {} as Record<string, { size: number; frames: number }>;
+  //Shared with pokeemerald-expansion's move animation sprites (expansion.mts): only this step's sprites are rewritten
+  const path = join(out, "battle/anims/index.json");
+  const index = (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {}) as Record<string, { size: number; frames: number }>;
   for (const name of anims) {
     const file = join(repo, "graphics/battle_anims/sprites", `${name}.png`);
     if (!existsSync(file)) continue;
@@ -675,6 +684,38 @@ function intro(out: string) {
   }
 }
 
+//=================================================================================================
+// Small sprites
+
+/**
+ * Sprites the game draws instead of making its own (in the colors in their PNGs, color 0 see-through): the item ball on the map,
+ * Poké Balls thrown in battle (closed, opening and open, stacked), berry trees as they grow, the "!" over a trainer who spots the player,
+ * the Professor's bag and the Poké Balls glowing on a Pokémon Center's healing machine
+ */
+const sprites = {
+  item_ball: "object_events/pics/misc/item_ball.png",
+  birchs_bag: "object_events/pics/misc/birchs_bag.png",
+  exclamation: "field_effects/pics/emotion_exclamation.png",
+  pokeball_glow: "field_effects/pics/pokeball_glow.png",
+  ...Object.fromEntries(
+    ["poke", "great", "ultra", "master", "premier", "net", "dive", "nest", "repeat", "timer", "luxury", "safari"].map((ball) => [
+      `balls/${ball}`,
+      `balls/${ball}.png`,
+    ]),
+  ),
+  ...Object.fromEntries(["dirt_pile", "sprout", "oran", "sitrus", "lum"].map((tree) => [`berry_trees/${tree}`, `object_events/pics/berry_trees/${tree}.png`])),
+};
+
+function smallSprites(out: string) {
+  for (const [name, file] of Object.entries(sprites)) {
+    const path = join(repo, "graphics", file);
+    const png = PNG.sync.read(readFileSync(path));
+    indexed(path).pixels.forEach((color, i) => color || (png.data[i * 4 + 3] = 0));
+    write(join(out, "sprites", `${name}.png`), png);
+  }
+  return Object.keys(sprites).length;
+}
+
 /** Build every pret asset */
 export function pret(out: string, log: (text: string) => void) {
   clone(log);
@@ -686,5 +727,6 @@ export function pret(out: string, log: (text: string) => void) {
   log(`built ${interiors(out)} interior templates from Emerald's rooms`);
   intro(out);
   log("drew the new game's Professor and players");
+  log(`exported ${smallSprites(out)} small sprites (item balls, Poké Balls, berry trees…)`);
   log(`drew ${tilesets(out)} tilesets`);
 }

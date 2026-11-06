@@ -67,6 +67,12 @@ describe("journal", () => {
     done.add("m2");
     expect(milestone(city, city.story[2], (id) => done.has(id)).text).toBe("The main story is complete!");
   });
+
+  test("a story of one step (the starter town's) isn't called complete", () => {
+    const city = town();
+    city.story = city.story.filter(({ id }) => id === "m1");
+    expect(milestone(city, city.story[0], () => true).text).toBe("Story step complete!");
+  });
 });
 
 describe("saving", () => {

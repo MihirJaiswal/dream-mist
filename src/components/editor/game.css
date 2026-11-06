@@ -880,11 +880,11 @@
   left: 0;
   top: 0;
   width: var(--size);
-  height: var(--size);
-  background-size: var(--size) var(--sheet);
+  height: var(--h, var(--size));
+  background-size: var(--sw, var(--size)) var(--sheet);
   background-repeat: no-repeat;
   image-rendering: pixelated;
-  translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--size) / 2);
+  translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--h, var(--size)) / 2);
   opacity: 0;
   animation-fill-mode: both;
 }
@@ -914,14 +914,14 @@
 @keyframes fx-fly {
   0% {
     opacity: 1;
-    translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--size) / 2);
+    translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--h, var(--size)) / 2);
   }
   90% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    translate: calc(var(--x1) - var(--size) / 2) calc(var(--y1) - var(--size) / 2);
+    translate: calc(var(--x1) - var(--size) / 2) calc(var(--y1) - var(--h, var(--size)) / 2);
   }
 }
 @keyframes fx-burst {
@@ -949,16 +949,35 @@
   100% {
     opacity: 0;
     scale: 1.2;
-    translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--size) / 2 - 24px);
+    translate: calc(var(--x0) - var(--size) / 2) calc(var(--y0) - var(--h, var(--size)) / 2 - 24px);
   }
 }
+/* The screen flashes a color, as a move's animation script says (Thunderbolt darkens it) */
+.battle .fx-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  animation: fx-flash 0.7s ease-in-out both;
+}
+@keyframes fx-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  35%,
+  65% {
+    opacity: 0.4;
+  }
+}
+/* Emerald's Poké Ball sprite: three 16px frames stacked (closed first), drawn twice as big */
 .battle .pokeball {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(#f03030 0 45%, #303030 45% 55%, #f8f8f8 55%);
-  border: 2px solid #303030;
+  width: 32px;
+  height: 32px;
+  background-size: 32px 96px;
+  background-position: 0 0;
+  image-rendering: pixelated;
   z-index: 4;
   right: 29%;
   top: 34%;
@@ -1940,6 +1959,10 @@
   margin: 0;
   white-space: pre-line;
 }
+/* Tapping it goes on, on touch screens */
+.gba-text[aria-live] {
+  cursor: pointer;
+}
 /* The red arrow saying there's more */
 .gba-text .more {
   position: absolute;
@@ -2002,7 +2025,7 @@
   top: 2cqi;
   display: grid;
   place-items: center;
-  width: 26cqi;
+  width: 22cqi;
   aspect-ratio: 1;
   border-radius: 50%;
   transform: translateX(-50%);
@@ -2017,7 +2040,7 @@
 .gba-starter .about {
   position: absolute;
   left: 50%;
-  top: 30.5cqi;
+  top: 26.5cqi;
   display: flex;
   align-items: center;
   gap: 1.4cqi;
@@ -2032,35 +2055,33 @@
   display: flex;
   gap: 0.6cqi;
 }
+/* Emerald's sprite of the Professor's bag, the Poké Balls lying on it */
 .gba-starter .bag {
   position: absolute;
   left: 50%;
-  top: 42.5cqi;
-  width: 34cqi;
-  height: 6cqi;
+  top: 33cqi;
+  width: 15cqi;
+  aspect-ratio: 1;
   transform: translateX(-50%);
-  border-radius: 3cqi 3cqi 1.4cqi 1.4cqi;
-  background: linear-gradient(#c88850, #a06030);
-  box-shadow:
-    inset 0 0 0 0.6cqi #704020,
-    inset 0 1.4cqi 0 #e0a868;
+  background: url(/game/sprites/birchs_bag.png) center / contain no-repeat;
+  image-rendering: pixelated;
 }
 .gba-starter .balls {
   position: absolute;
   left: 50%;
-  top: 37cqi;
+  top: 40cqi;
   z-index: 1;
   display: flex;
   gap: 4cqi;
   transform: translateX(-50%);
 }
 .gba-starter .ball {
-  width: 8cqi;
+  width: 7cqi;
   aspect-ratio: 1;
   padding: 0;
-  border: 0.6cqi solid #303030;
-  border-radius: 50%;
-  background: linear-gradient(#f04838 0 44%, #303030 44% 56%, #f8f8f8 56%);
+  border: 0;
+  background: url(/game/sprites/balls/poke.png) 0 0 / 100% 300% no-repeat;
+  image-rendering: pixelated;
   transition: transform 0.1s;
 }
 .gba-starter .ball.picked {
@@ -2203,7 +2224,10 @@
   position: absolute;
   right: 2cqi;
   top: 1.6cqi;
-  margin: 0;
+  padding: 0.6cqi 1.4cqi;
+  border: 0;
+  border-radius: 1cqi;
+  background: rgb(255 255 255 / 0.1);
   color: #c8d0e8;
   font-size: 2.6cqi;
 }

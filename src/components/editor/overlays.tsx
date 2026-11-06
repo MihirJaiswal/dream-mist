@@ -306,17 +306,21 @@ const typeSprites: Record<string, { fly: string; burst: string }> = {
   fairy: { fly: "pink_heart_2", burst: "sparkle_1" },
 };
 
-/** Frame size and count of each animation sprite (loaded once) */
-let animFrames: Record<string, { size: number; frames: number }> = {};
+/** Frame size and count of each animation sprite (`h` and `sw`: frame height and sheet width when not square), loaded once */
+let animFrames: Record<string, { size: number; frames: number; h?: number; sw?: number }> = {};
+/** Each move's animation from its Emerald script (pokeemerald-expansion): the sprites it creates in order, and the screen's flash color */
+let moveAnims: Record<string, { p: { s: string; fly?: 1; t: number }[]; flash?: string }> = {};
 const animIndex =
   typeof window === "undefined"
     ? null
-    : fetch("/game/battle/anims/index.json")
-        .then((response) => response.json())
-        .then(
-          (index) => (animFrames = index),
-          () => ({}),
-        );
+    : Promise.all([
+        fetch("/game/battle/anims/index.json")
+          .then((response) => response.json())
+          .then((index) => (animFrames = index)),
+        fetch("/game/battle/anims/moves.json")
+          .then((response) => response.json())
+          .then((moves) => (moveAnims = moves)),
+      ]).catch(() => null);
 
 /** One animation sprite: its frames play while it moves (positions in pixels of the stage) */
 function Sprite({
@@ -334,7 +338,7 @@ function Sprite({
   delay?: number;
   scale?: number;
 }) {
-  const { size = 32, frames = 1 } = animFrames[name] ?? {};
+  const { size = 32, frames = 1, h = size, sw = size } = animFrames[name] ?? {};
   return (
     <div
       className={cn("fx", className)}
@@ -345,8 +349,10 @@ function Sprite({
           "--x1": `${(to ?? from).x}px`,
           "--y1": `${(to ?? from).y}px`,
           "--size": `${size * scale}px`,
+          "--h": `${h * scale}px`,
+          "--sw": `${sw * scale}px`,
           "--frames": frames,
-          "--sheet": `${size * scale * frames}px`,
+          "--sheet": `${h * scale * frames}px`,
           animationDelay: `${delay}ms, ${delay}ms`,
           backgroundImage: `url("/game/battle/anims/${name}.png")`,
         } as React.CSSProperties
@@ -372,9 +378,27 @@ function Attack({ anim }: { anim: NonNullable<BattleView["anim"]> }) {
     void animIndex?.then(() => ready((n) => n + 1));
   }, [anim]);
   const sprites = typeSprites[anim.type] ?? typeSprites.normal;
+  //The move's own animation when its script draws sprites: flying ones go from the user to the target, the rest land on the target
+  //(on the user for moves used on itself), in the script's order squeezed into under a second, spread a little around the spot
+  const script = moveAnims[anim.move];
+  const pieces = (script?.p ?? []).slice(0, 10);
+  const last = Math.max(1, ...pieces.map(({ t }) => t));
+  const squeeze = Math.min(1, 650 / last);
+  const near = (spot: { x: number; y: number }, i: number) => ({ x: spot.x + ((i * 37) % 60) - 30, y: spot.y + ((i * 23) % 40) - 20 });
   return (
     <div ref={ref} className="fx-layer" aria-hidden="true">
-      {spots ? (
+      {script?.flash ? <div className="fx-flash" style={{ background: script.flash }} /> : null}
+      {spots && pieces.length && !anim.protect ? (
+        pieces.map(({ s: name, fly, t }, i) =>
+          anim.mode === "self" ? (
+            <Sprite key={i} name={name} className="glow" from={near(spots.user, i)} delay={t * squeeze} />
+          ) : fly ? (
+            <Sprite key={i} name={name} className="fly" from={near(spots.user, i)} to={near(spots.target, i)} delay={t * squeeze} />
+          ) : (
+            <Sprite key={i} name={name} className="burst" from={i ? near(spots.target, i) : spots.target} delay={t * squeeze} />
+          ),
+        )
+      ) : spots ? (
         anim.mode === "self" ? (
           anim.protect ? (
             <Sprite name="protect" className="glow" from={spots.user} scale={4} />
@@ -481,7 +505,9 @@ export function BattleScreen() {
         ) : null}
       </div>
       {view.anim ? <Attack key={view.anim.key} anim={view.anim} /> : null}
-      {view.ball ? <div key={view.ball.key} className={`pokeball ${view.ball.state}`} /> : null}
+      {view.ball ? (
+        <div key={view.ball.key} className={`pokeball ${view.ball.state}`} style={{ backgroundImage: `url(/game/sprites/balls/${view.ball.kind}.png)` }} />
+      ) : null}
     </div>
   );
 }

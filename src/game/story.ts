@@ -85,7 +85,8 @@ export function milestone(city: City, step: Step, done: Done): { title: string; 
   const next = steps.find(({ id }) => !done(id));
   const then = next ? `Next: ${goal(next)}` : "";
   if (!quest) {
-    return { kind: "story", title: step.name, text: then || "The main story is complete!" };
+    //A story of one step (the starter town's) isn't over yet: it has only begun
+    return { kind: "story", title: step.name, text: then || (steps.length > 1 ? "The main story is complete!" : "Story step complete!") };
   }
   const count = steps.filter(({ id }) => done(id)).length;
   if (!next) {

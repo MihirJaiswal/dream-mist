@@ -45,6 +45,8 @@ type City = {
   dark?: boolean; // per map: dark until the player has HM05 Flash
   song?: string; // per map: its own music (an uploaded track url), the town music when not set
   rules?: { difficulty?: "easy" | "hard"; caps?: number[]; followers?: false }; // outside map only: trainer difficulty (normal when not set), level caps by badges, no Pokémon following the player
+  start?: string; // outside map only: id of the map new players start in, on its spawn (the outside map when not set)
+  intro?: { speech: string }; // outside map only: what the Professor says before a new game starts (blank lines split pages)
   battle?: { image: string; platforms: boolean }; // per map battle background: a picture url, or an Emerald scene "/game/battle/<scene>.png" (tall_grass, long_grass, sand, rock, cave, water, pond_water, underwater, sky, building, stadium); maps without one use the outside map's, then the automatic scene
   updated: number; // timestamp in milliseconds
 };
@@ -103,7 +105,7 @@ type Npc = {
   name: string;
   dialogue: string; // an empty line starts a new page
   role: "talk" | "trainer" | "healer" | "wild" | "raid" | "shop" | "item" | "obstacle" | "daycare"; // "wild": a Pokémon to battle and catch, "raid": a raid den, "shop": a Poké Mart clerk, "item": an item ball holding `gift`, "obstacle": cleared with a field move, "daycare": raises a Pokémon
-  shop?: ItemId[]; // what a clerk sells, everything when not set
+  shop?: ItemId[]; // what a clerk sells, an early-game stock when not set
   gift?: { item: ItemId; count: number }; // given the first time the player talks to them (or found in an item)
   hidden?: boolean; // an item hidden on the ground instead of a ball
   grow?: number; // a berry tree instead: hours until it can be picked again
@@ -145,7 +147,8 @@ type Npc = {
   };
 };
 
-// Sold: "poke-ball" | "great-ball" | "potion" | "super-potion" | "full-heal"
+// Sold by default: "poke-ball" | "great-ball" | "potion" | "super-potion" | "antidote" | "paralyze-heal" | "awakening" | "burn-heal" | "full-heal" | "repel" | "escape-rope"
+// Every item id is listed in the AI guide (/agents.md, section 5.3): stronger potions, revives, Rare Candy, evolution stones, the Linking Cord, held evolution items, the Exp. Share
 // Key items (given, not sold): "old-rod" | "good-rod" | "super-rod" | "hm-flash"
 // Held items: "oran-berry" | "sitrus-berry" | "lum-berry" | "leftovers" | "quick-claw" | "charcoal" | "mystic-water" | "miracle-seed" | "magnet" | "silk-scarf"
 type ItemId = string;
@@ -180,7 +183,8 @@ type Action =
   | { do: "battle"; who: number } // a trainer or wild Pokémon of the map, stops the script if the player loses
   | { do: "give"; item: ItemId; count: number }
   | { do: "take"; item: ItemId; count: number } // take items from the bag
-  | { do: "pokemon"; species: number; level: number }
+  | { do: "pokemon"; species: number; level: number } // the player may nickname it
+  | { do: "starter"; species: number[]; level: number } // the player picks one of them (up to 6) from the Professor's bag
   | { do: "money"; amount: number } // below 0 takes money
   | { do: "heal" }
   | { do: "step"; step: string } // complete a story step

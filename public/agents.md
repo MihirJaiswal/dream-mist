@@ -32,9 +32,12 @@ A game is a **city**: one JSON object. It has:
 
 What the player gets for free (you don't build it):
 
-- They create a trainer when they first press Play and pick **Treecko (252), Torchic (255) or Mudkip (258) at level 5**.
+- A new game opens like Emerald: the Professor welcomes them (your `intro.speech`, or a default welcome), they pick a boy or a girl and type a name, then they start on the spawn of your `start` map (the outside map when not set).
+- If **no script in your game has a `starter` action**, the Professor also lets them pick **Treecko (252), Torchic (255) or Mudkip (258) at level 5**. If one does, they start with **no Pokémon** and get their first from that action (usually the Professor in the lab): close the town's exits with a story step until then (section 6), and don't put trainers or wild Pokémon in their way before it.
 - They start with **10 Poké Balls, 5 Potions and ₽3,000**.
-- Battles use the real Generation 3 rules: all 1,025 Pokémon with real types, stats and level-up moves, stat changes, sleep, poison, paralysis and burns, evolution at the right level, catching, experience.
+- Battles use the real Generation 3 rules: all 1,025 Pokémon with real types, stats, genders and level-up moves, stat changes, sleep, poison, paralysis and burns, catching (with a nickname), experience, and choosing the move to forget for a fifth one.
+- **Evolution** works every way the games do: by level, with **evolution stones** and other items used from the bag, by **friendship** (by day or night), holding an item, knowing a move, by gender, and by trade (a **Linking Cord** does it). Friendship grows as Pokémon walk and level up with the player (faster holding a Soothe Bell). Pokémon evolve after the battle they leveled up in, on the evolution screen; an Everstone stops it.
+- Nurses heal with Emerald's healing machine; the lead Pokémon follows the player with its own overworld sprite.
 - Winning a trainer battle pays **₽40 × the level of their strongest Pokémon**. Blacking out sends them back to the map's spawn, healed, minus half their money.
 - A **Journal** (key J) shows the next story goal and the side quests in progress.
 
@@ -73,7 +76,9 @@ type City = {
   npcs: Npc[];                // people, Pokémon, signs and items on this map
   doors: Door[];
   triggers: Trigger[];        // event areas that play a cutscene when stepped in (6.1)
-  spawn: { x: number; y: number };  // where visitors arrive (outside map only)
+  spawn: { x: number; y: number };  // where the player arrives when the game starts on this map
+  start?: string;             // outside map only: id of the map new players start in ("" or left out: the outside map)
+  intro?: { speech: string }; // outside map only: what the Professor says before the game starts (blank lines split pages)
   weather?: "rain" | "snow" | "fog" | "sandstorm";  // leave out for clear. Rain, sandstorm and snow also change battles
   time?: "morning" | "evening" | "night" | "clock"; // leave out for day; "clock" follows the player's real time
   type?: "outdoor" | "indoor" | "cave";             // kind of place (picks the battle scene); leave out for outdoor
@@ -287,20 +292,29 @@ Pick looks that fit the role: `hiker` in caves, `fisher` and `sailor` by the wat
 
 | `ItemId` | Name | Price | Does |
 | --- | --- | --- | --- |
-| `poke-ball` | Poké Ball | ₽200 | Catches |
-| `great-ball` | Great Ball | ₽600 | Catches 1.5× better |
-| `potion` | Potion | ₽300 | +20 HP |
-| `super-potion` | Super Potion | ₽700 | +50 HP |
-| `full-heal` | Full Heal | ₽600 | Cures sleep, poison, paralysis, burn |
+| `poke-ball`, `great-ball`, `ultra-ball` | Poké Balls | ₽200, 600, 1200 | Catch (Great 1.5×, Ultra 2× better) |
+| `master-ball` | Master Ball | gift only | Catches without fail |
+| `potion`, `super-potion`, `hyper-potion` | Potions | ₽300, 700, 1200 | +20, +50, +200 HP |
+| `max-potion`, `full-restore` | | ₽2500, 3000 | All HP (Full Restore also cures) |
+| `revive` | Revive | ₽1500 | Revives a fainted Pokémon with half its HP (`max-revive`: all, gift only) |
+| `antidote`, `paralyze-heal`, `awakening`, `burn-heal`, `full-heal` | Cures | ₽100 to 600 | Cure poison, paralysis, sleep, a burn, or any of them |
+| `rare-candy` | Rare Candy | gift only | +1 level |
+| `repel`, `super-repel`, `max-repel` | Repels | ₽350, 500, 700 | Weaker wild Pokémon stay away for 100, 200, 250 steps |
+| `escape-rope` | Escape Rope | ₽550 | Out of a cave or building, back outside |
+| `fire-stone`, `water-stone`, `thunder-stone`, `leaf-stone`, `moon-stone`, `sun-stone`, `shiny-stone`, `dusk-stone`, `dawn-stone`, `ice-stone` | Evolution stones | ₽2100 | Used on a Pokémon that evolves with it |
+| `linking-cord` | Linking Cord | ₽3000 | Evolves Pokémon that evolve by trade (holding their item, like Onix and a `metal-coat`) |
+| `kings-rock`, `metal-coat`, `dragon-scale`, `up-grade`, `deep-sea-tooth`, `deep-sea-scale`, `prism-scale`, `electirizer`, `magmarizer`, `protector`, `reaper-cloth`, `dubious-disc`, `sachet`, `whipped-dream`, `razor-claw`, `razor-fang`, `oval-stone` | Evolution items | ₽2000 | Held: needed by Pokémon that evolve holding them |
+| `everstone`, `soothe-bell` | Held items | ₽3000 | Stops evolving; friendship grows faster |
 | `old-rod`, `good-rod`, `super-rod` | Fishing rods | key item | Fish facing water (section 4). Never sold: hand them out |
 | `hm-flash` | HM05 Flash | key item | Lights up `dark` maps. Hand it out before the first dark cave |
 | `hm-cut`, `hm-rock-smash`, `hm-strength` | HMs | key item | Clear `obstacle`s of `field` `cut`, `smash` and `strength`. Hand them out before the obstacles |
 | `vs-seeker` | VS Seeker | key item | Press V: beaten trainers nearby want a rematch, 4 levels stronger each time |
+| `exp-share` | Exp. Share | key item | Turned on from the bag: the whole party gets experience |
 | `oran-berry`, `sitrus-berry`, `lum-berry` | Berries | ₽100 to 500 | Held: heal at half HP, or cure a condition, once |
 | `leftovers`, `quick-claw` | Held items | ₽2000 to 4000 | Held: heal a little each turn; sometimes move first |
 | `charcoal`, `mystic-water`, `miracle-seed`, `magnet`, `silk-scarf` | Type boosters | ₽1000 | Held: Fire, Water, Grass, Electric, Normal moves ×1.2 |
 
-Poké Mart clerks without a `shop` list sell only the first five. Add held items to a clerk's `shop` to sell them. Trainers' team members can hold one (`held`).
+Poké Mart clerks without a `shop` list sell an early-game stock: Poké and Great Balls, Potions and Super Potions, the five cures, Repels and Escape Ropes. Give later clerks a `shop` list with stronger items, stones or held items. Trainers' team members can hold one (`held`, only items held in battle).
 
 ### 5.3b Battles
 
@@ -400,7 +414,8 @@ type Action =
   | { do: "battle"; who: number }               // a trainer (or role "wild" Pokémon) of the map; stops the script if the player loses
   | { do: "give"; item: ItemId; count: number }
   | { do: "take"; item: ItemId; count: number }  // takes items from the bag (check first with "if")
-  | { do: "pokemon"; species: number; level: number }
+  | { do: "pokemon"; species: number; level: number }      // the player may nickname it
+  | { do: "starter"; species: number[]; level: number }   // the player picks one (up to 6) from the Professor's bag: a game with this gives new trainers no partner
   | { do: "money"; amount: number }             // below 0 takes money (check first with "if")
   | { do: "heal" }
   | { do: "step"; step: string }                // completes a story step (counts as "someone completes it")
@@ -471,7 +486,7 @@ Set `weather` and `time` on any map. Use them for mood: a misty route at dawn (`
 
 ### 8.2 Pacing and balance
 
-- Start: the Professor or Mom gives the first push (and a reward: Poké Balls, a Potion gift).
+- Start: new players wake up in their room (`start` = the bedroom's id, its `spawn` by the stairs). The Professor in the lab has a `once` script: `say`, `starter` with three Pokémon, `say`, `step`. Gates on the town's exits use that step, so nobody leaves without a Pokémon. A `give` of 5 Poké Balls after the starter helps.
 - The first route has the weakest Pokémon (levels 2 to 5) and one or two trainers just above them.
 - Put a Pokémon Center before every gym.
 - Gym Leaders: 2 or 3 Pokémon, the strongest about 3 to 5 levels above the route before. Gym trainers in between.
@@ -492,7 +507,8 @@ Set `weather` and `time` on any map. Use them for mood: a misty route at dawn (`
 - [ ] Every grid has exactly `width × height` numbers.
 - [ ] Every building, tree trunk, water, fence and rock tile is `solid` 1. Every door, path, tall grass and flower tile is `solid` 0.
 - [ ] Every door has a partner door back, and `to` matches a real map `id` (or `""`).
-- [ ] The spawn is on a walkable tile.
+- [ ] The spawn is on a walkable tile, on the outside map and on the `start` map.
+- [ ] If the game has a `starter` action, it's reachable before any trainer, wild Pokémon or exit (gates on the exits until its step).
 - [ ] Nobody stands on a solid tile or outside their map.
 - [ ] Every trainer has a team, every talker has dialogue, every sign has text.
 - [ ] Every story step is completed by someone, and gates cover the whole opening.

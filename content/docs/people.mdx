@@ -32,13 +32,13 @@ Players talk to anyone by facing them and pressing <kbd>Space</kbd>, <kbd>Z</kbd
 | Dialogue         | What they say. An empty line starts a new page. **Preview** shows it in the game's dialogue box.                                                                                                                                 |
 | Gives the player | An item and how many, handed over the first time they talk. Once per player.                                                                                                                                                     |
 
-| Role            | What happens                                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Talks           | Says their dialogue, then completes their story step if they have one.                                                                                    |
-| Trainer         | Battles the player. See [Trainers and gyms](/docs/trainers).                                                                                              |
-| Nurse           | Says their dialogue and heals the whole party, conditions too. In a town without a Poké Mart, they also top up Poké Balls and Potions to at least 5 each. |
-| Poké Mart clerk | Says their dialogue, then opens the shop. **Sells** picks which items they have.                                                                          |
-| Day Care        | Raises one Pokémon for the player. See [Day Care](#day-care).                                                                                             |
+| Role            | What happens                                                                                                                                                                                                                                  |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Talks           | Says their dialogue, then completes their story step if they have one.                                                                                                                                                                        |
+| Trainer         | Battles the player. See [Trainers and gyms](/docs/trainers).                                                                                                                                                                                  |
+| Nurse           | Says their dialogue, takes the party to the healing machine behind them (the Poké Balls glow on it, like in Emerald) and heals it, conditions too. In a town without a Poké Mart, they also top up Poké Balls and Potions to at least 5 each. |
+| Poké Mart clerk | Says their dialogue, then opens the shop. **Sells** picks which items they have, grouped as Poké Balls, healing, travel, evolution and held items; without a choice, an early Mart's stock.                                                   |
+| Day Care        | Raises one Pokémon for the player. See [Day Care](#day-care).                                                                                                                                                                                 |
 
 ## Small cutscenes
 
@@ -143,14 +143,14 @@ Good uses for signs: town names, route directions, hints and a bit of lore.
 
 An item holds one kind of item, from 1 to 99 of it. Players pick it up by facing its tile and pressing <kbd>Space</kbd>: "May found 2 Potions!". Each player finds it once.
 
-- An **item ball** is drawn on the map and blocks its tile until it's picked up.
+- An **item ball** shows Emerald's item ball on the map and blocks its tile until it's picked up.
 - Turn on **Hidden on the ground** and nothing shows: players have to guess where to look. Hide them at the end of dead ends, behind trees, or where a sign hints.
 
 Items have story settings too: one can show up only after a step, and finding it can complete a step.
 
 ### Berry trees
 
-Choose **Berry tree** under **How it lies** and the item grows on a tree instead. Players pick it as often as they like, but the berries take time to grow back: **Grows back after** sets how many real hours (24 by default). A tree with ripe berries shows them in its color. Unlike an item ball, a tree stays on the map after it's picked.
+Choose **Berry tree** under **How it lies** and the item grows on a tree instead. Players pick it as often as they like, but the berries take time to grow back: **Grows back after** sets how many real hours (24 by default). It's Emerald's berry tree for its berry (Oran, Sitrus or Lum): full of berries when ripe, a sprout while they grow back. Unlike an item ball, a tree stays on the map after it's picked.
 
 ## Obstacles
 

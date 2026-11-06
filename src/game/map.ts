@@ -11,65 +11,45 @@ import { arrow, COUNTER, ICE, ledge, WATER } from "./behaviors";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Display = any;
 
-/** Draw an item ball centered on a point (hidden items are faded and dashed) */
-export function drawBall(graphic: PIXI.Graphics, cx: number, cy: number, hidden = false) {
-  const r = 5;
-  const alpha = hidden ? 0.45 : 1;
-  graphic
-    .lineStyle({ width: 1, color: 0x202020, alpha, native: true })
-    .beginFill(0xf4f4f4, alpha)
-    .drawCircle(cx, cy, r)
-    .endFill()
-    .beginFill(0xe03a3a, alpha)
-    .arc(cx, cy, r, Math.PI, 0)
-    .closePath()
-    .endFill()
-    .moveTo(cx - r, cy)
-    .lineTo(cx + r, cy)
-    .beginFill(0xf4f4f4, alpha)
-    .drawCircle(cx, cy, 1.5)
-    .endFill()
-    .lineStyle(0);
-  return graphic;
+/** A texture of a sprite the game serves (game/sprites, from pret/pokeemerald), or one frame of it */
+function piece(name: string, frame?: PIXI.Rectangle) {
+  const base = PIXI.BaseTexture.from(`/game/sprites/${name}.png`, { scaleMode: PIXI.SCALE_MODES.NEAREST });
+  return new PIXI.Texture(base, frame);
 }
 
-/** Berry colors by item (red for any other) */
-const berryColors: Record<string, number> = { "oran-berry": 0x3878e8, "sitrus-berry": 0xf0d038, "lum-berry": 0x58c858 };
+/** Emerald's item ball, standing on a tile (hidden items are faded, for the editor) */
+export function itemBall(x: number, y: number, hidden = false) {
+  const ball = new PIXI.Sprite(piece("item_ball"));
+  ball.anchor.set(0.5, 1);
+  ball.position.set(x * size + size / 2, (y + 1) * size);
+  ball.alpha = hidden ? 0.45 : 1;
+  return ball;
+}
 
-/** Draw a berry tree standing on a tile (its berries show when ripe) */
-export function drawTree(graphic: PIXI.Graphics, x: number, y: number, ripe: boolean, item = "") {
-  const color = berryColors[item] ?? 0xe04848;
-  graphic
-    .beginFill(0x000000, 0.18)
-    .drawEllipse(x + 8, y + 15, 6, 2)
-    .endFill()
-    .beginFill(0x7a5030)
-    .drawRect(x + 7, y + 8, 2, 7)
-    .endFill()
-    .lineStyle({ width: 1, color: 0x205828, native: true })
-    .beginFill(0x48a048)
-    .drawCircle(x + 8, y + 6, 5.5)
-    .endFill()
-    .lineStyle(0)
-    .beginFill(0x70c060)
-    .drawCircle(x + 6.5, y + 4.5, 2)
-    .endFill();
-  if (ripe) {
-    for (const [dx, dy] of [
-      [4, 7],
-      [11, 5],
-      [8, 10],
-      [10, 9],
-    ]) {
-      graphic
-        .lineStyle({ width: 1, color: 0x202020, alpha: 0.5, native: true })
-        .beginFill(color)
-        .drawCircle(x + dx, y + dy, 1.6)
-        .endFill()
-        .lineStyle(0);
-    }
-  }
-  return graphic;
+/** Berry trees of Emerald, by the berry they grow (Oran's for any other) */
+const berryTrees: Record<string, string> = { "oran-berry": "oran", "sitrus-berry": "sitrus", "lum-berry": "lum" };
+
+/** Emerald's berry tree standing on a tile: full of berries when ripe, a sprout growing back otherwise */
+export function berryTree(x: number, y: number, ripe: boolean, item = "", tree = new PIXI.Sprite()) {
+  //A tree sheet is six 16×32 frames (growing, flowering, with berries); the sprout two 16×16 ones
+  tree.texture = ripe
+    ? piece(`berry_trees/${berryTrees[item] ?? "oran"}`, new PIXI.Rectangle(64, 0, 16, 32))
+    : piece("berry_trees/sprout", new PIXI.Rectangle(0, 0, 16, 16));
+  tree.anchor.set(0.5, 1);
+  tree.position.set(x * size + size / 2, (y + 1) * size);
+  return tree;
+}
+
+/** Emerald's "!" over someone who noticed the player (its bottom at a point) */
+export function exclamation() {
+  const mark = new PIXI.Sprite(piece("exclamation"));
+  mark.anchor.set(0.5, 1);
+  return mark;
+}
+
+/** A Poké Ball glowing on a Pokémon Center's healing machine */
+export function glowingBall() {
+  return new PIXI.Sprite(piece("pokeball_glow"));
 }
 
 /** Raid den: a ring of rocks around a glowing hole (16x16 at x, y) */

@@ -36,18 +36,18 @@ Wide pictures (16:9) work best. Without an account, pictures up to 512 KB are st
 
 Each turn you choose one of:
 
-| Option  | What it does                                                                                        |
-| ------- | --------------------------------------------------------------------------------------------------- |
-| Fight   | Use one of your Pokémon's moves. Each move has limited PP.                                          |
-| Bag     | Throw a ball (wild battles only), or use a Potion or a Full Heal. See [Items](/docs/playing#items). |
-| Pokémon | Switch to another Pokémon. The opponent still attacks this turn.                                    |
-| Run     | Try to escape. Not possible against trainers.                                                       |
+| Option  | What it does                                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Fight   | Use one of your Pokémon's moves. Each move has limited PP.                                                               |
+| Bag     | Throw a ball (wild battles only), use a potion or a cure, or revive a fainted Pokémon. See [Items](/docs/playing#items). |
+| Pokémon | Switch to another Pokémon. The opponent still attacks this turn.                                                         |
+| Run     | Try to escape. Not possible against trainers.                                                                            |
 
 Move the cursor with the arrow keys and pick with <kbd>Space</kbd>, <kbd>Enter</kbd> or <kbd>Z</kbd> (or click, or press <kbd>1</kbd> to <kbd>4</kbd>). **Fight** shows your moves like the Game Boy Advance games, with the PP and type of the one under the cursor beside them. <kbd>X</kbd> or <kbd>Esc</kbd> goes back (the **B** button on phones).
 
 The move with the higher priority goes first, then the faster Pokémon. When a Pokémon runs out of PP on every move, it uses **Struggle**.
 
-Moves play their Generation 3 animation: embers, bubbles, leaves, sparks, scratches, punches and more, taken from Pokémon Emerald. Physical moves hit up close, special moves fly across, and moves like Protect or Swords Dance glow on the user.
+Each move plays its own animation, read from its battle animation script in pokeemerald-expansion (the Emerald engine behind CFRU's animations): Ember throws embers that burst into flames, Thunderbolt darkens the screen and drops bolts, Bite snaps teeth, Razor Leaf sends leaves. The sprites play in the script's order; ones that fly travel from the user to the target, the rest land on the target, and moves used on the user play on it. Moves whose animation is only a screen effect in the games (Psychic, Surf) use their type's sprites.
 
 ## Double battles
 
@@ -167,7 +167,7 @@ Stages go back to normal when a Pokémon switches out or the battle ends.
 | Paralysis (PAR) | Half Speed, and 1 in 4 turns it can't move                          | Electric types         |
 | Burn (BRN)      | Loses 1/16 of its HP after each turn, physical moves do half damage | Fire types             |
 
-A Pokémon has one condition at a time. It stays after the battle until a Nurse heals the party or you use a **Full Heal**. Sleeping Pokémon are twice as easy to catch, and the other conditions make it 1.5 times easier.
+A Pokémon has one condition at a time. It stays after the battle until a Nurse heals the party or you use a cure (**Antidote**, **Paralyze Heal**, **Awakening**, **Burn Heal**, **Full Heal**). Sleeping Pokémon are twice as easy to catch, and the other conditions make it 1.5 times easier.
 
 ## Stats
 
@@ -191,7 +191,9 @@ Moves work like in the games:
 
 ## Evolution
 
-Pokémon evolve when they reach the level they evolve at in the games, like Treecko into Grovyle at level 16. It happens after the battle that levelled them up. They keep the damage they took and learn their new form's move for that level. Pokémon that evolve with a stone, by trading or by friendship don't evolve.
+Pokémon evolve every way they do in the games: at a level (Treecko into Grovyle at 16), with a stone used from the bag, when very friendly (by day or by night), holding an item, knowing a move, by gender, and by trade (with a **Linking Cord**). Evolving by level happens after the battle that levelled them up, on the evolution screen: press **X** while it glows to stop it, and it tries again at its next level. They keep the damage they took and learn their new form's moves, even ones it learns below its level (Marshtomp's Mud Shot). A Pokémon holding an **Everstone** doesn't evolve by level or trade. See [Evolution](/docs/playing#evolution) for every way.
+
+When a Pokémon that knows four moves wants a new one, you choose which move to forget, or give up on the new one.
 
 ## Experience
 
@@ -204,7 +206,7 @@ Experience is split between the Pokémon that fought the fainted opponent and ar
 
 ## Catching
 
-Throw a Poké Ball or a Great Ball (1.5 times better) at a wild Pokémon. The chance uses the Generation 3 catch formula: it goes up as the Pokémon's HP goes down, and depends on its species' catch rate. Easy Pokémon like Zigzagoon are caught often at full HP, while rare ones need to be weakened first.
+Throw a Poké Ball, a Great Ball (1.5 times better), an Ultra Ball (twice as good) or a Master Ball (never fails) at a wild Pokémon. You see the ball you threw, Emerald's own sprite. Once it's caught you can give it a nickname. The chance uses the Generation 3 catch formula: it goes up as the Pokémon's HP goes down, and depends on its species' catch rate. Easy Pokémon like Zigzagoon are caught often at full HP, while rare ones need to be weakened first.
 
 The ball shakes up to three times before the Pokémon is caught or breaks free. Wild Pokémon have a 1 in 128 chance to be shiny.
 

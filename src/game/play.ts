@@ -7,7 +7,7 @@ import { type Action, type Check, type City, type Direction, type Door, levelCap
 import { arrow, COUNTER, ICE, ledge, WATER } from "./behaviors";
 import { period } from "./atmosphere";
 import { pool, roll } from "./encounters";
-import { type CityMap, drawBall, drawDen, drawTree } from "./map";
+import { berryTree, type CityMap, drawDen, exclamation, glowingBall, itemBall } from "./map";
 import { Battle, battleWeather, trainerRules } from "./battle";
 import { creatureImage, creatureLook, scaleOf } from "./sprites";
 import { befriend, create, grow, heal, hp, named, teamOf, trainer } from "./trainer";
@@ -173,7 +173,7 @@ type Person = {
   index: number;
   home: { x: number; y: number };
   next: number;
-  bubble: null | PIXI.Text;
+  bubble: null | PIXI.Container;
   hidden: boolean;
   leg: number;
   way: 1 | -1;
@@ -221,6 +221,8 @@ export class Play {
   #running = false;
   /** Wild grass drawn over the player's feet, and the part of each kind of grass tile it shows */
   #grass = null as unknown as PIXI.Sprite;
+  /** The same over the following Pokémon's feet */
+  #followerGrass = null as unknown as PIXI.Sprite;
   readonly #grasses = new Map<number, PIXI.Texture>();
   readonly #ticker: (dt: number) => void;
   readonly #listeners = [] as [string, EventListener][];
@@ -243,12 +245,12 @@ export class Play {
   /** A script is running: the player's scripted steps don't open doors or meet Pokémon */
   #scene = false;
   /** Item balls lying on the map */
-  readonly #balls = [] as { index: number; graphic: PIXI.Graphics }[];
+  readonly #balls = [] as { index: number; graphic: PIXI.Sprite }[];
   /** Obstacles of field moves where they stand now (boulders move), those cleared this visit, and Strength in use */
   readonly #obstacles = [] as { index: number; sprite: PIXI.Sprite; x: number; y: number }[];
   readonly #cleared = new Set<number>();
   /** Berry trees (their berries grow back in real time) */
-  readonly #trees = [] as { index: number; graphic: PIXI.Graphics }[];
+  readonly #trees = [] as { index: number; graphic: PIXI.Sprite }[];
   /** Raid dens (their boss is back the next day) */
   readonly #dens = [] as { index: number; graphic: PIXI.Graphics }[];
   #strong = false;
@@ -353,8 +355,7 @@ export class Play {
     for (const { index, graphic } of this.#trees) {
       const data = this.#city.npcs[index];
       graphic.visible = this.#present(data);
-      graphic.clear();
-      drawTree(graphic, data.x * size, data.y * size, this.#ripe(index), data.gift?.item);
+      berryTree(data.x, data.y, this.#ripe(index), data.gift?.item, graphic);
     }
     for (const { index, graphic } of this.#dens) {
       graphic.visible = this.#staged(this.#city.npcs[index]);
@@ -377,6 +378,8 @@ export class Play {
     }
     this.#grass = actors.addChild(new PIXI.Sprite(this.#grasses.get(frames.tall + 1)));
     this.#grass.visible = false;
+    this.#followerGrass = actors.addChild(new PIXI.Sprite(this.#grasses.get(frames.tall + 1)));
+    this.#followerGrass.visible = false;
     this.#city.npcs.forEach((data, index) => {
       if (data.role === "obstacle") {
         const tile = actors.addChild(sprite(fields[data.field ?? "cut"].tile));
@@ -386,14 +389,14 @@ export class Play {
         return;
       }
       if (data.role === "item" && data.grow) {
-        const graphic = actors.addChild(new PIXI.Graphics());
+        const graphic = actors.addChild(new PIXI.Sprite());
         graphic.zIndex = data.y;
         this.#trees.push({ index, graphic });
         return;
       }
       if (data.role === "item") {
         if (!data.hidden) {
-          const graphic = actors.addChild(drawBall(new PIXI.Graphics(), data.x * size + size / 2, data.y * size + size / 2 + 2));
+          const graphic = actors.addChild(itemBall(data.x, data.y));
           graphic.zIndex = data.y;
           this.#balls.push({ index, graphic });
         }
@@ -460,6 +463,7 @@ export class Play {
     this.#listeners.forEach(([type, listener]) => document.removeEventListener(type, listener));
     this.#player.destroy();
     this.#grass.destroy();
+    this.#followerGrass.destroy();
     this.#grasses.forEach((texture) => texture.destroy());
     this.#npcs.forEach(({ actor, bubble }) => (actor.destroy(), bubble?.destroy()));
     this.#balls.forEach(({ graphic }) => graphic.destroy());
@@ -602,6 +606,18 @@ export class Play {
         requestAnimationFrame(fade);
         this.#busy = false;
       });
+    }
+  }
+
+  /** Draw wild grass over someone's feet while they stand in it (hidden when they jump, or there's no one) */
+  #cover(grass: PIXI.Sprite, actor: Actor | null) {
+    const tile = actor ? Math.round(actor.y) * this.#city.width + Math.round(actor.x) : -1;
+    const tall = actor && [this.#city.layers.decor[tile], this.#city.layers.ground[tile]].find((value) => this.#grasses.has(value));
+    grass.visible = Boolean(actor && !actor.jump && tall);
+    if (actor && tall) {
+      grass.texture = this.#grasses.get(tall)!;
+      grass.position.set(actor.x * size, actor.y * size + 9);
+      grass.zIndex = actor.y + 0.5;
     }
   }
 
@@ -945,15 +961,9 @@ export class Play {
       }
     }
 
-    //Tall grass covers the player's feet
-    const tile = Math.round(player.y) * this.#city.width + Math.round(player.x);
-    const tall = [this.#city.layers.decor[tile], this.#city.layers.ground[tile]].find((value) => this.#grasses.has(value));
-    this.#grass.visible = !player.jump && Boolean(tall);
-    if (tall) {
-      this.#grass.texture = this.#grasses.get(tall)!;
-    }
-    this.#grass.position.set(player.x * size, player.y * size + 9);
-    this.#grass.zIndex = player.y + 0.5;
+    //Tall grass covers the feet of the player and of the Pokémon following them
+    this.#cover(this.#grass, player);
+    this.#cover(this.#followerGrass, this.#follower?.sprite.visible ? this.#follower : null);
 
     //NPC wandering and paths
     for (const npc of this.#npcs) {
@@ -1309,12 +1319,11 @@ export class Play {
   /** "!" over someone who noticed the player ("!!" when they want a rematch) */
   async #exclaim(npc: Person, text = "!") {
     const { actor } = npc;
-    const bubble = this.#map.containers.actors.addChild(
-      new PIXI.Text(text, { fontFamily: "monospace", fontSize: 14, fontWeight: "bold", fill: 0xffffff, stroke: 0xe0303a, strokeThickness: 4 }),
-    );
+    //Emerald's "!" emote, side by side for "!!"
+    const bubble = this.#map.containers.actors.addChild(new PIXI.Container());
+    [...text].forEach((_, i, marks) => (bubble.addChild(exclamation()).x = (i - (marks.length - 1) / 2) * 12));
     npc.bubble = bubble;
-    bubble.anchor.set(0.5, 1);
-    bubble.position.set(actor.sprite.x, actor.sprite.y - 20);
+    bubble.position.set(actor.sprite.x, actor.sprite.y - 17);
     bubble.zIndex = 9999;
     await new Promise((solve) => setTimeout(solve, 700));
     bubble.destroy();
@@ -1849,6 +1858,7 @@ export class Play {
     }
     await ui.say(data.dialogue || "Hello!", voice);
     if (data.role === "healer") {
+      await this.#healing(index, voice);
       trainer.heal();
       //Towns without a Poké Mart: the nurse keeps you stocked so you can still catch Pokémon
       if (![this.#world, ...this.#world.interiors].some((map) => map.npcs.some(({ role }) => role === "shop"))) {
@@ -1856,8 +1866,7 @@ export class Play {
         trainer.give("potion", Math.max(0, 5 - trainer.count("potion")));
       }
       trainer.save();
-      sound.play("victory");
-      await ui.say("Your Pokémon are fully healed! We hope to see you again!", voice);
+      await ui.say("Thank you for waiting. We've restored your Pokémon to full health.\n\nWe hope to see you again!", voice);
     }
     if (data.role === "shop") {
       await ui.shop(
@@ -1971,6 +1980,45 @@ export class Play {
       await evolveGrown(battle.grown, this.#city.time);
     }
     return outcome;
+  }
+
+  /**
+   * The Nurse heals the party like in Emerald: she turns to the machine behind her, puts the Poké Balls on it one by one,
+   * and they flash while the healing jingle plays (Pokémon Centers built from Emerald's room have the machine at the same spot)
+   */
+  async #healing(index: number, voice: { speaker?: string; portrait?: Portrait }) {
+    await ui.say("Okay, I'll take your Pokémon for a few seconds.", voice);
+    const nurse = this.#npcs.find((npc) => npc.index === index)?.actor;
+    const count = trainer.profile?.party.length ?? 0;
+    if (!nurse || !count) {
+      return;
+    }
+    const wait = (ms: number) => new Promise((solve) => setTimeout(solve, ms));
+    const facing = nurse.dir;
+    nurse.face("left");
+    await wait(300);
+    //Up to six balls in two columns, inside the machine's dark window to the Nurse's left (from her feet)
+    const balls = [] as PIXI.Sprite[];
+    for (let i = 0; i < Math.min(6, count); i++) {
+      const ball = this.#map.containers.actors.addChild(glowingBall());
+      ball.position.set(nurse.sprite.x - 31 + (i % 2) * 6, nurse.sprite.y - 24 + Math.floor(i / 2) * 4);
+      ball.zIndex = nurse.y + 0.1;
+      balls.push(ball);
+      sound.play("hit2");
+      await wait(350);
+    }
+    //They flash bright while the jingle plays
+    const glow = new PIXI.filters.ColorMatrixFilter();
+    glow.brightness(1.9, false);
+    sound.play("victory");
+    for (let flash = 0; flash < 6; flash++) {
+      balls.forEach((ball) => (ball.filters = flash % 2 ? null : [glow]));
+      await wait(260);
+    }
+    await wait(300);
+    balls.forEach((ball) => ball.destroy());
+    nurse.face(facing);
+    await wait(200);
   }
 
   /** Handle battle outcome */

@@ -4,7 +4,7 @@ import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite 
 import { brushes, joint, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
 import { arrow, ICE } from "../behaviors";
 import { type Action, type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
-import { type CityMap, drawBall, drawDen, drawTree } from "../map";
+import { berryTree, type CityMap, drawDen, itemBall } from "../map";
 import { flatten, reindex } from "../scripts";
 import { fields } from "../fields";
 import { collides, isOutdoor, type Side, spot } from "../region";
@@ -2207,11 +2207,7 @@ export class EditorEngine {
       }
       //Item balls (hidden items show faded), and berry trees
       if (npc.role === "item") {
-        const ball = this.#markers.addChild(
-          npc.grow
-            ? drawTree(new PIXI.Graphics(), npc.x * size, npc.y * size, true, npc.gift?.item)
-            : drawBall(new PIXI.Graphics(), npc.x * size + size / 2, npc.y * size + size / 2 + 1, npc.hidden),
-        );
+        const ball = this.#markers.addChild(npc.grow ? berryTree(npc.x, npc.y, true, npc.gift?.item) : itemBall(npc.x, npc.y, npc.hidden));
         ball.zIndex = npc.y;
         if (this.#target === "npc" && i === this.#selected) {
           const ring = this.#markers.addChild(

@@ -633,6 +633,15 @@ function PersonForm({ editor, npc, update, onSprite }: { editor: EditorEngine; n
   );
 }
 
+/** Shelves of the items a clerk can sell, by kind */
+const shelves = [
+  { label: "Poké Balls", kinds: ["ball"] },
+  { label: "Healing", kinds: ["heal", "cure", "revive"] },
+  { label: "Travel", kinds: ["repel", "rope"] },
+  { label: "Evolution", kinds: ["evolve"] },
+  { label: "Held items", kinds: ["hold"] },
+] as { label: string; kinds: string[] }[];
+
 /** What a Poké Mart clerk sells */
 function ShopStock({ npc, update }: { npc: Npc; update: Update }) {
   const stock = npc.shop?.length ? npc.shop : sold;
@@ -644,12 +653,19 @@ function ShopStock({ npc, update }: { npc: Npc; update: Update }) {
   return (
     <Field label="Sells" hint="Players buy these with money earned by beating trainers.">
       <div className="grid gap-1">
-        {sellable.map((id) => (
-          <label key={id} className="flex items-center gap-2 text-sm">
-            <Checkbox checked={stock.includes(id)} onCheckedChange={(on) => toggle(id, on === true)} />
-            <span className="flex-1">{items[id].name}</span>
-            <span className="font-mono text-xs text-subtle-fg">₽{items[id].price}</span>
-          </label>
+        {shelves.map(({ label, kinds }) => (
+          <div key={label} className="grid gap-1">
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{label}</p>
+            {sellable
+              .filter((id) => kinds.includes(items[id].kind))
+              .map((id) => (
+                <label key={id} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={stock.includes(id)} onCheckedChange={(on) => toggle(id, on === true)} />
+                  <span className="flex-1">{items[id].name}</span>
+                  <span className="font-mono text-xs text-subtle-fg">₽{items[id].price}</span>
+                </label>
+              ))}
+          </div>
         ))}
       </div>
     </Field>

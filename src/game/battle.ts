@@ -128,6 +128,12 @@ export function attackOf(attacker: Creature, physical: boolean) {
 }
 
 /** Short labels of conditions (battle info box) */
+/** Emerald sprite of a Poké Ball item ("great-ball" is balls/great.png) */
+export function ballSprite(id: ItemId) {
+  const kind = id.replace(/-ball$/, "");
+  return ["poke", "great", "ultra", "master", "premier", "net", "dive", "nest", "repeat", "timer", "luxury", "safari"].includes(kind) ? kind : "poke";
+}
+
 export const statusLabels: Record<Status, { label: string; color: string }> = {
   sleep: { label: "SLP", color: "#8890a0" },
   poison: { label: "PSN", color: "#a040a0" },
@@ -251,9 +257,10 @@ export type BattleView = {
   log: string;
   menu: null | BattleMenu;
   /** Attack animation: a projectile flying to the target, an impact on it, or a glow around the user */
-  anim: null | { from: Slot; to: Slot; type: string; mode: "contact" | "projectile" | "self"; key: number; protect?: boolean };
-  /** Poké Ball thrown at the foe */
-  ball: null | { state: "throw" | "shake" | "caught"; key: number };
+  /** Attack animation: who uses it on whom, its move (game/battle/anims/moves.json) and type, how it travels */
+  anim: null | { from: Slot; to: Slot; move: string; type: string; mode: "contact" | "projectile" | "self"; key: number; protect?: boolean };
+  /** A thrown Poké Ball (`kind`: its Emerald sprite, game/sprites/balls/<kind>.png) */
+  ball: null | { state: "throw" | "shake" | "caught"; key: number; kind: string };
   /** Opponent trainer sliding in to say something mid-battle */
   slide: null | { sprite: string; key: number };
 };
@@ -1220,14 +1227,15 @@ export class Battle {
   /** Attack animation (the battle screen draws it with Gen 3 sprites) */
   #animate(side: Slot, move: Move, mode: "contact" | "projectile" | "self", to: Slot = side) {
     const key = (this.view.anim?.key ?? 0) + 1;
-    this.view.anim = { from: side, to, type: move.type, mode, key, ...(move.protect ? { protect: true } : {}) };
+    const name = Object.keys(assets.moves).find((key) => assets.moves[key] === move) ?? "";
+    this.view.anim = { from: side, to, move: name, type: move.type, mode, key, ...(move.protect ? { protect: true } : {}) };
     this.#emit();
     setTimeout(() => {
       if (this.view.anim?.key === key) {
         this.view.anim = null;
         this.#emit();
       }
-    }, 900);
+    }, 1400);
   }
 
   /** Talking to the player in the battle's text box (asking with a YES/NO menu, X answers NO) */
@@ -1419,7 +1427,8 @@ export class Battle {
   async #throw(ball: ItemId, bonus = 1) {
     await this.#say(`${trainer.profile!.name} threw ${/^[AEIOU]/i.test(items[ball].name) ? "an" : "a"} ${items[ball].name}!`, 300);
     let key = (this.view.ball?.key ?? 0) + 1;
-    this.view.ball = { state: "throw", key };
+    const kind = ballSprite(ball);
+    this.view.ball = { state: "throw", key, kind };
     this.#emit();
     await wait(600);
     this.#fx("foe", "captured");
@@ -1428,13 +1437,13 @@ export class Battle {
     while (shakes < 4 && (a >= 255 || Math.random() * 65536 < b)) {
       shakes++;
       if (shakes < 4) {
-        this.view.ball = { state: "shake", key: ++key };
+        this.view.ball = { state: "shake", key: ++key, kind };
         this.#emit();
         await wait(700);
       }
     }
     if (shakes >= 4) {
-      this.view.ball = { state: "caught", key: ++key };
+      this.view.ball = { state: "caught", key: ++key, kind };
       this.#emit();
       sound.play("victory");
       await this.#say(`Gotcha! ${named(this.#foe)} was caught!`);

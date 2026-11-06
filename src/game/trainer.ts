@@ -305,12 +305,18 @@ export function evolvesWith(creature: Creature, id: ItemId) {
 }
 
 /**
- * Evolve a creature, returns messages to display (it keeps its damage taken and learns the new form's moves for this level;
- * moves that don't fit wait in `pending` when given). An item it needed to hold (Metal Coat, Razor Claw) is used up
+ * Evolve a creature, returns messages to display (it keeps its damage taken and learns the new form's moves for this level, and those
+ * its old form never learns up to it; moves that don't fit wait in `pending` when given). An item it needed to hold (Metal Coat, Razor Claw) is used up
  */
 export function evolve(creature: Creature, into: number | Evolution, pending?: string[]) {
   const way = typeof into === "number" ? { into } : into;
   const before = { name: named(creature), hp: hp(creature) };
+  //Moves its old form learns by now: the new form's other moves up to this level come with evolving (Marshtomp's Mud Shot, even evolving late)
+  const known = new Set(
+    species(creature.species)
+      .learnset.filter(([at]) => at <= creature.level)
+      .map(([, key]) => key),
+  );
   creature.species = way.into;
   creature.hp = Math.max(1, creature.hp + hp(creature) - before.hp);
   if (way.held && creature.held === way.held) {
@@ -318,7 +324,7 @@ export function evolve(creature: Creature, into: number | Evolution, pending?: s
   }
   const messages = [`Congratulations! Your ${before.name} evolved into ${species(way.into).name}!`];
   for (const [at, key] of species(way.into).learnset) {
-    if (at === creature.level) {
+    if (at === creature.level || (!known.has(key) && (at === 0 || (at > 1 && at <= creature.level)))) {
       learn(creature, key, messages, pending);
     }
   }

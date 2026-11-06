@@ -82,18 +82,26 @@ function useTalk(onKey?: (key: Key) => boolean) {
       clear: () => setTalk(null),
     };
   });
-  return { talk, ...calls };
+  /** Tapping the text box does what A does: shows the whole page, or goes on (menus are tapped themselves) */
+  const tap = () => {
+    if (talk && talk.shown < talk.text.length) {
+      setTalk({ ...talk, shown: talk.text.length });
+    } else if (talk && !talk.menu) {
+      next.current?.(0);
+    }
+  };
+  return { talk, tap, ...calls };
 }
 
 /** The text box of a scene, with its menu */
-function TextBox({ talk, onChoose }: { talk: Talk | null; onChoose: (index: number) => void }) {
+function TextBox({ talk, onChoose, onTap }: { talk: Talk | null; onChoose: (index: number) => void; onTap?: () => void }) {
   if (!talk) {
     return null;
   }
   const done = talk.shown >= talk.text.length;
   return (
     <>
-      <div className="gba-text" aria-live="polite">
+      <div className="gba-text" aria-live="polite" onClick={onTap}>
         <p>{talk.text.slice(0, talk.shown)}</p>
         {done && !talk.menu ? <span className="more" aria-hidden="true" /> : null}
       </div>
@@ -129,7 +137,7 @@ export function opening(options: Opening) {
 }
 
 function OpeningScene({ options, close }: { options: Opening; close: () => void }) {
-  const { talk, say, pick, choose } = useTalk();
+  const { talk, tap, say, pick, choose } = useTalk();
   //Who stands on the platform: the Professor, then the player as they choose
   const [stage, setStage] = useState<"professor" | "brendan" | "may" | "">("");
   const started = useRef(false);
@@ -170,6 +178,11 @@ function OpeningScene({ options, close }: { options: Opening; close: () => void 
         sound.play("victory");
         await say(`${name} received ${species(partner).name}!`);
       }
+      //A game that hands out its own starter: tell them to go and get it
+      if (!trainer.profile?.party.length && !trainer.profile?.box.length) {
+        setStage("professor");
+        await say("You don't have any Pokémon yet, do you?\n\nDon't worry: your first partner is waiting for you in town!");
+      }
       setStage(girlish(trainer.profile?.sprite) ? "may" : "brendan");
       await say(`${name}! Your very own Pokémon adventure is about to unfold!\n\nA world of dreams and adventures with Pokémon awaits! Let's go!`);
       close();
@@ -184,7 +197,7 @@ function OpeningScene({ options, close }: { options: Opening; close: () => void 
           {shown ? <img key={shown} className="who" src={`/game/intro/${shown === "professor" ? "birch" : shown}.png`} alt="" draggable={false} /> : null}
           <div className="platform" aria-hidden="true" />
         </div>
-        <TextBox talk={talk} onChoose={choose} />
+        <TextBox talk={talk} onChoose={choose} onTap={tap} />
       </div>
     </div>
   );
@@ -202,7 +215,7 @@ function StarterScene({ choices, message, close }: { choices: number[]; message:
   const [cursor, setCursor] = useState(Math.floor((choices.length - 1) / 2));
   //Busy while its first message shows or a choice is asked: the text box hears the keys then
   const asking = useRef(true);
-  const { talk, say, pick, choose, clear } = useTalk((key) => {
+  const { talk, tap, say, pick, choose, clear } = useTalk((key) => {
     //Pointing at the balls while nothing is being asked
     if (asking.current) {
       return false;
@@ -261,7 +274,7 @@ function StarterScene({ choices, message, close }: { choices: number[]; message:
           ))}
         </div>
         <div className="bag" aria-hidden="true" />
-        <TextBox talk={talk ?? { text: "Use ◀ ▶ to look, then pick one.", shown: 99, menu: null }} onChoose={choose} />
+        <TextBox talk={talk ?? { text: "Use ◀ ▶ to look, then pick one.", shown: 99, menu: null }} onChoose={choose} onTap={tap} />
       </div>
     </div>
   );
@@ -354,7 +367,7 @@ function EvolutionScene({ creature, into, cancel, close }: { creature: Creature;
   //Which form shows while it glows (they swap faster and faster)
   const [after, setAfter] = useState(false);
   const stopped = useRef(false);
-  const { talk, say, choose } = useTalk((key) => {
+  const { talk, tap, say, choose } = useTalk((key) => {
     if (key === "b" && cancel && phase === "glow") {
       stopped.current = true;
       return true;
@@ -395,8 +408,12 @@ function EvolutionScene({ creature, into, cancel, close }: { creature: Creature;
       <div className={cn("gba-frame gba-evolution", phase)}>
         <div className="sparkles" aria-hidden="true" />
         <img className={cn("form", phase === "glow" && "lit")} src={artwork(shown, { shiny: creature.shiny })} alt={species(shown).name} draggable={false} />
-        {phase === "glow" && cancel ? <p className="stop">B: stop evolving</p> : null}
-        <TextBox talk={talk} onChoose={choose} />
+        {phase === "glow" && cancel ? (
+          <button className="stop" onClick={() => (stopped.current = true)}>
+            B: stop evolving
+          </button>
+        ) : null}
+        <TextBox talk={talk} onChoose={choose} onTap={tap} />
       </div>
     </div>
   );

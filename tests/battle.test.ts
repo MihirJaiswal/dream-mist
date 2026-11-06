@@ -116,6 +116,14 @@ describe("evolution", () => {
     expect(messages[0]).toContain("evolved into Grovyle");
   });
 
+  test("evolving late still teaches the new form's own moves", () => {
+    const marsh = create(mudkip, 17);
+    marsh.moves = ["tackle", "growl", "mud-slap"].map((key) => ({ key, pp: 10 }));
+    const messages = evolve(marsh, 259);
+    expect(marsh.moves.map(({ key }) => key)).toContain("mud-shot");
+    expect(messages.some((text) => text.includes("learned Mud Shot"))).toBe(true);
+  });
+
   test("stops at the last form", () => {
     expect(evolution(create(254, 100), level())).toBeNull();
   });

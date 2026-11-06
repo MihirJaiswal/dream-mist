@@ -166,7 +166,9 @@ function Journal({ close }: { close: () => void }) {
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-select" style={{ width: `${(done / total) * 100}%` }} />
       </div>
-      <p className="text-sm text-muted-foreground">{next ? goal(next) : quest ? "Complete!" : "The main story is complete!"}</p>
+      <p className="text-sm text-muted-foreground">
+        {next ? goal(next) : quest ? "Complete!" : total > 1 ? "The main story is complete!" : "Done! More is on its way."}
+      </p>
     </div>
   );
   return (

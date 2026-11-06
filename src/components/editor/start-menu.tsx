@@ -22,8 +22,8 @@ export function menu() {
   });
 }
 
-/** Close it */
-function close() {
+/** Close it (an Escape Rope used from its bag closes it too) */
+export function close() {
   const done = pending;
   pending = null;
   emit();

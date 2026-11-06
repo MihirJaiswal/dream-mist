@@ -8,6 +8,7 @@
 
 import { openDialog } from "@/components/editor/dialogs";
 import { useSession } from "@/components/editor/hooks";
+import { close as closeMenu } from "@/components/editor/start-menu";
 import { CanvasView } from "@/components/editor/widgets";
 import { abilityAbout, abilityName } from "@/game/abilities";
 import { artwork, assets, battleSprite, type Move, portrait, species } from "@/game/assets";
@@ -64,10 +65,13 @@ function onKeydown(event: KeyboardEvent) {
   top(key);
 }
 
-/** Hear the keys while this screen is on top */
-export function useKeys(handler: (key: Key) => void) {
+/** Hear the keys while this screen is on top (a screen hidden behind another window it opened passes `enabled` false: the keys go past it) */
+export function useKeys(handler: (key: Key) => void, enabled = true) {
   const latest = useEffectEvent(handler);
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     const listener = (key: Key) => latest(key);
     stack.push(listener);
     if (!listening) {
@@ -75,7 +79,7 @@ export function useKeys(handler: (key: Key) => void) {
       document.addEventListener("keydown", onKeydown, true);
     }
     return () => void stack.splice(stack.indexOf(listener), 1);
-  }, []);
+  }, [enabled]);
 }
 
 /** A screen to type in is on top: the screens under it don't hear the keys, and letters type */
@@ -270,9 +274,6 @@ function PartyScreen({ pick, close }: { pick?: Pick; close: (value?: number | nu
     choose(at);
   };
   useKeys((key) => {
-    if (away) {
-      return;
-    }
     if (choices) {
       return steer(choices, key, setChoices);
     }
@@ -302,7 +303,7 @@ function PartyScreen({ pick, close }: { pick?: Pick; close: (value?: number | nu
     } else if (key === "down") {
       setCursor(cursor + 2 <= last ? cursor + 2 : cancel > 0 ? 7 : box ? 6 : cursor);
     }
-  });
+  }, !away);
   if (away) {
     return null;
   }
@@ -409,9 +410,6 @@ function BoxScreen({ close }: { close: () => void }) {
     });
   };
   useKeys((key) => {
-    if (away) {
-      return;
-    }
     if (choices) {
       return steer(choices, key, setChoices);
     }
@@ -426,7 +424,7 @@ function BoxScreen({ close }: { close: () => void }) {
     if (next >= 0 && next < list.length) {
       setCursor(next);
     }
-  });
+  }, !away);
   if (away) {
     return null;
   }
@@ -743,7 +741,12 @@ function BagScreen({ options, close }: { options: BagOptions; close: (value?: It
     const atOnce = ["repel", "rope", "key"].includes(item.kind);
     const use = async () => {
       if (item.kind === "rope") {
-        return session.escape() ? close(null) : setMessage("You can't use that here.");
+        if (!session.escape()) {
+          return setMessage("You can't use that here.");
+        }
+        //Back outside, with every menu closed
+        close(null);
+        return closeMenu();
       }
       if (atOnce) {
         return setMessage(session.useItem(id));
@@ -783,9 +786,6 @@ function BagScreen({ options, close }: { options: BagOptions; close: (value?: It
     });
   };
   useKeys((key) => {
-    if (away) {
-      return;
-    }
     if (choices) {
       return steer(choices, key, setChoices);
     }
@@ -803,7 +803,7 @@ function BagScreen({ options, close }: { options: BagOptions; close: (value?: It
     if (key === "a") {
       return current ? pickItem(current.id) : close(null);
     }
-  });
+  }, !away);
   if (away) {
     return null;
   }
