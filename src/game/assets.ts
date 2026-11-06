@@ -26,8 +26,34 @@ export type Species = {
   learnset: [number, string][];
   /** Regular abilities (each Pokémon gets one of them) */
   abilities?: string[];
-  /** Evolves at a level into another species */
-  evolves?: [number, number];
+  /** Ways it evolves */
+  evolutions?: Evolution[];
+  /** Chance to be female, in eighths (-1: no gender) */
+  gender?: number;
+  /** Friendship when caught or hatched */
+  friendship?: number;
+};
+
+/**
+ * One way a species evolves: leveling up (at a level, when friendly, at a time of day, holding an item, knowing a move,
+ * by gender, by its Attack against its Defense, with another species in the party), with an item used on it, or by trade
+ * (a Linking Cord does it without trading, with the item it holds). `shed` is Shedinja, left behind when Nincada evolves
+ */
+export type Evolution = {
+  into: number;
+  level?: number;
+  friendship?: true;
+  time?: "day" | "night";
+  held?: string;
+  move?: string;
+  moveType?: string;
+  gender?: "male" | "female";
+  /** Attack against Defense: 1 higher, -1 lower, 0 equal */
+  stat?: number;
+  partner?: number;
+  item?: string;
+  trade?: true;
+  shed?: true;
 };
 
 /** Move */
@@ -229,6 +255,32 @@ export function icon(id: number) {
     }
   }
   return PIXI.Texture.EMPTY;
+}
+
+/** Walking frames of a Pokémon on the map, in Gen 3 style: two for each direction */
+export type Walk = Record<"down" | "up" | "left" | "right", [PIXI.Texture, PIXI.Texture]>;
+
+/** Walking frames being loaded or loaded, by species and colors */
+const walks = new Map<string, Promise<Walk | null>>();
+
+/**
+ * Walking frames of a Pokémon (game/followers/<id>.png from pokeemerald-expansion: down, up, left and right, two frames each,
+ * its shiny colors on the row below). Loaded once, when first needed; null for Pokémon without them
+ */
+export function walk(id: number, shiny = false) {
+  const key = `${id}:${shiny}`;
+  if (!walks.has(key)) {
+    const load = PIXI.Texture.fromURL(`/game/followers/${id}.png`).then(
+      ({ baseTexture }) => {
+        const size = baseTexture.height / 2;
+        const frame = (index: number) => new PIXI.Texture(baseTexture, new PIXI.Rectangle(index * size, shiny ? size : 0, size, size));
+        return { down: [frame(0), frame(1)], up: [frame(2), frame(3)], left: [frame(4), frame(5)], right: [frame(6), frame(7)] } as Walk;
+      },
+      () => null,
+    );
+    walks.set(key, load);
+  }
+  return walks.get(key)!;
 }
 
 /** PokeAPI sprites */

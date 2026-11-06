@@ -3,120 +3,22 @@
 import { confirm } from "@/components/editor/account-dialogs";
 import { openDialog } from "@/components/editor/dialogs";
 import { useSession } from "@/components/editor/hooks";
-import { TypeBadge } from "@/components/editor/pokemon-picker";
-import { CanvasView, Field, Hint } from "@/components/editor/widgets";
+import { CanvasView, Hint } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { assets, npc as texture, portrait, preview, species } from "@/game/assets";
-import { colors } from "@/game/battle";
+import { npc as texture, portrait, preview, species } from "@/game/assets";
 import { bestRod, type ItemId, itemCount, items } from "@/game/items";
 import { period } from "@/game/atmosphere";
 import { living } from "@/game/encounters";
 import { outdoors } from "@/game/region";
 import type { City } from "@/game/data";
-import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
 import { type Entry, goal, journal } from "@/game/story";
-import { starters, trainer } from "@/game/trainer";
+import { trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
 import { Flag, Medal, Minus, Plus, Scroll, Trash } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-//=================================================================================================
-// New trainer
-
-export function onboarding() {
-  return openDialog<void>((close) => <Onboarding close={close} />).then(() => undefined);
-}
-
-function Onboarding({ close }: { close: () => void }) {
-  const looks = [
-    "may",
-    "em_brendan",
-    "em_may",
-    "wally",
-    "youngster",
-    "lass",
-    "ace_trainer",
-    "hiker",
-    "psychic",
-    "rich_boy",
-    "schoolkid_f",
-    "schoolkid_m",
-    "triathlete_f",
-    "triathlete_m",
-    "ranger",
-    "sailor",
-    "twin",
-    "aroma",
-  ].filter((name) => assets.npcs.includes(name));
-  const [name, setName] = useState(cloud.user?.username ?? "");
-  const [sprite, setSprite] = useState("may");
-  const [starter, setStarter] = useState(starters[0]);
-  return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Welcome, new trainer!</DialogTitle>
-          <DialogDescription>
-            {cloud.user
-              ? "Your trainer travels with you through every city. Progress is saved to your account."
-              : "Your trainer travels with you through every city. Progress is saved in this browser (log in to keep it online)."}
-          </DialogDescription>
-        </DialogHeader>
-        <Field label="Name">
-          <Input autoFocus value={name} placeholder="Your trainer name" maxLength={16} onChange={(event) => setName(event.target.value)} />
-        </Field>
-        <Field label="Looks">
-          <div className="flex flex-wrap gap-1">
-            {looks.map((look) => (
-              <button
-                key={look}
-                onClick={() => setSprite(look)}
-                className={cn(
-                  "grid h-14 w-11 place-items-center rounded-md border bg-card",
-                  sprite === look ? "border-select" : "border-border hover:border-ring",
-                )}
-              >
-                <CanvasView make={() => preview(texture(look, "down"), 2)} deps={[look]} />
-              </button>
-            ))}
-          </div>
-        </Field>
-        <Field label="Choose your partner">
-          <div className="grid grid-cols-3 gap-2">
-            {starters.map((id) => (
-              <button
-                key={id}
-                onClick={() => setStarter(id)}
-                className={cn(
-                  "grid justify-items-center gap-1 rounded-lg border bg-card p-2",
-                  starter === id ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-border hover:border-ring",
-                )}
-                style={{ ["--accent" as string]: colors[species(id).types[0]] }}
-              >
-                <CanvasView make={() => portrait(id, 2)} deps={[id]} />
-                <b className="text-sm">{species(id).name}</b>
-                <TypeBadge type={species(id).types[0]} />
-              </button>
-            ))}
-          </div>
-        </Field>
-        <Button
-          onClick={() => {
-            session.startTrainer(name, sprite, starter);
-            close();
-            toast.success(`${species(starter).name} joined your party!`);
-          }}
-        >
-          Start adventure
-        </Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 //=================================================================================================
 // Pokédex (start menu)

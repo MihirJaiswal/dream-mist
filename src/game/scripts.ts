@@ -21,6 +21,11 @@ export const kinds: Record<ActionKind, { label: string; hint: string; make: () =
   battle: { label: "Battle", hint: "Battle a trainer (stops if the player loses)", make: () => ({ do: "battle", who: 0 }) },
   give: { label: "Give item", hint: "Put an item in the bag", make: () => ({ do: "give", item: "potion", count: 1 }) },
   pokemon: { label: "Give Pokémon", hint: "Add a Pokémon to the party", make: () => ({ do: "pokemon", species: 25, level: 5 }) },
+  starter: {
+    label: "Choose a starter",
+    hint: "The player picks one of a few Pokémon, like the Professor's bag",
+    make: () => ({ do: "starter", species: [252, 255, 258], level: 5 }),
+  },
   money: { label: "Give money", hint: "Add money", make: () => ({ do: "money", amount: 500 }) },
   heal: { label: "Heal", hint: "Heal the party", make: () => ({ do: "heal" }) },
   step: { label: "Story step", hint: "Complete a story step", make: () => ({ do: "step", step: "" }) },
@@ -113,6 +118,10 @@ export function actions(raw: unknown): Action[] {
         return isItem(`${a.item}`) ? [{ do: "give", item: a.item as Extract<Action, { do: "give" }>["item"], count: int(a.count, 1, 99) }] : [];
       case "pokemon":
         return [{ do: "pokemon", species: int(a.species, 1, 100000), level: int(a.level, 1, 100) }];
+      case "starter": {
+        const choices = (Array.isArray(a.species) ? a.species : []).slice(0, 6).map((id: unknown) => int(id, 1, 100000));
+        return choices.length ? [{ do: "starter", species: choices, level: int(a.level, 1, 100) }] : [];
+      }
       case "money":
         return [{ do: "money", amount: int(a.amount, -999999, 999999) }];
       case "heal":
@@ -183,3 +192,8 @@ export function reindex(city: City, removed: number) {
 
 /** Direction arrows */
 export const arrows = { up: "↑", down: "↓", left: "←", right: "→" } as const;
+
+/** Does a game let the player choose a starter itself: then new trainers start without a partner, and get one from it */
+export function handsOutStarter(city: City) {
+  return [city, ...city.interiors].some((map) => scripts(map).some((list) => list.some(({ do: kind }) => kind === "starter")));
+}

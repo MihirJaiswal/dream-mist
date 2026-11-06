@@ -32,6 +32,14 @@ export type UiBridge = {
   party(pick: { message: string; action?: string; can?: (creature: Creature, index: number) => true | string; cancel?: boolean }): Promise<number | null>;
   /** Bag screen in battle: resolves with the item to use, null when closed */
   bag(options: { battle: { usable: (id: ItemId) => boolean } }): Promise<ItemId | null>;
+  /** Evolution screen: resolves false when the player stopped it with B (only when `cancel`) */
+  evolve(creature: Creature, into: number, options: { cancel: boolean }): Promise<boolean>;
+  /** Naming screen (a nickname, the player's name): resolves with the name, empty to keep the usual one */
+  name(title: string, options?: { initial?: string; creature?: Creature }): Promise<string>;
+  /** Choose one of a few Pokémon, like the Professor's bag of starters: resolves with its index */
+  starter(choices: number[], options?: { speaker?: string; portrait?: Portrait }): Promise<number>;
+  /** New game opening: the Professor's welcome speech, then a new trainer picks their look and name (and a partner when `partner`) */
+  opening(options: Opening): Promise<void>;
   /** Close the dialogue box right away, dropping pending lines (their conversation never continues) */
   hush(): void;
   /** Poké Mart: buy items with the trainer's money (resolves when they leave) */
@@ -42,13 +50,14 @@ export type UiBridge = {
   confirm(title: string, options?: { text?: string; action?: string; danger?: boolean }): Promise<boolean>;
   /** Ask to sign in (resolves when the window closes, signed in or not) */
   signIn(reason?: SignInReason): Promise<void>;
-  /** Create a trainer before playing (resolves when the window closes) */
-  onboarding(): Promise<void>;
   /** Name shown to other builders when joining a live room as a guest (empty when declined) */
   guestName(): Promise<string>;
   /** Offer to save towns that only live in this browser to the account */
   bring(cities: { id: string; name: string; width: number; height: number; people: number; updated: number }[]): Promise<void>;
 };
+
+/** What the new game's opening shows: the game's name, its welcome speech (blank lines split pages), and whether it hands out a first partner */
+export type Opening = { game: string; speech?: string; professor?: string; partner: boolean; newTrainer: boolean };
 
 /** Why someone is asked to sign in (changes the wording of the sign-in window) */
 export type SignInReason = "default" | "save" | "new" | "publish" | "share" | "room" | "upload";
@@ -62,12 +71,15 @@ export const ui: UiBridge = {
   menu: async () => {},
   party: async () => null,
   bag: async () => null,
+  evolve: async () => true,
+  name: async () => "",
+  starter: async () => 0,
+  opening: async () => {},
   hush: () => {},
   shop: async () => {},
   banner: () => {},
   confirm: async () => false,
   signIn: async () => {},
-  onboarding: async () => {},
   guestName: async () => "",
   bring: async () => {},
 };

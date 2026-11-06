@@ -218,6 +218,7 @@ function Info({ view, foe, slot }: { view: BattleSide; foe: boolean; slot: Slot 
         <div className="row">
           <b>
             {named(creature)}
+            {creature.gender ? <span className={cn("gender", creature.gender)}>{creature.gender === "male" ? "♂" : "♀"}</span> : null}
             {creature.shiny ? " ✨" : ""}
           </b>
           <span className="level">

@@ -12,6 +12,7 @@ import {
   decode,
   type Direction,
   type Door,
+  levelCap,
   library,
   type MapType,
   type Npc,
@@ -21,6 +22,7 @@ import {
   resize,
   sanitize,
   storage,
+  typeOf,
   uid,
 } from "./data";
 import { EditorEngine } from "./editor/engine";
@@ -31,7 +33,9 @@ import type { Problem } from "./problems";
 import { type Edit, type Peer, Room } from "./room";
 import { frameOf, layouts, load as loadSprites, type Sprite } from "./sprites";
 import { dataURL, load as loadTilesets, prepare, range } from "./tilesets";
-import { type Creature, cure, hp, teamOf, type Trainer, trainer, upgrade } from "./trainer";
+import { create, type Creature, experience, grow, named, teamOf, type Trainer, trainer, upgrade } from "./trainer";
+import { apply, evolveIfReady, field, helps, leveling, teachAll } from "./growth";
+import { handsOutStarter } from "./scripts";
 import { Battle, battleWeather, trainerRules } from "./battle";
 import { type ItemId, items } from "./items";
 import { type Interior, loadRooms, sheetName } from "./interiors";
@@ -195,8 +199,18 @@ export class Session {
 
   /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
   async setMode(mode: "edit" | "play", from: null | { x: number; y: number } = null): Promise<void> {
-    if (mode === "play" && !trainer.exists) {
-      await ui.onboarding();
+    //A new game: the Professor's opening (a new trainer picks their look and name there), when there's no trainer yet or the game has a speech
+    //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose
+    const fresh = mode === "play" && this.mode !== "play" && !trainer.profile?.started?.includes(this.city.id);
+    const partner = !trainer.profile?.party.length && !trainer.profile?.box.length && !handsOutStarter(this.city);
+    if (mode === "play" && (!trainer.exists || partner || (fresh && this.city.intro?.speech.trim()))) {
+      await ui.opening({
+        game: this.city.name,
+        speech: this.city.intro?.speech,
+        professor: this.city.intro?.professor,
+        partner,
+        newTrainer: !trainer.exists,
+      });
       if (!trainer.exists) {
         if (this.visiting) {
           return this.setMode("play");
@@ -207,6 +221,16 @@ export class Session {
     //Remember where you were building, to come back to it after playing
     if (mode === "play" && this.mode === "edit") {
       this.#building = { area: this.#areaId(), x: this.map.world.x, y: this.map.world.y, scale: this.map.world.scale.x };
+    }
+    //It starts in the game's first map (and visitors always start there)
+    if (mode === "play" && !from && (fresh || this.visiting) && trainer.profile) {
+      trainer.profile.started = [...new Set([...(trainer.profile.started ?? []), this.city.id])];
+      trainer.save();
+      const start = area(this.city, this.city.start ?? "");
+      if (start && start !== this.area) {
+        this.area = start;
+        this.map.load(start);
+      }
     }
     this.menu = null;
     this.mode = mode;
@@ -453,7 +477,7 @@ export class Session {
   /** Bring trainer progress in line with the account after signing in */
   async synchronize() {
     const remote = (await cloud.trainer.get().catch(() => null)) as Trainer | null;
-    if (remote?.party?.length) {
+    if (remote?.name) {
       trainer.profile = upgrade(remote);
       trainer.save();
     } else if (trainer.exists) {
@@ -592,12 +616,34 @@ export class Session {
     ui.toast(previous ? `${previous} is saved in Your cities. Have fun with ${city.name}!` : `Started ${city.name}`, "success");
   }
 
-  /** Give the starter town's Pokémon Center and house their interiors (Emerald's rooms), and lead their doors there */
+  /**
+   * Give the starter town's Pokémon Center, house and lab their interiors (Emerald's rooms), and lead their doors there.
+   * New players wake up in their room upstairs, and the Professor's starter completes the town's first story step
+   */
   async #furnish() {
     for (const [key, at] of Object.entries(starterDoors(this.city))) {
       const door = this.city.doors.find(({ x, y, to }) => x === at.x && y === at.y && to === "?");
-      if (door) {
-        door.to = (await this.newInterior(key)).id;
+      if (!door) {
+        continue;
+      }
+      const room = await this.newInterior(key);
+      door.to = room.id;
+      if (key === "home") {
+        //Their room is upstairs: they start by its stairs
+        const upstairs = room.doors.map(({ to }) => area(this.city, to)).find((map) => map && map !== this.city);
+        const stairs = upstairs?.doors.find(({ to }) => to === room.id);
+        if (upstairs && stairs) {
+          const free = [stairs.y + 1, stairs.y - 1]
+            .map((y) => ({ x: stairs.x, y }))
+            .find(({ x, y }) => y >= 0 && y < upstairs.height && !upstairs.solid[y * upstairs.width + x]);
+          upstairs.spawn = free ?? { x: stairs.x - 1, y: stairs.y };
+          this.city.start = upstairs.id;
+        }
+      }
+      const step = this.city.story[0];
+      const professor = key === "lab" ? room.npcs.find(({ script }) => script?.actions.some(({ do: kind }) => kind === "starter")) : null;
+      if (professor?.script && step) {
+        professor.script.actions.push({ do: "step", step: step.id });
       }
     }
     this.openArea("");
@@ -1215,20 +1261,89 @@ export class Session {
   //=================================================================================================
   // Trainer
 
-  /** Use a Potion or a cure on a Pokémon outside battle (false when it would do nothing) */
-  useItem(id: ItemId, creature: Creature) {
+  /**
+   * Use an item from the bag on a Pokémon outside battles: potions, cures and revives work at once,
+   * a Rare Candy grows a level (it may learn moves and evolve), a stone or the Linking Cord evolves it.
+   * Resolves with what the bag says (empty when the screens said it all), or null when it does nothing
+   */
+  async useOn(id: ItemId, creature: Creature): Promise<string | null> {
     const item = items[id];
-    const helps = item.kind === "heal" ? creature.hp > 0 && creature.hp < hp(creature) : item.kind === "cure" ? Boolean(creature.status) : false;
-    if (!helps || !trainer.take(id)) {
-      return false;
+    if (!helps(id, creature) || !trainer.count(id)) {
+      return null;
     }
-    if (item.kind === "heal") {
-      creature.hp = Math.min(hp(creature), creature.hp + item.amount);
+    if (item.kind === "candy") {
+      const badges = trainer.profile!.badges.filter(({ world }) => world === this.city.id).length;
+      if (creature.level >= levelCap(this.city.rules, badges)) {
+        return `${named(creature)} can't grow past Lv. ${creature.level} until the next badge.`;
+      }
+      trainer.take(id);
+      const pending = [] as string[];
+      const messages = grow(creature, experience(creature.level + 1) - creature.exp, 100, pending);
+      this.notify();
+      for (const message of messages) {
+        await ui.say(message);
+      }
+      await teachAll(creature, pending, field);
+      await evolveIfReady(creature, leveling(this.area.time));
+    } else if (item.kind === "evolve") {
+      trainer.take(id);
+      await evolveIfReady(creature, (item as { trade?: true }).trade ? { trade: true } : { item: id });
     } else {
-      cure(creature);
+      trainer.take(id);
+      const said = apply(id, creature);
+      trainer.save();
+      this.notify();
+      return said;
     }
     trainer.save();
     this.notify();
+    return "";
+  }
+
+  /** Use an item from the bag that isn't used on a Pokémon (a Repel, the Exp. Share): resolves with what the bag says */
+  useItem(id: ItemId) {
+    const profile = trainer.profile!;
+    const item = items[id];
+    if (id === "exp-share") {
+      profile.share = !profile.share;
+      trainer.save();
+      this.notify();
+      return profile.share ? "The Exp. Share was turned on. Pokémon that don't battle get a share of the EXP. Points." : "The Exp. Share was turned off.";
+    }
+    if (item.kind === "repel") {
+      if (!trainer.repel(id)) {
+        return "The effect of the previous Repel is still active.";
+      }
+      this.notify();
+      return `${profile.name} used the ${item.name}. Weaker wild Pokémon will stay away.`;
+    }
+    return item.about;
+  }
+
+  /** Escape Rope: out of a cave or building, back to the door of the outdoor map that leads in (false when already outdoors) */
+  escape() {
+    if (this.mode !== "play" || typeOf(this.area, this.city) === "outdoor" || !trainer.take("escape-rope")) {
+      return false;
+    }
+    //Follow the doors back out, through every room on the way
+    const maps = [this.city, ...this.city.interiors];
+    let here = this.area;
+    for (let hops = 0; hops < maps.length; hops++) {
+      const from = maps.find((map) => map.doors.some(({ to }) => to === here.id));
+      const door = from?.doors.find(({ to }) => to === here.id);
+      if (!from || !door) {
+        break;
+      }
+      if (typeOf(from, this.city) === "outdoor") {
+        const y = Math.min(from.height - 1, door.y + 1);
+        this.openArea(from === this.city ? "" : from.id, { x: door.x, y, dir: "down" });
+        trainer.save();
+        return true;
+      }
+      here = from;
+    }
+    this.openArea("", { ...this.city.spawn, dir: "down" });
+    trainer.save();
     return true;
   }
 
@@ -1298,6 +1413,23 @@ export class Session {
     this.notify();
   }
 
+  /** How a new game starts: the map new players start in ("" = outside), and what the Professor says first (empty for the usual welcome) */
+  setNewGame({ start, speech }: { start?: string; speech?: string }) {
+    this.#undoable(() => {
+      if (start !== undefined) {
+        if (start) this.city.start = start;
+        else delete this.city.start;
+      }
+      if (speech !== undefined) {
+        if (speech.trim()) this.city.intro = { ...this.city.intro, speech: speech.slice(0, 2000) };
+        else delete this.city.intro;
+      }
+      this.broadcastCity();
+      this.changed();
+    });
+    this.notify();
+  }
+
   /** Buy items at a Poké Mart (false when there isn't enough money) */
   buy(id: ItemId, count: number) {
     const profile = trainer.profile;
@@ -1312,9 +1444,16 @@ export class Session {
     return true;
   }
 
-  /** Create a trainer */
-  startTrainer(name: string, sprite: string, starter: number) {
+  /** Create a trainer (with a first partner, unless the game hands one out) */
+  startTrainer(name: string, sprite: string, starter?: number) {
     trainer.start(name.trim() || "Trainer", sprite, starter);
+    this.notify();
+  }
+
+  /** Give a trainer without Pokémon their first partner */
+  givePartner(id: number) {
+    trainer.catch(create(id, 5, { shiny: false }));
+    trainer.save();
     this.notify();
   }
 

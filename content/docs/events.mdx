@@ -36,24 +36,25 @@ A person's script plays **instead of** their usual part: their dialogue, battle,
 
 Press **Add action** to add one at the end, and use the arrows to reorder.
 
-| Action       | What it does                                                                                                          |
-| ------------ | --------------------------------------------------------------------------------------------------------------------- |
-| Say          | Shows a message. Pick who says it for their name and portrait, or **Nobody** for narration.                           |
-| Ask Yes/No   | Asks a question with a YES/NO window, then plays the actions under **If they answer YES** or **If they answer NO**.   |
-| If…          | Checks something about the player, then plays the actions under **Then** or **Otherwise**. See [Branches](#branches). |
-| Walk up      | Someone notices the player (**!**) and walks to the tile next to them, then they face each other.                     |
-| Walk         | Someone, or the player, walks some steps. Steps that are blocked are skipped.                                         |
-| Face         | Someone, or the player, turns to face a direction.                                                                    |
-| Walk back    | Someone walks back to where they stand on the map.                                                                    |
-| Wait         | Pauses, up to 10 seconds.                                                                                             |
-| Battle       | Battles a trainer of the map, or a wild Pokémon placed on it. The script stops if the player loses.                   |
-| Give item    | Puts items in the bag.                                                                                                |
-| Take item    | Takes items from the bag, like a toll or a trade. Use **If…** first to check the player has them.                     |
-| Give Pokémon | Adds a Pokémon to the party (or the PC box when the party is full).                                                   |
-| Give money   | Adds money, or takes it away with an amount below 0.                                                                  |
-| Heal         | Heals the whole party.                                                                                                |
-| Story step   | Completes a story step: its banner shows, people come and go and gates open.                                          |
-| Warp         | Takes the player to a tile of another map. The script ends there.                                                     |
+| Action           | What it does                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Say              | Shows a message. Pick who says it for their name and portrait, or **Nobody** for narration.                                           |
+| Ask Yes/No       | Asks a question with a YES/NO window, then plays the actions under **If they answer YES** or **If they answer NO**.                   |
+| If…              | Checks something about the player, then plays the actions under **Then** or **Otherwise**. See [Branches](#branches).                 |
+| Walk up          | Someone notices the player (**!**) and walks to the tile next to them, then they face each other.                                     |
+| Walk             | Someone, or the player, walks some steps. Steps that are blocked are skipped.                                                         |
+| Face             | Someone, or the player, turns to face a direction.                                                                                    |
+| Walk back        | Someone walks back to where they stand on the map.                                                                                    |
+| Wait             | Pauses, up to 10 seconds.                                                                                                             |
+| Battle           | Battles a trainer of the map, or a wild Pokémon placed on it. The script stops if the player loses.                                   |
+| Give item        | Puts items in the bag.                                                                                                                |
+| Take item        | Takes items from the bag, like a toll or a trade. Use **If…** first to check the player has them.                                     |
+| Give Pokémon     | Adds a Pokémon to the party (or the PC box when the party is full). The player can nickname it.                                       |
+| Choose a starter | The player picks one of up to six Pokémon from the Professor's bag. A game with this event lets new trainers start without a partner. |
+| Give money       | Adds money, or takes it away with an amount below 0.                                                                                  |
+| Heal             | Heals the whole party.                                                                                                                |
+| Story step       | Completes a story step: its banner shows, people come and go and gates open.                                                          |
+| Warp             | Takes the player to a tile of another map. The script ends there.                                                                     |
 
 ## Branches
 

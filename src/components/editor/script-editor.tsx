@@ -331,6 +331,30 @@ function Fields({
           <NumberInput value={action.level} onCommit={(level) => set({ level })} className="w-14" />
         </div>
       );
+    case "starter":
+      return (
+        <div className="grid gap-1.5">
+          {action.species.map((id, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <SpeciesInput value={id} onChange={(next) => set({ species: action.species.map((old, j) => (j === i ? next : old)) })} />
+              {action.species.length > 1 ? (
+                <Button variant="ghost" size="icon-sm" title="Remove" onClick={() => set({ species: action.species.filter((_, j) => j !== i) })}>
+                  <X />
+                </Button>
+              ) : null}
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            {action.species.length < 6 ? (
+              <Button variant="outline" size="sm" onClick={() => set({ species: [...action.species, 25] })}>
+                <Plus /> Pokémon
+              </Button>
+            ) : null}
+            <span className="ml-auto text-xs text-subtle-fg">Lv</span>
+            <NumberInput value={action.level} onCommit={(level) => set({ level })} className="w-14" />
+          </div>
+        </div>
+      );
     case "money":
       return (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

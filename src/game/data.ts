@@ -186,6 +186,8 @@ export type Action =
   /** Give the player an item, a Pokémon or money (less than zero takes it) */
   | { do: "give"; item: ItemId; count: number }
   | { do: "pokemon"; species: number; level: number }
+  /** Let the player choose one of a few Pokémon (the Professor's bag of starters) */
+  | { do: "starter"; species: number[]; level: number }
   | { do: "money"; amount: number }
   /** Heal the party */
   | { do: "heal" }
@@ -365,6 +367,10 @@ export type City = {
   song?: string;
   /** Battle rules of the whole town (outside map only, shared by interiors) */
   rules?: Rules;
+  /** New game (outside map only): the map new players start in ("" or not set: outside, at its spawn) */
+  start?: string;
+  /** New game (outside map only): what the Professor says before the adventure starts (blank lines split pages; a welcome is said when empty) */
+  intro?: { speech: string; professor?: string };
   updated: number;
 };
 
@@ -543,6 +549,12 @@ export function sanitize(raw: Partial<City>, root?: City): City {
       ...(caps.length ? { caps } : {}),
       ...(rules.followers === false ? { followers: false as const } : {}),
     };
+  }
+  if (raw.start && typeof raw.start === "string") {
+    city.start = raw.start;
+  }
+  if (raw.intro && typeof raw.intro === "object" && typeof raw.intro.speech === "string") {
+    city.intro = { speech: raw.intro.speech.slice(0, 2000), ...(raw.intro.professor ? { professor: `${raw.intro.professor}`.slice(0, 30) } : {}) };
   }
   city.id = `${raw.id ?? city.id}`;
   city.name = `${raw.name ?? city.name}`.slice(0, 40);

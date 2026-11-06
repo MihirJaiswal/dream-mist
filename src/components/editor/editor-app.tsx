@@ -9,7 +9,8 @@ import { ask, banner, BattleScreen, choose, DialogueBox, Fade, Gamepad, hush, Ma
 import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
-import { onboarding, shop } from "@/components/editor/trainer-dialogs";
+import { shop } from "@/components/editor/trainer-dialogs";
+import { evolutionScreen, nameScreen, opening, starterScreen } from "@/components/editor/gba-scenes";
 import { CommandPalette } from "@/components/editor/command-palette";
 import { useAppShortcuts } from "@/components/editor/shortcuts";
 import { Tour } from "@/components/editor/tour";
@@ -58,7 +59,10 @@ export function EditorApp() {
       banner,
       confirm,
       signIn,
-      onboarding,
+      opening,
+      evolve: evolutionScreen,
+      name: nameScreen,
+      starter: (choices) => starterScreen(choices),
       guestName,
       bring,
     });

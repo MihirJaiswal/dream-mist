@@ -518,6 +518,46 @@ function BattleRules({ update }: { update: () => void }) {
   );
 }
 
+/** How a new game starts: the map new players wake up in, and the Professor's welcome speech */
+function NewGame({ update }: { update: () => void }) {
+  const city = session.city;
+  const [speech, setSpeech] = useState(city.intro?.speech ?? "");
+  const maps = [{ id: "", name: `${city.name} (outside)` }, ...city.interiors.map(({ id, name }) => ({ id, name }))];
+  const start = maps.some(({ id }) => id === city.start) ? (city.start ?? "") : "";
+  return (
+    <section className="grid grid-cols-1 gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">New game</p>
+      <Field label="New players start in">
+        <Select value={start || "outside"} onValueChange={(id) => (session.setNewGame({ start: id === "outside" ? "" : id }), update())}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {maps.map(({ id, name }) => (
+              <SelectItem key={id || "outside"} value={id || "outside"}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Professor's welcome">
+        <Textarea
+          value={speech}
+          rows={4}
+          placeholder="Hi! Welcome to the world of Pokémon!&#10;&#10;(Blank lines start a new page. Leave empty for the usual welcome.)"
+          onChange={(event) => setSpeech(event.target.value)}
+          onBlur={() => speech !== (city.intro?.speech ?? "") && (session.setNewGame({ speech }), update())}
+        />
+      </Field>
+      <Hint>
+        A new player hears the Professor first, picks a boy or a girl and a name, then starts on the spawn of the map above (set it with the Spawn layer). If no
+        one in the game hands out a starter with a &quot;Choose a starter&quot; action, the Professor gives one from his bag.
+      </Hint>
+    </section>
+  );
+}
+
 /** Battle background of the open map: the built-in scene, the town's picture, or its own uploaded picture */
 function BattleBackground({ update }: { update: () => void }) {
   const area = session.area,
@@ -741,6 +781,7 @@ function Settings({ close }: { close: () => void }) {
         </section>
         <MapDetails update={update} />
         <BattleRules update={update} />
+        <NewGame update={update} />
         <BattleBackground update={update} />
         <section className="grid grid-cols-1 gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Music</p>

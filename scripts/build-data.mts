@@ -3,11 +3,12 @@
  *
  *   npm run data              build everything that is missing
  *   npm run data -- --force   rebuild everything
- *   npm run data -- maps      build only some steps (assets, tilesets, maps, pokedex, tiles, pret)
+ *   npm run data -- maps      build only some steps (assets, tilesets, maps, pokedex, tiles, pret, followers)
  *
  * Sources: maps/ (Tiled maps of Hoenn), copyrighted/ (textures and audio) and PokeAPI data,
  * downloaded once into .cache/api-data (a sparse clone of only the folders used here),
- * and Gen 3 graphics from pret/pokeemerald, cloned the same way into .cache/pret (see pret.mts).
+ * Gen 3 graphics from pret/pokeemerald, cloned the same way into .cache/pret (see pret.mts),
+ * and walking Pokémon and newer item icons from pokeemerald-expansion, into .cache/expansion (see expansion.mts).
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +16,7 @@ import { dirname, join } from "node:path";
 import { XMLParser } from "fast-xml-parser";
 import { PNG } from "pngjs";
 import { pret as gen3 } from "./pret.mts";
+import { expansion } from "./expansion.mts";
 
 /** Output folder */
 const out = process.env.DATA_OUT ?? "public/game";
@@ -382,26 +384,71 @@ function pokedex({ force = false }) {
     return { ...(ailment ? { ailment } : {}), ...(stats.length ? { stats } : {}), ...(self ? { self: true } : {}), chance };
   };
 
-  //Level-up evolutions (the first one with a plain level, like Treecko into Grovyle at 16)
-  const evolutionOf = (name: string, chain: Json) => {
+  //Every way a species evolves, like the games: at a level, with a stone, when friendly (by day or night), holding an item,
+  //knowing a move, by gender, by its Attack and Defense, or by trade (a Linking Cord does it without trading).
+  //Of the ways listed for each evolution over the generations, the usual one is kept (a stone when a special place is listed too)
+  const evolutionsOf = (name: string, chain: Json, skipped: string[]) => {
     const find = (node: Json): Json => (node.species.name === name ? node : node.evolves_to.map(find).find(Boolean));
+    const evolutions = [] as Json[];
     for (const next of find(chain.chain)?.evolves_to ?? []) {
-      const detail = next.evolution_details.find(
-        (detail: Json) =>
-          detail.trigger.name === "level-up" &&
-          detail.min_level &&
-          !detail.held_item &&
-          !detail.time_of_day &&
-          detail.gender === null &&
-          !detail.known_move &&
-          !detail.location,
-      );
-      const id = Number(next.species.url.match(/\/(\d+)\/?$/)?.[1]);
-      if (detail && id <= creatures) {
-        return [detail.min_level, id];
+      const into = Number(next.species.url.match(/\/(\d+)\/?$/)?.[1]);
+      if (into > creatures) {
+        continue;
+      }
+      //Regional forms' ways (Galarian Slowpoke's Galarica Cuff) and older ones only come after the usual way
+      const usual = (detail: Json) => (/-(alola|galar|hisui|paldea)/.test(detail.base_form?.name ?? "") ? 2 : 0) + (detail.is_default === false ? 1 : 0);
+      //Evolutions only regional forms have (Galarian Meowth into Perrserker) are left out: there are no regional forms here
+      const way = (next.evolution_details as Json[])
+        .filter((detail) => usual(detail) < 2)
+        .toSorted((a, b) => usual(a) - usual(b))
+        .map((detail) => {
+          const trigger = detail.trigger.name;
+          const when = {
+            ...(detail.time_of_day === "day" || detail.time_of_day === "night" ? { time: detail.time_of_day } : {}),
+            ...(detail.gender ? { gender: detail.gender === 1 ? "female" : "male" } : {}),
+          };
+          if (trigger === "use-item" && detail.item) {
+            return { into, item: detail.item.name, ...when };
+          }
+          if (trigger === "trade") {
+            return { into, trade: true, ...(detail.held_item ? { held: detail.held_item.name } : {}) };
+          }
+          if (trigger === "shed") {
+            return { into, shed: true };
+          }
+          //Moves used a number of times (Rage Fist, Psyshield Bash) count as knowing them
+          const move = detail.known_move?.name ?? detail.used_move?.name;
+          if (trigger === "level-up" || ((trigger === "use-move" || trigger.endsWith("-style-move") || trigger === "other") && (move || detail.min_level))) {
+            if (detail.location && !detail.min_level) {
+              return null;
+            }
+            //Friendship and affection both mean a friendly Pokémon; Feebas's beauty is left to its Prism Scale trade
+            //Walking many steps together (Pawmo) counts as being friendly too
+            const friendly = detail.min_happiness || detail.min_affection || detail.min_steps;
+            const way = {
+              into,
+              ...(detail.min_level ? { level: detail.min_level } : {}),
+              ...(friendly ? { friendship: true } : {}),
+              ...(detail.held_item ? { held: detail.held_item.name } : {}),
+              ...(move ? { move } : {}),
+              ...(detail.known_move_type ? { moveType: detail.known_move_type.name } : {}),
+              ...(detail.relative_physical_stats !== null ? { stat: detail.relative_physical_stats } : {}),
+              //Another species in the party (Mantyke needs a Remoraid)
+              ...(detail.party_species ? { partner: Number(detail.party_species.url.match(/\/(\d+)\/?$/)?.[1]) } : {}),
+              ...when,
+            };
+            return Object.keys(way).length > 1 ? way : null;
+          }
+          return null;
+        })
+        .find(Boolean);
+      if (way) {
+        evolutions.push(way);
+      } else {
+        skipped.push(`${name} → ${next.species.name}`);
       }
     }
-    return undefined;
+    return evolutions;
   };
 
   //More of what a move does: hits several times, drains or recoils (percent of the damage dealt), heals (percent of max HP),
@@ -445,6 +492,7 @@ function pokedex({ force = false }) {
     return key;
   };
   const dex = [];
+  const skipped = [] as string[];
   for (let id = 1; id <= creatures; id++) {
     const pokemon = read(`${api}/pokemon/${id}/index.json`);
     const species = read(`${api}/pokemon-species/${id}/index.json`);
@@ -482,7 +530,7 @@ function pokedex({ force = false }) {
       }
     }
     learnset.sort(([a], [b]) => a - b);
-    const evolves = evolutionOf(species.name, read(`${cache}/data${species.evolution_chain.url.replace(/\/$/, "")}/index.json`));
+    const evolutions = evolutionsOf(species.name, read(`${cache}/data${species.evolution_chain.url.replace(/\/$/, "")}/index.json`), skipped);
     dex.push({
       id,
       key: pokemon.name,
@@ -494,12 +542,17 @@ function pokedex({ force = false }) {
       //Regular abilities (not hidden ones), one is picked for each Pokémon
       abilities: pokemon.abilities.filter(({ is_hidden }: Json) => !is_hidden).map(({ ability: { name, url } }: Json) => ability(name, url)),
       learnset,
-      ...(evolves ? { evolves } : {}),
+      ...(evolutions.length ? { evolutions } : {}),
+      //Chance to be female in eighths (-1: no gender), and friendship when caught or hatched
+      gender: species.gender_rate,
+      friendship: species.base_happiness ?? 70,
     });
     if (!(id % 100)) {
       step(`  ${id}/${creatures} Pokémon`);
     }
   }
+
+  step(`  ${skipped.length} evolutions need something the game doesn't have: ${skipped.join(", ")}`);
 
   //Keep only moves that are actually learned
   const used = new Set(["tackle", ...dex.flatMap(({ learnset }) => learnset.map(([, name]) => name))]);
@@ -617,7 +670,16 @@ function pret({ force = false }) {
   gen3(out, (text) => step(`  ${text}`));
 }
 
-const steps = { assets, tilesets, maps, pokedex, tiles, pret } as { [name: string]: (options: { force: boolean }) => void };
+/** Walking Pokémon and newer item icons from pokeemerald-expansion (built only when asked for, or when missing) */
+function followers({ force = false }) {
+  if (!force && built("followers/1.png")) {
+    return;
+  }
+  step("building walking Pokémon from pokeemerald-expansion");
+  expansion(out, (text) => step(`  ${text}`));
+}
+
+const steps = { assets, tilesets, maps, pokedex, tiles, pret, followers } as { [name: string]: (options: { force: boolean }) => void };
 for (const name of only.length ? only : Object.keys(steps)) {
   if (!(name in steps)) {
     throw new Error(`Unknown step "${name}" (expected one of: ${Object.keys(steps).join(", ")})`);

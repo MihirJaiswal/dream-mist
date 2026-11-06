@@ -72,7 +72,10 @@ function PokemonPicker({ current, close }: { current: number; close: (id?: numbe
     setShownFor(results);
     setShown(query || generation >= 0 || type !== "all" || index < 0 ? batch : Math.ceil((index + 1) / batch) * batch);
   }
-  useEffect(() => scroller.current?.scrollTo({ top: 0 }), [results]);
+  //Newer browsers return a promise from scrollTo: the effect must return nothing
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+  }, [results]);
   useEffect(() => {
     requestAnimationFrame(() => scroller.current?.querySelector("[data-current]")?.scrollIntoView({ block: "center" }));
   }, []);

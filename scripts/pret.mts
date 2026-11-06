@@ -8,6 +8,7 @@
  *   game/tilesets/emerald/<name>.json   what each of its tiles does: blocked (learned from the real maps), a behavior, tall grass
  *   game/battle/anims/<name>.png        attack animation sprites (frames stacked from top to bottom), and index.json with their frame sizes
  *   game/items/<name>.png               every item icon (24px), and the bag (bag_male/bag_female: its pocket pictures stacked from top to bottom)
+ *   game/intro/<name>.png               the new game's opening: Professor Birch, and Brendan and May
  *   game/data/rooms.json                interior templates: Emerald's real rooms (Pokémon Center, Mart, houses, lab, gyms…) with their exits and who works there
  *
  * The repository is cloned once into .cache/pret (only the folders used here). Its files are only read as data.
@@ -39,6 +40,11 @@ const sources = [
   "graphics/items/icon_palettes",
   "graphics/bag",
   "/data/maps/*/map.json",
+  "graphics/birch_speech",
+  "/graphics/trainers/front_pics/brendan.png",
+  "/graphics/trainers/front_pics/may.png",
+  "/graphics/trainers/palettes/brendan.pal",
+  "/graphics/trainers/palettes/may.pal",
 ];
 
 type Color = [number, number, number];
@@ -121,7 +127,7 @@ function canvas(width: number, height: number) {
 }
 
 /** Save a PNG */
-function write(path: string, png: PNG) {
+export function write(path: string, png: PNG) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, PNG.sync.write(png));
 }
@@ -288,6 +294,15 @@ function animations(out: string) {
 /** Icons drawn with another palette than their own: the icon, then the palette */
 const recolored = {
   super_potion: ["potion", "super_potion"],
+  hyper_potion: ["large_potion", "hyper_potion"],
+  max_potion: ["large_potion", "max_potion"],
+  full_restore: ["large_potion", "full_restore"],
+  max_revive: ["max_revive", "revive"],
+  awakening: ["status_heal", "awakening"],
+  burn_heal: ["status_heal", "burn_heal"],
+  paralyze_heal: ["status_heal", "paralyze_heal"],
+  super_repel: ["repel", "super_repel"],
+  max_repel: ["repel", "max_repel"],
   hm_normal: ["hm", "normal_tm_hm"],
   hm_fighting: ["hm", "fighting_tm_hm"],
   hm_water: ["hm", "water_tm_hm"],
@@ -642,6 +657,24 @@ function tilesets(out: string) {
   return index.length;
 }
 
+//=================================================================================================
+// New game
+
+/** Pictures of the new game's opening: Professor Birch (in the PNG's own colors), and the boy and girl a new player picks between (Brendan and May) */
+function intro(out: string) {
+  //Color 0 is the see-through background
+  const birch = join(repo, "graphics/birch_speech/birch.png");
+  const png = PNG.sync.read(readFileSync(birch));
+  indexed(birch).pixels.forEach((color, i) => color || (png.data[i * 4 + 3] = 0));
+  write(join(out, "intro/birch.png"), png);
+  for (const player of ["brendan", "may"]) {
+    write(
+      join(out, `intro/${player}.png`),
+      paint(indexed(join(repo, `graphics/trainers/front_pics/${player}.png`)), jasc(join(repo, `graphics/trainers/palettes/${player}.pal`))),
+    );
+  }
+}
+
 /** Build every pret asset */
 export function pret(out: string, log: (text: string) => void) {
   clone(log);
@@ -651,5 +684,7 @@ export function pret(out: string, log: (text: string) => void) {
   log(`packed ${people(out)} overworld people`);
   log(`exported ${items(out)} item icons and the bag`);
   log(`built ${interiors(out)} interior templates from Emerald's rooms`);
+  intro(out);
+  log("drew the new game's Professor and players");
   log(`drew ${tilesets(out)} tilesets`);
 }

@@ -177,12 +177,29 @@ function tree(city: City, x: number, y: number) {
 export function starterDoors({ width, height }: { width: number; height: number }) {
   const cx = Math.floor(width / 2),
     cy = Math.floor(height / 2);
-  return { center: { x: cx + 5, y: cy - 2 }, house: { x: cx - 6, y: cy - 2 } };
+  return { center: { x: cx + 5, y: cy - 2 }, home: { x: cx - 6, y: cy - 2 }, lab: { x: cx + 10, y: cy + 8 } };
+}
+
+/** Where the starter town's paths leave the map (blocked until the player has a Pokémon) */
+export function starterExits({ width, height }: { width: number; height: number }) {
+  const cx = Math.floor(width / 2),
+    cy = Math.floor(height / 2);
+  return [
+    { x: cx, y: 0 },
+    { x: cx + 1, y: 0 },
+    { x: cx, y: height - 1 },
+    { x: cx + 1, y: height - 1 },
+    { x: 0, y: cy },
+    { x: 0, y: cy + 1 },
+    { x: width - 1, y: cy },
+    { x: width - 1, y: cy + 1 },
+  ];
 }
 
 /**
  * Starter content for a new city: a tree border, two paths crossing in the middle and leading out on every side (where routes can join),
- * a Pokémon Center and a house with their doors (their interiors are added when the town opens), and tall grass
+ * a Pokémon Center, the player's house and the Professor's lab with their doors (their interiors are added when the town opens), and tall grass.
+ * Its story starts with getting a first Pokémon from the Professor: the ways out stay closed until then
  */
 export function template(city: City) {
   const { width: W, height: H } = city;
@@ -213,6 +230,7 @@ export function template(city: City) {
   //Buildings, with doors (they lead nowhere until the interiors are made)
   stamp(city, "Pokémon Center", cx + 4, cy - 5);
   stamp(city, "House", cx - 9, cy - 6);
+  stamp(city, "Lab", cx + 6, cy + 4);
   stamp(city, "Sign", cx - 2, cy - 1);
   for (const { x, y } of Object.values(starterDoors(city))) {
     city.doors.push({ x, y, to: "?", tx: -1, ty: -1 });
@@ -248,6 +266,18 @@ export function template(city: City) {
       wander: true,
     },
   );
+  //The first step of the story: the Professor hands out a starter, and the ways out open
+  const step = {
+    id: Math.random().toString(36).slice(2, 10),
+    n: 1,
+    name: "Get your first Pokémon",
+    goal: "Visit the Professor's lab",
+    blocked: "It's dangerous to go out without a Pokémon!\n\nThe Professor's lab is in town.",
+  };
+  city.story.push(step);
+  for (const { x, y } of starterExits(city)) {
+    city.gate[y * W + x] = step.n;
+  }
   city.spawn = { x: cx, y: cy + 2 };
   return city;
 }

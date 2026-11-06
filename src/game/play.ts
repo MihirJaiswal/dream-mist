@@ -1,6 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
-import { artwork, assets, creatureSprite, npc as texture, preview, size, species, sprite } from "./assets";
+import { artwork, assets, creatureSprite, npc as texture, preview, size, species, sprite, walk, type Walk } from "./assets";
 import { fields } from "./fields";
 import { frames } from "./brushes";
 import { type Action, type Check, type City, type Direction, type Door, levelCap, type Npc, type Trigger } from "./data";
@@ -9,10 +9,11 @@ import { period } from "./atmosphere";
 import { pool, roll } from "./encounters";
 import { type CityMap, drawBall, drawDen, drawTree } from "./map";
 import { Battle, battleWeather, trainerRules } from "./battle";
-import { creatureImage, scaleOf } from "./sprites";
-import { create, grow, heal, hp, named, teamOf, trainer } from "./trainer";
+import { creatureImage, creatureLook, scaleOf } from "./sprites";
+import { befriend, create, grow, heal, hp, named, teamOf, trainer } from "./trainer";
 import { bestRod, itemCount, items, plural, sold } from "./items";
 import { milestone, open } from "./story";
+import { evolveGrown, field, nickname } from "./growth";
 import { sound } from "./audio";
 import { type Portrait, ui } from "./ui-bridge";
 
@@ -43,8 +44,10 @@ class Actor {
   sliding = false;
   readonly sprite: PIXI.Sprite;
   readonly name: string;
-  /** Single texture of a Pokémon on the map (people use their walking frames) */
-  readonly #still: null | PIXI.Texture;
+  /** Single texture of a Pokémon on the map, until its walking frames are loaded (custom Pokémon keep theirs) */
+  #still: null | PIXI.Texture;
+  /** Walking frames of a Pokémon (people use their own walking frames) */
+  #walk = null as null | Walk;
 
   constructor({
     x,
@@ -54,6 +57,7 @@ class Actor {
     parent,
     creature,
     look,
+    shiny = false,
   }: {
     x: number;
     y: number;
@@ -62,6 +66,7 @@ class Actor {
     parent: PIXI.Container;
     creature?: number;
     look?: string;
+    shiny?: boolean;
   }) {
     this.x = this.tx = x;
     this.y = this.ty = y;
@@ -74,6 +79,18 @@ class Actor {
     //Pokémon and custom sprites are scaled to the map
     this.sprite.scale.set(still ? still.scale : scaleOf(name));
     this.place();
+    //Pokémon walk on the map like in the Gen 3 games, once their frames are loaded
+    if (creature && !creatureLook(look)) {
+      void walk(creature, shiny).then((frames) => {
+        if (frames && !this.sprite.destroyed) {
+          this.#walk = frames;
+          this.#still = null;
+          this.sprite.scale.set(1);
+          this.sprite.texture = frames[this.dir][0];
+          this.place();
+        }
+      });
+    }
   }
 
   /** Is moving */
@@ -84,7 +101,9 @@ class Actor {
   /** Face a direction */
   face(dir: Direction) {
     this.dir = dir;
-    if (!this.#still) {
+    if (this.#walk) {
+      this.sprite.texture = this.#walk[dir][0];
+    } else if (!this.#still) {
       this.sprite.texture = texture(this.name, dir, 0);
     } else if (dir === "left" || dir === "right") {
       //Box icons face left, flip them to look right
@@ -95,6 +114,10 @@ class Actor {
   /** Advance toward target (returns true when step completed this frame) */
   advance(delta: number) {
     if (!this.moving) {
+      //Pokémon step in place while they stand, slowly
+      if (this.#walk) {
+        this.sprite.texture = this.#walk[this.dir][Math.floor(performance.now() / 500) % 2];
+      }
       return false;
     }
     const remaining = Math.abs(this.tx - this.x) + Math.abs(this.ty - this.y);
@@ -106,7 +129,10 @@ class Actor {
       this.x = this.tx;
       this.y = this.ty;
     }
-    if (!this.#still) {
+    if (this.#walk) {
+      //Two frames a tile, like the games
+      this.sprite.texture = this.#walk[this.dir][left > 0 && !this.sliding ? Math.floor(left * 2) % 2 : 0];
+    } else if (!this.#still) {
       this.sprite.texture = texture(this.name, this.dir, left > 0 && !this.sliding ? (Math.floor(left * 4) % 2 ? 1 : 2) : 0);
     }
     this.place();
@@ -134,7 +160,9 @@ class Actor {
 
   /** Remove */
   destroy() {
-    this.sprite.destroy();
+    if (!this.sprite.destroyed) {
+      this.sprite.destroy();
+    }
   }
 }
 
@@ -599,6 +627,7 @@ export class Play {
       parent: this.#map.containers.actors,
       creature: lead.species,
       look: undefined,
+      shiny: lead.shiny,
     });
     follower.depth = -0.05;
     follower.place();
@@ -1006,7 +1035,9 @@ export class Play {
 
   /** Wants to come to the player: a trainer not beaten yet, or someone who walks up to talk and hasn't yet */
   #eager({ data, index }: Person) {
-    return data.role === "trainer" ? !this.#defeated(index) : Boolean(data.approach) && !trainer.profile?.met?.includes(this.#key(index));
+    return data.role === "trainer"
+      ? Boolean(trainer.lead) && !this.#defeated(index)
+      : Boolean(data.approach) && !trainer.profile?.met?.includes(this.#key(index));
   }
 
   /** A trainer (or someone who walks up to talk) who just moved checks whether they see the player */
@@ -1019,9 +1050,28 @@ export class Play {
 
   /** Player completed a step */
   async #stepped() {
-    //Counted for the VS Seeker and the Day Care (saved with everything else)
-    if (trainer.profile) {
-      trainer.profile.steps = (trainer.profile.steps ?? 0) + 1;
+    //Counted for the VS Seeker and the Day Care (saved with everything else). Walking together makes the party friendlier
+    const profile = trainer.profile;
+    if (profile) {
+      profile.steps = (profile.steps ?? 0) + 1;
+      if (!(profile.steps % 64)) {
+        profile.party.forEach((creature) => creature.hp > 0 && befriend(creature, 1));
+      }
+    }
+    //A Repel wears off
+    if (profile?.repel && --profile.repel.steps <= 0) {
+      const { item } = profile.repel;
+      delete profile.repel;
+      this.#busy = true;
+      this.#held.length = 0;
+      await ui.say("The Repel's effect wore off…");
+      if (trainer.count(item) > 0 && (await ui.ask(`Use another ${items[item].name}?`))) {
+        trainer.repel(item);
+        await ui.say(`${profile.name} used the ${items[item].name}.`);
+      }
+      trainer.save();
+      this.#busy = false;
+      return;
     }
     //Ice keeps them sliding the same way, push tiles move them along
     const here = this.#behavior(this.#player.x, this.#player.y);
@@ -1068,7 +1118,9 @@ export class Play {
     const { x, y } = this.#player;
     const zone = this.#zoneAt(x, y);
     const wild = roll(pool(zone, this.#surfing ? "surf" : "walk", period(this.#city.time)));
-    if (wild && Math.random() < zone!.rate && trainer.lead && species(wild.species)) {
+    //A Repel keeps away wild Pokémon weaker than the lead
+    const repelled = Boolean(profile?.repel) && wild !== null && (trainer.lead?.level ?? 0) > wild.level;
+    if (wild && !repelled && Math.random() < zone!.rate && trainer.lead && species(wild.species)) {
       this.#busy = true;
       this.#held.length = 0;
       this.#tap = null;
@@ -1112,7 +1164,7 @@ export class Play {
       boss.nickname = data.name;
     }
     const den = this.#key(index);
-    const outcome = await new Battle({ wild: boss, rules: { ...this.#rules(), raid: { den, onhit: (damage) => this.#onraid?.(den, damage) } } }).start();
+    const outcome = await this.#battle({ wild: boss, rules: { ...this.#rules(), raid: { den, onhit: (damage) => this.#onraid?.(den, damage) } } });
     if (outcome === "win" || outcome === "caught") {
       const profile = trainer.profile!;
       profile.raids = { ...profile.raids, [den]: Date.now() };
@@ -1125,7 +1177,7 @@ export class Play {
 
   /** Battle a wild Pokémon met on the map (hooked ones fight on the water) */
   async #wild({ species: id, level }: { species: number; level: number }, { water = this.#surfing, shiny = Math.random() < 1 / 128 } = {}) {
-    const outcome = await new Battle({ wild: create(id, level, { shiny }), rules: this.#rules({ water }) }).start();
+    const outcome = await this.#battle({ wild: create(id, level, { shiny }), rules: this.#rules({ water }) });
     await this.#after(outcome);
     return outcome;
   }
@@ -1422,12 +1474,24 @@ export class Play {
         }
         return true;
       }
-      case "pokemon": {
-        if (species(action.species)) {
-          const where = trainer.catch(create(action.species, action.level, { shiny: false }));
+      case "pokemon":
+      case "starter": {
+        //The player picks one of a few Pokémon (the Professor's bag), or gets the one given
+        const choices = (action.do === "starter" ? action.species : [action.species]).filter((id) => species(id));
+        if (choices.length) {
+          const id = choices.length > 1 ? (choices[await ui.starter(choices)] ?? choices[0]) : choices[0];
+          const creature = create(id, action.level, { shiny: false });
+          const where = trainer.catch(creature);
           trainer.save();
           sound.play("victory");
-          await ui.say(`${profile.name} received ${species(action.species).name}!${where === "box" ? "\n\nIt was sent to the PC box." : ""}`);
+          await ui.say(`${profile.name} received ${species(id).name}!`);
+          await nickname(creature, field, "received");
+          if (where === "box") {
+            await ui.say(`${named(creature)} was sent to the PC box.`);
+          }
+          trainer.save();
+          //A first Pokémon starts following
+          this.#follow();
         }
         return true;
       }
@@ -1477,7 +1541,7 @@ export class Play {
           return (await this.#fight(data, action.who)) !== "lose";
         }
         if (data.role === "wild" && data.creature && species(data.creature.species) && !this.#defeated(action.who)) {
-          const outcome = await new Battle({ wild: create(data.creature.species, data.creature.level, { shiny: false }), rules: this.#rules() }).start();
+          const outcome = await this.#battle({ wild: create(data.creature.species, data.creature.level, { shiny: false }), rules: this.#rules() });
           if (outcome === "win" || outcome === "caught") {
             profile.defeated.push(this.#key(action.who));
             trainer.save();
@@ -1739,7 +1803,7 @@ export class Play {
       if (data.name && data.name !== species(id).name) {
         wild.nickname = data.name;
       }
-      const outcome = await new Battle({ wild, rules: this.#rules() }).start();
+      const outcome = await this.#battle({ wild, rules: this.#rules() });
       if (outcome === "win" || outcome === "caught") {
         trainer.profile!.defeated.push(this.#key(index));
         trainer.save();
@@ -1820,7 +1884,7 @@ export class Play {
   async #fight(data: Npc, index: number, boost = 0) {
     const voice = { speaker: data.name, portrait: portraitOf(data) };
     const { team, lines, rules } = data.trainer!;
-    const outcome = await new Battle({
+    const outcome = await this.#battle({
       opponent: {
         name: data.name || "Trainer",
         sprite: data.sprite,
@@ -1828,7 +1892,7 @@ export class Play {
         lines,
       },
       rules: trainerRules(this.#rules(), rules),
-    }).start();
+    });
     if (outcome === "win") {
       if (!this.#defeated(index)) trainer.profile!.defeated.push(this.#key(index));
       if (data.trainer!.gym) {
@@ -1897,6 +1961,16 @@ export class Play {
     trainer.save();
     this.#follow();
     await ui.say(`We'll raise your ${named(creature)} for a while. Come back for it later.`, voice);
+  }
+
+  /** Battle, then the Pokémon that grew a level evolve if they're ready (not after blacking out) */
+  async #battle(options: ConstructorParameters<typeof Battle>[0]) {
+    const battle = new Battle(options);
+    const outcome = await battle.start();
+    if (outcome !== "lose") {
+      await evolveGrown(battle.grown, this.#city.time);
+    }
+    return outcome;
   }
 
   /** Handle battle outcome */

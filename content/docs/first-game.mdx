@@ -10,8 +10,8 @@ description: A full walkthrough, from an empty town to a published game with a P
 
 This guide builds a complete little game called **Mistwood Town**. It takes about half an hour and touches almost every feature. Here is the plan:
 
-1. The player starts at home. The road out of town is blocked by a small tree.
-2. The **Professor** in the Lab gives them Poké Balls, and the tree disappears.
+1. The player wakes up at home. The roads out of town are closed.
+2. The **Professor** in the Lab lets them choose a first Pokémon, and the roads open.
 3. On the route south, wild Pokémon live in the tall grass and a Youngster wants to battle.
 4. The **rival** shows up and challenges them. A Hiker blocks the gym until the rival is beaten.
 5. The **Gym Leader** gives the _Mist Badge_, and a boulder blocking the way north is gone.
@@ -27,53 +27,38 @@ This guide builds a complete little game called **Mistwood Town**. It takes abou
 
 ### Create the city
 
-Open the city menu (the arrow next to the city name) and choose **New city**. Name it _Mistwood Town_ and pick **Starter town**. You get trees around the edge, two paths that lead out on every side (where routes can join), a Pokémon Center with a Nurse inside, a house you can walk into, a sign and a patch of tall grass.
+Open the city menu (the arrow next to the city name) and choose **New city**. Name it _Mistwood Town_ and pick **Starter town**. You get trees around the edge, two paths that lead out on every side (where routes can join), a Pokémon Center with a Nurse inside, the player's house with their room upstairs, the Professor's Lab, a sign and a patch of tall grass.
 
 </Step>
 <Step>
 
 ### Make room for a route
 
-Open **City settings** from the city menu. Set the size to **40 × 60** and press **Resize**. The town stays at the top and new grass appears below it: that's where the route goes.
+Open **City settings** from the city menu. Set the size to **40 × 60** and press **Resize**. The town stays at the top and new grass appears below it: that's where the route goes. The gates that closed the bottom path now sit in the middle of the map: open the **Story** layer and erase them there, then paint new ones across the path at the bottom of town.
 
 </Step>
 <Step>
 
-### Add the Lab
+### Where the player starts
 
-Select the **Objects** layer (<kbd>2</kbd>), pick the **Lab** stamp and click an open spot in town. Stamps go on the right layer and set their own collisions, so the Lab is already solid.
-
-</Step>
-<Step>
-
-### Set where the player starts
-
-Select the **Spawn** layer (<kbd>9</kbd>) and click the tile just below the house door. Visitors start there, facing down.
+Under **City settings → New game**, new players start in the **Player's room**, upstairs in their house. Write the Professor's welcome in **Professor's welcome** if you like: a new player hears it before the game starts.
 
 </Step>
 </Steps>
 
 ## Part 2: the story
 
-Plan the story before placing people, so you can link them to it.
+The starter town's story already has a first step, **Get your first Pokémon**: gates close every way out of town until the Professor hands the player a Pokémon.
 
 <Steps>
 <Step>
 
-### Add three steps
+### Add two steps
 
-Select the **Story** layer (<kbd>6</kbd>) and press **Add step** three times. Rename them:
+Select the **Story** layer (<kbd>6</kbd>) and press **Add step** twice. Rename them:
 
-1. _Meet the Professor_
 2. _Beat your rival_
 3. _Win the Mist Badge_
-
-</Step>
-<Step>
-
-### Block the route with a tree
-
-Click step 1. Under **Blocked by** choose **Object**, then pick **Small tree**. Paint gate tiles across the path that leads south out of town. A small tree appears on each gate tile. Make sure there's no other way around: every open tile in the fence of trees needs a gate.
 
 </Step>
 <Step>
@@ -90,37 +75,23 @@ Click step 3, choose **Object** and **Boulder**, and paint gates across the nort
 <Steps>
 <Step>
 
-### Put a door on the Lab
+### Meet him
 
-Select the **Doors** layer (<kbd>7</kbd>) and click the Lab's door tile. In **Leads to** choose **+ New house**. A 14 × 10 room is created with walls, a floor, an exit door and a Mom inside. Rename it _Lab_ under **Maps** in the side panel.
-
-</Step>
-<Step>
-
-### Turn Mom into the Professor
-
-Press **Open Lab**. Select the **People** layer (<kbd>8</kbd>) and click the Mom. Change:
-
-- **Name**: _Professor Birch_
-- **Looks**: the scientist
-- **Walks around**: off
-- **Dialogue**: _“Ah, you're finally here! The world is full of Pokémon.”_, then an empty line, then _“Take these Poké Balls and go explore Route 1!”_
-
-An empty line starts a new page of dialogue.
+Under **Maps** in the side panel, click **Pokémon Lab**, select the **People** layer (<kbd>8</kbd>) and click the Professor. His **Script** lets the player choose Treecko, Torchic or Mudkip (**Choose a starter**), then completes _Get your first Pokémon_. It plays once; after that he says his **Dialogue**.
 
 </Step>
 <Step>
 
-### Link the Professor to the story
+### Make him your own
 
-Scroll to **Story** in the same panel. Set **Talking completes** to _1. Meet the Professor_. A **Reward** section appears: give **5 Poké Balls** and **3 Potions**. In **Says afterwards** write _“Good luck out there! Come back if you need anything.”_
+Change his **Name** to _Professor Birch_ and the Pokémon in **Choose a starter** to the three you want. Add a **Give item** after it, with **5 Poké Balls**, so the player can catch Pokémon right away.
 
 </Step>
 <Step>
 
 ### Try it
 
-Click **Outside** under **Maps**, then press **Play**. The tree blocks the road. Enter the Lab, talk to the Professor, and walk back out: the tree is gone.
+Click **Outside** under **Maps**, then press **Play**. You wake up in your room. The paths out of town are closed. Go to the Lab, choose your partner, and walk back out: the way is open.
 
 </Step>
 </Steps>
@@ -160,7 +131,7 @@ Select **People** and click an empty tile next to the path. Name them _Youngster
 
 Back in town, add a person called _Wally_. Set **Role** to **Trainer** with a team of two Pokémon around level 6 and 7. In **Story**:
 
-- **Shows up**: _1. Meet the Professor_, so they arrive after the Lab.
+- **Shows up**: _1. Get your first Pokémon_, so they arrive after the Lab.
 - **Beating them completes**: _2. Beat your rival_.
 - **Says afterwards**: _“I'll get stronger, just you wait!”_
 

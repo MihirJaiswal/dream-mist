@@ -1,8 +1,26 @@
 import { describe, expect, test, vi } from "vitest";
-import { assets } from "@/game/assets";
+import { assets, species } from "@/game/assets";
 import { canGet, catchOdds, damage, effectiveness, stageMultiplier } from "@/game/battle";
 import { itemCount } from "@/game/items";
-import { create, evolution, evolve, experience, grow, heal, hp, stat, type Trainer, upgrade } from "@/game/trainer";
+import { apply, helps } from "@/game/growth";
+import {
+  befriend,
+  create,
+  type Creature,
+  evolution,
+  evolve,
+  evolvesWith,
+  experience,
+  friendly,
+  grow,
+  heal,
+  hp,
+  replaceMove,
+  shed,
+  stat,
+  type Trainer,
+  upgrade,
+} from "@/game/trainer";
 
 const [treecko, torchic, mudkip, pikachu, gastly, geodude] = [252, 255, 258, 25, 92, 74];
 
@@ -85,10 +103,12 @@ describe("stat stages and conditions", () => {
 });
 
 describe("evolution", () => {
+  const level = (party: Creature[] = [], time: "day" | "night" = "day") => ({ level: true as const, time, party });
+
   test("happens at the right level and keeps the damage taken", () => {
-    expect(evolution(create(treecko, 15))).toBe(0);
+    expect(evolution(create(treecko, 15), level())).toBeNull();
     const creature = create(treecko, 16, { shiny: false });
-    expect(evolution(creature)).toBe(253);
+    expect(evolution(creature, level())?.into).toBe(253);
     creature.hp -= 5;
     const messages = evolve(creature, 253);
     expect(creature.species).toBe(253);
@@ -97,7 +117,139 @@ describe("evolution", () => {
   });
 
   test("stops at the last form", () => {
-    expect(evolution(create(254, 100))).toBe(0);
+    expect(evolution(create(254, 100), level())).toBeNull();
+  });
+
+  test("evolution stones work on the Pokémon they're for, at any level", () => {
+    const eevee = create(133, 5);
+    expect(evolution(eevee, { item: "fire-stone" })?.into).toBe(136);
+    expect(evolution(eevee, { item: "water-stone" })?.into).toBe(134);
+    expect(evolution(eevee, level())).toBeNull();
+    expect(evolvesWith(create(pikachu, 5), "thunder-stone")).toBe(true);
+    expect(evolvesWith(create(pikachu, 5), "fire-stone")).toBe(false);
+    expect(evolvesWith(create(treecko, 50), "leaf-stone")).toBe(false);
+  });
+
+  test("stones can depend on gender (Dawn Stone: male Kirlia)", () => {
+    expect(evolution(create(281, 20, { gender: "male" }), { item: "dawn-stone" })?.into).toBe(475);
+    expect(evolution(create(281, 20, { gender: "female" }), { item: "dawn-stone" })).toBeNull();
+  });
+
+  test("friendly Pokémon evolve when they level up, some by day or by night", () => {
+    const golbat = create(42, 30);
+    golbat.friendship = 100;
+    expect(evolution(golbat, level())).toBeNull();
+    golbat.friendship = friendly;
+    expect(evolution(golbat, level())?.into).toBe(169);
+    const eevee = create(133, 10);
+    eevee.friendship = 255;
+    eevee.moves = [{ key: "tackle", pp: 35 }];
+    expect(evolution(eevee, level([], "day"))?.into).toBe(196);
+    expect(evolution(eevee, level([], "night"))?.into).toBe(197);
+  });
+
+  test("trades are made with a Linking Cord, holding the item they need (which is used up)", () => {
+    const onix = create(95, 20);
+    expect(evolution(onix, { trade: true })).toBeNull();
+    onix.held = "metal-coat";
+    const way = evolution(onix, { trade: true })!;
+    expect(way.into).toBe(208);
+    expect(evolvesWith(onix, "linking-cord")).toBe(true);
+    evolve(onix, way);
+    expect(onix.species).toBe(208);
+    expect(onix.held).toBeUndefined();
+    expect(evolution(create(67, 30), { trade: true })?.into).toBe(68);
+  });
+
+  test("an Everstone stops evolving by level and trade", () => {
+    const creature = create(treecko, 20);
+    creature.held = "everstone";
+    expect(evolution(creature, level())).toBeNull();
+  });
+
+  test("some need a move, Attack against Defense, a partner, or an item held at night", () => {
+    const aipom = create(190, 30);
+    aipom.moves = [{ key: "double-hit", pp: 10 }];
+    expect(evolution(aipom, level())?.into).toBe(424);
+    const tyrogue = create(236, 20);
+    expect([106, 107, 237]).toContain(evolution(tyrogue, level())?.into);
+    const mantyke = create(458, 10);
+    expect(evolution(mantyke, level())).toBeNull();
+    expect(evolution(mantyke, level([create(223, 10)]))?.into).toBe(226);
+    const sneasel = create(215, 30);
+    sneasel.held = "razor-claw";
+    expect(evolution(sneasel, level([], "day"))).toBeNull();
+    expect(evolution(sneasel, level([], "night"))?.into).toBe(461);
+  });
+
+  test("Nincada leaves a Shedinja behind in an empty party slot", () => {
+    const nincada = create(290, 20);
+    const shedinja = shed(nincada, [nincada], () => 1);
+    expect(shedinja?.species).toBe(292);
+    expect(shed(nincada, [nincada], () => 0)).toBeNull();
+    expect(shed(create(treecko, 20), [], () => 1)).toBeNull();
+  });
+});
+
+describe("growing up", () => {
+  test("a fifth move waits for the player to pick one to forget", () => {
+    const creature = create(treecko, 5, { shiny: false });
+    creature.moves = ["pound", "leer", "absorb", "quick-attack"].map((key) => ({ key, pp: 10 }));
+    const next = species(treecko).learnset.find(([at, key]) => at > 5 && !creature.moves.some((move) => move.key === key))!;
+    const pending = [] as string[];
+    grow(creature, experience(next[0]) - creature.exp, 100, pending);
+    expect(pending).toContain(next[1]);
+    expect(creature.moves).toHaveLength(4);
+    expect(replaceMove(creature, 0, next[1])).toBe("Pound");
+    expect(creature.moves[0].key).toBe(next[1]);
+  });
+
+  test("leveling up and walking make Pokémon friendlier, fainting less", () => {
+    const creature = create(treecko, 5);
+    expect(creature.friendship).toBe(70);
+    grow(creature, experience(6) - creature.exp);
+    expect(creature.friendship).toBe(75);
+    creature.held = "soothe-bell";
+    befriend(creature, 2);
+    expect(creature.friendship).toBe(78);
+    befriend(creature, -1);
+    expect(creature.friendship).toBe(77);
+    befriend(creature, 1000);
+    expect(creature.friendship).toBe(255);
+  });
+
+  test("Pokémon get a gender from their species", () => {
+    expect(create(32, 5).gender).toBe("male");
+    expect(create(29, 5).gender).toBe("female");
+    expect(create(81, 5).gender).toBeUndefined();
+    expect(["male", "female"]).toContain(create(treecko, 5).gender);
+    //Older saves get one
+    const old = create(treecko, 5);
+    delete old.gender;
+    const profile = upgrade({ name: "Ash", party: [old], box: [], items: {}, money: 0 } as unknown as Trainer)!;
+    expect(profile.party[0].gender).toBeDefined();
+  });
+});
+
+describe("items", () => {
+  test("only help when they do something", () => {
+    const creature = create(treecko, 10);
+    expect(helps("potion", creature)).toBe(false);
+    creature.hp = 1;
+    expect(helps("potion", creature)).toBe(true);
+    expect(apply("potion", creature)).toBe("Treecko's HP was restored by 20 points.");
+    expect(helps("antidote", creature)).toBe(false);
+    creature.status = "poison";
+    expect(helps("antidote", creature)).toBe(true);
+    expect(helps("awakening", creature)).toBe(false);
+    expect(helps("full-heal", creature)).toBe(true);
+    creature.hp = 0;
+    expect(helps("full-heal", creature)).toBe(false);
+    expect(helps("revive", creature)).toBe(true);
+    expect(apply("revive", creature)).toBe("Treecko was revived!");
+    expect(creature.hp).toBe(Math.floor(hp(creature) / 2));
+    expect(helps("rare-candy", creature)).toBe(true);
+    expect(helps("rare-candy", create(treecko, 100))).toBe(false);
   });
 });
 

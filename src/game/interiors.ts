@@ -63,7 +63,20 @@ function staffOf(room: string, look: string): Partial<Npc> | null {
     return { sprite: "em_mart_employee", name: "Clerk", role: "shop", dialogue: "Welcome! How may I serve you?" };
   }
   if (look === "prof_birch") {
-    return { sprite: "em_prof_birch", name: "Professor", dialogue: "Welcome to my lab! I study how Pokémon live in the wild." };
+    //The first time, he lets the player choose a starter from his bag
+    return {
+      sprite: "em_prof_birch",
+      name: "Professor",
+      dialogue: "Pokémon grow stronger by battling together.\n\nSome even evolve: with a level, a stone, or when they become very friendly!",
+      script: {
+        once: true,
+        actions: [
+          { do: "say", text: "Ah, there you are! Welcome to my lab!\n\nIt's dangerous out there without a Pokémon. Here, take one of these from my bag!" },
+          { do: "starter", species: [252, 255, 258], level: 5 },
+          { do: "say", text: "Take good care of it! The two of you can go anywhere now." },
+        ],
+      },
+    };
   }
   if (look === "mom") {
     return { sprite: "em_mom", name: "Mom", dialogue: "Make yourself at home!" };
@@ -117,10 +130,29 @@ export function buildRoom(world: City, room: Interior, sheets: { primary: number
     map.doors.push({ x, y, to: "", tx: -1, ty: -1 });
     map.solid[y * width + x] = 0;
   }
+  //Nobody stands in the way out (Emerald puts Mom on the stairs of the player's room for a cutscene)
+  const way = [...room.exits, ...room.stairs];
   for (const { x, y, look } of room.people) {
     const staff = staffOf(room.key, look);
-    if (staff) {
-      map.npcs.push({ x, y, sprite: "generic_f1", dir: "down", name: "", dialogue: "", role: "talk", wander: false, ...staff } as Npc);
+    if (staff && !way.some((tile) => tile.x === x && tile.y === y)) {
+      const index = map.npcs.length;
+      //Who says the lines of their script
+      const script = staff.script && {
+        ...staff.script,
+        actions: staff.script.actions.map((action) => (action.do === "say" ? { ...action, who: index } : action)),
+      };
+      map.npcs.push({
+        x,
+        y,
+        sprite: "generic_f1",
+        dir: "down",
+        name: "",
+        dialogue: "",
+        role: "talk",
+        wander: false,
+        ...staff,
+        ...(script ? { script } : {}),
+      } as Npc);
     }
   }
   //Arrive by the first exit when testing from here

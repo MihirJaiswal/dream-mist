@@ -1,6 +1,7 @@
 //Imports
 import { assets, battleSprite, type Move, species, type Stage } from "./assets";
-import { abilityOf, type Creature, cure, evolution, evolve, grow, hp, named, stat, type Status, trainer } from "./trainer";
+import { abilityOf, befriend, type Creature, cure, grow, hp, named, stat, type Status, trainer } from "./trainer";
+import { apply, helps, nickname, type Talk, teachAll } from "./growth";
 import { sound } from "./audio";
 import { type ItemId, items } from "./items";
 import { abilityName, absorbs, contact, guards, pinch, shields, swimmers } from "./abilities";
@@ -740,30 +741,41 @@ export class Battle {
       }
       case "bag": {
         const bag = trainer.bag;
-        const usable = (id: ItemId) => {
-          const item = items[id];
-          return item.kind === "ball" ? !this.#opponent && !this.raid : item.kind === "heal" ? me.hp < hp(me) : item.kind === "cure" && Boolean(me.status);
-        };
+        const usable = (id: ItemId) =>
+          items[id].kind === "ball"
+            ? !this.#opponent && !this.raid
+            : items[id].kind === "revive"
+              ? trainer.profile!.party.some((creature) => helps(id, creature))
+              : helps(id, me);
         //The bag screen, like the games (only items that help right now can be used)
         const choice = await ui.bag({ battle: { usable: (id) => bag.some((entry) => entry.id === id) && usable(id) } });
         if (!choice) {
           return "back";
         }
-        trainer.take(choice);
         const item = items[choice];
+        //A revive goes to a fainted Pokémon of the party
+        let target = me;
+        if (item.kind === "revive") {
+          const index = await ui.party({
+            message: `Use the ${item.name} on which Pokémon?`,
+            cancel: true,
+            can: (creature) => helps(choice, creature) || "It won't have any effect.",
+          });
+          if (index === null) {
+            return "back";
+          }
+          target = trainer.profile!.party[index];
+        }
+        trainer.take(choice);
         if (item.kind === "ball") {
           if (await this.#throw(choice)) {
             return "caught";
           }
-        } else if (item.kind === "heal") {
-          me.hp = Math.min(hp(me), me.hp + item.amount);
-          this.#emit();
-          await this.#say(`${named(me)} recovered some HP.`);
-        } else {
-          cure(me);
-          this.#emit();
-          await this.#say(`${named(me)} is healthy again!`);
+          return null;
         }
+        const said = apply(choice, target);
+        this.#emit();
+        await this.#say(said);
         return null;
       }
       case "party":
@@ -1218,13 +1230,43 @@ export class Battle {
     }, 900);
   }
 
-  /** Opponent fainted: grant experience and send next one */
+  /** Talking to the player in the battle's text box (asking with a YES/NO menu, X answers NO) */
+  readonly #talk: Talk = {
+    say: async (text) => {
+      for (const page of text.split(/\n\n+/)) {
+        await this.#say(page, 900);
+      }
+    },
+    ask: async (text) => {
+      await this.#say(text, 200);
+      return this.#menu(
+        [
+          { label: "YES", value: true },
+          { label: "NO", value: false },
+        ],
+        { columns: 1, back: false },
+      );
+    },
+    pick: async (text, choices) => {
+      await this.#say(text, 200);
+      return this.#menu(
+        choices.map((label, value) => ({ label, value })),
+        { columns: 1, back: choices.length - 1 },
+      );
+    },
+  };
+
+  /** Pokémon that grew a level in this battle (they may evolve once it's over) */
+  readonly grown = new Set<Creature>();
+
+  /** Opponent fainted: grant experience and send next one. With the Exp. Share on, the rest of the party gets half */
   async #foeFainted(slot: Slot, fallen: Creature): Promise<Outcome | null> {
     const base = species(fallen.species).xp;
     const total = Math.floor(((base * fallen.level) / 7) * (this.#opponent ? 1.5 : 1));
     const participants = [...this.#participants].filter((creature) => creature.hp > 0);
-    for (const creature of participants) {
-      const amount = Math.max(1, Math.floor(total / participants.length));
+    const shared = trainer.profile?.share ? (trainer.profile.party ?? []).filter((creature) => creature.hp > 0 && !participants.includes(creature)) : [];
+    for (const creature of [...participants, ...shared]) {
+      const amount = Math.max(1, Math.floor(total / participants.length / (shared.includes(creature) ? 2 : 1)));
       if (creature.level >= this.#cap) {
         //Level cap: no more experience until the next badge
         if (!this.#capped.has(creature)) {
@@ -1233,8 +1275,13 @@ export class Battle {
         }
         continue;
       }
-      await this.#say(`${named(creature)} gained ${amount} EXP. Points!`, 500);
-      const messages = grow(creature, amount, this.#cap);
+      await this.#say(`${named(creature)} gained${shared.includes(creature) ? " a share of" : ""} ${amount} EXP. Points!`, 500);
+      const level = creature.level;
+      const pending = [] as string[];
+      const messages = grow(creature, amount, this.#cap, pending);
+      if (creature.level > level) {
+        this.grown.add(creature);
+      }
       const at = slots.find((other) => this.#field[other] === creature);
       if (at) {
         this.#render(at);
@@ -1245,23 +1292,8 @@ export class Battle {
         }
         await this.#say(message);
       }
-      //Evolution right after the level up
-      const into = evolution(creature);
-      if (into) {
-        await this.#say(`What? ${named(creature)} is evolving!`, 1200);
-        const evolved = evolve(creature, into);
-        trainer.see(into);
-        if (!trainer.profile!.caught.includes(into)) {
-          trainer.profile!.caught.push(into);
-        }
-        if (at) {
-          this.#render(at, true);
-        }
-        sound.play("victory");
-        for (const message of evolved) {
-          await this.#say(message);
-        }
-      }
+      //A fifth move: the player picks one to forget (evolving waits until the battle is over)
+      await teachAll(creature, pending, this.#talk);
     }
     //The next one in reserve takes the slot (the battle goes on while the other slot still stands)
     const onField = (creature: Creature) => slots.some((other) => this.#field[other] === creature);
@@ -1297,6 +1329,10 @@ export class Battle {
 
   /** Ally fainted: send another one in its slot, carry on with the other slot, or lose */
   async #allyFainted(slot: Slot): Promise<Outcome | null> {
+    //Fainting makes a Pokémon a little less friendly
+    if (this.#field[slot]) {
+      befriend(this.#field[slot]!, -1);
+    }
     const onField = (creature: Creature) => slots.some((other) => this.#field[other] === creature);
     if (trainer.profile!.party.some((creature) => creature.hp > 0 && !onField(creature))) {
       await this.#switch(false, slot);
@@ -1402,6 +1438,10 @@ export class Battle {
       this.#emit();
       sound.play("victory");
       await this.#say(`Gotcha! ${named(this.#foe)} was caught!`);
+      //Raid bosses keep the name of their den
+      if (!this.raid) {
+        await nickname(this.#foe, this.#talk);
+      }
       const where = trainer.catch(this.#foe);
       if (where === "box") {
         await this.#say(`${named(this.#foe)} was sent to the PC box.`);

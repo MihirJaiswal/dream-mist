@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { arrow, ICE, ledge, slippery, WATER } from "@/game/behaviors";
 import { blank, type Npc, resize, sanitize } from "@/game/data";
 import { problems } from "@/game/problems";
-import { actions, flatten, reindex } from "@/game/scripts";
+import { actions, flatten, handsOutStarter, reindex } from "@/game/scripts";
 
 const person = (npc: Partial<Npc>) =>
   ({ x: 1, y: 1, sprite: "youngster", dir: "down", name: "Bob", dialogue: "Hi", role: "talk", wander: false, ...npc }) as Npc;
@@ -47,7 +47,7 @@ describe("scripts", () => {
       actions([
         { do: "say", text: "Hi!", who: 0 },
         { do: "move", who: "player", steps: ["up", "sideways", "left"] },
-        { do: "give", item: "master-ball", count: 1 },
+        { do: "give", item: "golden-ticket", count: 1 },
         { do: "give", item: "potion", count: 500 },
         { do: "dance" },
         { do: "come", who: "player" },
@@ -59,6 +59,24 @@ describe("scripts", () => {
       { do: "give", item: "potion", count: 99 },
       { do: "wait", seconds: 10 },
     ]);
+  });
+
+  test("a starter choice keeps up to six Pokémon, and tells the game it hands out starters", () => {
+    expect(actions([{ do: "starter", species: [1, "4", 7], level: 200 }])).toEqual([{ do: "starter", species: [1, 4, 7], level: 100 }]);
+    expect(actions([{ do: "starter", species: [] }])).toEqual([]);
+    const city = blank();
+    expect(handsOutStarter(city)).toBe(false);
+    const lab = blank();
+    lab.npcs = [person({ script: { once: true, actions: [{ do: "ask", text: "Ready?", yes: [{ do: "starter", species: [1], level: 5 }], no: [] }] } })];
+    city.interiors = [lab];
+    expect(handsOutStarter(city)).toBe(true);
+  });
+
+  test("the new game's first map and Professor's speech are kept when imported", () => {
+    const city = blank();
+    const raw = { ...JSON.parse(JSON.stringify(city)), start: "room", intro: { speech: "Hello!", professor: 5 } };
+    expect(sanitize(raw)).toMatchObject({ start: "room", intro: { speech: "Hello!", professor: "5" } });
+    expect(sanitize({ ...raw, start: 3, intro: "hi" }).start).toBeUndefined();
   });
 
   test("triggers are kept inside their map when imported", () => {

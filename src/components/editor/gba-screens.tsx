@@ -12,17 +12,18 @@ import { CanvasView } from "@/components/editor/widgets";
 import { abilityAbout, abilityName } from "@/game/abilities";
 import { artwork, assets, battleSprite, type Move, portrait, species } from "@/game/assets";
 import { colors, statusLabels } from "@/game/battle";
+import { helps } from "@/game/growth";
 import { iconOf, type ItemId, items, type Pocket, pocketOf, pockets } from "@/game/items";
 import { natureLabel } from "@/game/natures";
 import { session } from "@/game/session";
-import { abilityOf, type Creature, experience, hp, named, stat, trainer } from "@/game/trainer";
+import { abilityOf, type Creature, experience, friendshipText, hp, named, stat, trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
 import { useEffect, useEffectEvent, useState } from "react";
 
 //=================================================================================================
 // Keys
 
-type Key = "up" | "down" | "left" | "right" | "a" | "b";
+export type Key = "up" | "down" | "left" | "right" | "a" | "b";
 const keyOf: Record<string, Key> = {
   arrowup: "up",
   w: "up",
@@ -41,13 +42,16 @@ const keyOf: Record<string, Key> = {
   backspace: "b",
 };
 
-/** Screens stacked on top of each other: only the top one hears the keys */
-const stack = [] as ((key: Key) => void)[];
+/** Screens stacked on top of each other: only the top one hears the keys (null: a screen to type in, where keys type) */
+const stack = [] as (((key: Key) => void) | null)[];
 let listening = false;
 
 function onKeydown(event: KeyboardEvent) {
   const key = keyOf[event.key.toLowerCase()];
   const top = stack[stack.length - 1];
+  if (top === null) {
+    return;
+  }
   if (!top || !key) {
     return;
   }
@@ -61,7 +65,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 /** Hear the keys while this screen is on top */
-function useKeys(handler: (key: Key) => void) {
+export function useKeys(handler: (key: Key) => void) {
   const latest = useEffectEvent(handler);
   useEffect(() => {
     const listener = (key: Key) => latest(key);
@@ -74,10 +78,23 @@ function useKeys(handler: (key: Key) => void) {
   }, []);
 }
 
-/** A small menu in the corner (SUMMARY, SWITCH, CANCEL…): the last choice is the way out */
-type Choices = { title: string; options: { label: string; run: () => void }[]; cursor: number };
+/** A screen to type in is on top: the screens under it don't hear the keys, and letters type */
+export function useTyping() {
+  useEffect(() => {
+    stack.push(null);
+    return () => void stack.splice(stack.lastIndexOf(null), 1);
+  }, []);
+}
 
-function ChoiceBox({ choices, onPick, onPoint }: { choices: Choices; onPick: (index: number) => void; onPoint: (index: number) => void }) {
+/** Does a trainer look like a girl (the bag and the opening show May then) */
+export function girlish(sprite = "") {
+  return /^(em_may|may|lass|twin|aroma|.*_f\d?|.*female.*)$/i.test(sprite);
+}
+
+/** A small menu in the corner (SUMMARY, SWITCH, CANCEL…): the last choice is the way out */
+export type Choices = { title: string; options: { label: string; run: () => void }[]; cursor: number };
+
+export function ChoiceBox({ choices, onPick, onPoint }: { choices: Choices; onPick: (index: number) => void; onPoint: (index: number) => void }) {
   return (
     <div className="gba-choices" role="menu">
       {choices.options.map(({ label }, i) => (
@@ -90,7 +107,7 @@ function ChoiceBox({ choices, onPick, onPoint }: { choices: Choices; onPick: (in
 }
 
 /** Move a choice box cursor, or pick (B picks the last choice) */
-function steer(choices: Choices, key: Key, set: (choices: Choices | null) => void) {
+export function steer(choices: Choices, key: Key, set: (choices: Choices | null) => void) {
   const count = choices.options.length;
   if (key === "up" || key === "down") {
     set({ ...choices, cursor: (choices.cursor + (key === "down" ? 1 : count - 1)) % count });
@@ -114,12 +131,21 @@ function HpBar({ creature }: { creature: Creature }) {
 }
 
 /** Type tag in its color */
-function TypeTag({ type }: { type: string }) {
+export function TypeTag({ type }: { type: string }) {
   return (
     <span className="gba-type" style={{ background: colors[type] ?? "#888" }}>
       {type.toUpperCase()}
     </span>
   );
+}
+
+/** ♂ or ♀ after a Pokémon's name (nothing for genderless ones) */
+export function GenderMark({ creature }: { creature: Creature }) {
+  return creature.gender ? (
+    <span className={cn("gba-gender", creature.gender)} aria-label={creature.gender}>
+      {creature.gender === "male" ? "♂" : "♀"}
+    </span>
+  ) : null;
 }
 
 /** Condition tag (SLP, PSN, PAR, BRN) */
@@ -299,7 +325,10 @@ function PartyScreen({ pick, close }: { pick?: Pick; close: (value?: number | nu
               >
                 <img className="ball" src={iconOf("poke-ball")} alt="" draggable={false} />
                 <CanvasView className="icon" make={() => portrait(creature.species, 1, creature.art)} deps={[creature.species, creature.art]} />
-                <span className="name">{named(creature)}</span>
+                <span className="name">
+                  {named(creature)}
+                  <GenderMark creature={creature} />
+                </span>
                 {creature.held ? <img className="held" src={iconOf(creature.held)} alt={items[creature.held].name} draggable={false} /> : null}
                 <span className="level">{creature.status ? <StatusTag creature={creature} /> : `Lv.${creature.level}`}</span>
                 <HpBar creature={creature} />
@@ -542,6 +571,7 @@ function SummaryScreen({ list, start, close }: { list: Creature[]; start: number
           <div className="tag">
             <img src={iconOf("poke-ball")} alt="" draggable={false} />
             <b>{named(creature)}</b>
+            <GenderMark creature={creature} />
             {creature.shiny ? <span className="shiny">★</span> : null}
           </div>
           <div className="level">Lv. {creature.level}</div>
@@ -587,7 +617,9 @@ function SummaryScreen({ list, start, close }: { list: Creature[]; start: number
                 <dt>Condition</dt>
                 <dd>{creature.status ? <StatusTag creature={creature} /> : creature.hp > 0 ? "OK" : "Fainted"}</dd>
               </dl>
-              <p className="memo">{creature.nature ? `${natureLabel(creature.nature)} nature.` : "A calm, ordinary nature."}</p>
+              <p className="memo">
+                {creature.nature ? `${natureLabel(creature.nature)} nature.` : "A calm, ordinary nature."} {friendshipText(creature)}
+              </p>
             </>
           ) : page === 1 ? (
             <>
@@ -706,30 +738,31 @@ function BagScreen({ options, close }: { options: BagOptions; close: (value?: It
         ],
       });
     }
-    const usable = item.kind === "heal" || item.kind === "cure";
+    //Used on a Pokémon (potions, cures, revives, Rare Candies, stones), used at once (Repels, the Exp. Share, Escape Ropes), or only checked
+    const onPokemon = ["heal", "cure", "revive", "candy", "evolve"].includes(item.kind);
+    const atOnce = ["repel", "rope", "key"].includes(item.kind);
+    const use = async () => {
+      if (item.kind === "rope") {
+        return session.escape() ? close(null) : setMessage("You can't use that here.");
+      }
+      if (atOnce) {
+        return setMessage(session.useItem(id));
+      }
+      const said = await open(async () => {
+        const index = await party({ message: `Use the ${item.name} on which Pokémon?`, can: (creature) => helps(id, creature) || "It won't have any effect." });
+        const creature = index === null ? null : trainer.profile?.party[index];
+        return creature ? session.useOn(id, creature) : null;
+      });
+      if (said) {
+        setMessage(said);
+      }
+    };
     setChoices({
       title: `${item.name} is selected.`,
       cursor: 0,
       options: [
-        ...(usable
-          ? [
-              {
-                label: "USE",
-                run: async () => {
-                  const index = await open(() =>
-                    party({
-                      message: `Use the ${item.name} on which Pokémon?`,
-                      can: (creature) =>
-                        (item.kind === "heal" ? creature.hp > 0 && creature.hp < hp(creature) : Boolean(creature.status)) || "It won't have any effect.",
-                    }),
-                  );
-                  const creature = index === null ? null : trainer.profile?.party[index];
-                  if (creature && session.useItem(id, creature)) {
-                    setMessage(item.kind === "heal" ? `${named(creature)}'s HP was restored.` : `${named(creature)} is healthy again!`);
-                  }
-                },
-              },
-            ]
+        ...(onPokemon || atOnce
+          ? [{ label: "USE", run: use }]
           : [{ label: "CHECK", run: () => setMessage(fieldUse[id] ?? fieldUse[item.kind] ?? item.about) }]),
         ...(item.kind === "hold"
           ? [
@@ -774,7 +807,7 @@ function BagScreen({ options, close }: { options: BagOptions; close: (value?: It
   if (away) {
     return null;
   }
-  const gender = /^(may|lass|twin|aroma|.*_f\d?|.*female.*)$/i.test(trainer.profile?.sprite ?? "") ? "bag_female" : "bag_male";
+  const gender = girlish(trainer.profile?.sprite) ? "bag_female" : "bag_male";
   return (
     <div className="gba-screen" role="dialog" aria-label="Bag">
       <div className="gba-frame gba-bag">

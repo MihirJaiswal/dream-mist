@@ -15,13 +15,17 @@ Testing never changes your town: walking around, battles and story progress belo
 
 ## Your trainer
 
-The first time you press Play, you create a trainer:
+The first time you press Play, the Professor welcomes you, like the start of Pokémon Emerald:
 
-- **Name**: up to 16 characters.
-- **Looks**: one of 16 trainer sprites.
-- **Partner**: Treecko, Torchic or Mudkip, at level 5.
+- **Boy or girl**: Brendan or May.
+- **Name**: up to 16 characters, typed on the naming screen.
+- **Partner**: if the game has no **Choose a starter** event (see [Events](/docs/events)), the Professor lets you pick Treecko, Torchic or Mudkip from his bag. Otherwise you start with no Pokémon and get your first one in the game, from its Professor.
 
 You start with **10 Poké Balls**, **5 Potions** and **₽3,000**. Your trainer comes with you to every city you play.
+
+### Starting a game
+
+A new game starts on the map its builder chose in **City settings → New game** (the starter town wakes you up in your room, upstairs in your house), and plays the game's own welcome speech when it has one. **Restart my progress** in the Story layer plays the start again.
 
 ## Controls
 
@@ -84,13 +88,20 @@ The **Trainer card** button shows your Pokédex (seen and caught), how many trai
 
 Buy items from a **Poké Mart clerk**, with money won from trainers. Some people also give you items, and item balls lie around.
 
-| Item         | Price | What it does                              |
-| ------------ | ----- | ----------------------------------------- |
-| Poké Ball    | ₽200  | Catches wild Pokémon                      |
-| Great Ball   | ₽600  | Catches 1.5 times better than a Poké Ball |
-| Potion       | ₽300  | Restores 20 HP                            |
-| Super Potion | ₽700  | Restores 50 HP                            |
-| Full Heal    | ₽600  | Cures sleep, poison, paralysis and burns  |
+| Item                          | Price           | What it does                                                                                                         |
+| ----------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Poké, Great, Ultra Ball       | ₽200, 600, 1200 | Catch wild Pokémon (a Great Ball 1.5×, an Ultra Ball 2× better)                                                      |
+| Potion, Super, Hyper Potion   | ₽300, 700, 1200 | Restore 20, 50 or 200 HP                                                                                             |
+| Max Potion                    | ₽2,500          | Restores all HP                                                                                                      |
+| Full Restore                  | ₽3,000          | Restores all HP and cures any condition                                                                              |
+| Revive                        | ₽1,500          | Revives a fainted Pokémon with half its HP                                                                           |
+| Antidote, Paralyze Heal       | ₽100, 200       | Cure poison, paralysis                                                                                               |
+| Awakening, Burn Heal          | ₽250            | Wake up a sleeping Pokémon, heal a burn                                                                              |
+| Full Heal                     | ₽600            | Cures sleep, poison, paralysis and burns                                                                             |
+| Repel, Super Repel, Max Repel | ₽350, 500, 700  | Wild Pokémon weaker than your lead stay away for 100, 200, 250 steps. When it wears off, you're asked to use another |
+| Escape Rope                   | ₽550            | Leads you out of a cave or building, to the door you came in by                                                      |
+
+Not sold unless a clerk is set to: **evolution stones** (Fire, Water, Thunder, Leaf, Moon, Sun, Shiny, Dusk, Dawn, Ice), the **Linking Cord** and the items newer Pokémon evolve with. Only handed out: **Rare Candy** (one level), **Max Revive** and the **Master Ball**.
 
 Clerks can also be set to sell **held items** (berries, Leftovers, Quick Claw, type boosters: see [Battles](/docs/battles#held-items)).
 
@@ -104,12 +115,27 @@ Key items are only handed out, never sold:
 | HM06 Rock Smash              | Smashes cracked rocks. A wild Pokémon is sometimes hiding inside                                       |
 | HM04 Strength                | Lets you push boulders, one tile at a time                                                             |
 | VS Seeker                    | Press <kbd>V</kbd>: trainers you beat nearby want a rematch, with stronger Pokémon. See below          |
+| Exp. Share                   | Use it to turn it on or off: Pokémon that didn't battle get half the EXP. Points too                   |
 
 You don't need a Pokémon that knows an HM move: the HM in your bag is enough, like in Pokémon Unbound.
 
 ### VS Seeker
 
 Press <kbd>V</kbd> with the VS Seeker in your bag, and trainers on the map you've already beaten may raise their hand (**!!**): talk to them for a rematch. Their team is 4 levels stronger each time, up to 5 rematches. The VS Seeker charges as you walk, and can be used again after 100 steps.
+
+## Evolution
+
+Pokémon evolve the ways they do in the games, on the evolution screen (press <kbd>X</kbd> while they glow to stop it):
+
+- **Level**: after a battle in which they grew a level, or with a Rare Candy.
+- **Stones and items**: choose **Use** in the bag, then the Pokémon. A Dawn Stone only works on male Kirlia, for example.
+- **Friendship**: Golbat, Pichu, Eevee (Espeon by day, Umbreon by night) and others evolve leveling up when they're very friendly. Friendship grows as you walk and level up together, faster holding a **Soothe Bell**, and drops a little when they faint. The summary says how friendly a Pokémon is.
+- **Trades**: use a **Linking Cord** on them; those that need an item while traded (Onix and its Metal Coat) must hold it, and it's used up.
+- **Other ways**: holding an item at night or by day (Sneasel and its Razor Claw), knowing a move (Aipom with Double Hit), by gender, Tyrogue by its Attack and Defense, Mantyke with a Remoraid in the party. Nincada leaves a Shedinja behind when there's room in the party and a Poké Ball in the bag.
+
+A Pokémon holding an **Everstone** doesn't evolve by level or trade. When a Pokémon that knows four moves wants a new one, you choose which to forget, or give up on it. Catching or receiving a Pokémon lets you nickname it.
+
+On the map, your lead Pokémon walks behind you with its own Gen 3 overworld sprite, in its shiny colors when it's shiny.
 
 ## Berries and the Day Care
 

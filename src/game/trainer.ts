@@ -1,7 +1,8 @@
 //Imports
-import { assets, species } from "./assets";
+import { assets, type Evolution, species } from "./assets";
+import type { Period } from "./atmosphere";
 import { storage } from "./data";
-import { type ItemId, itemIds, items } from "./items";
+import { holdable, type ItemId, itemIds, items } from "./items";
 import { type Nature, natureMultiplier, natures, randomNature } from "./natures";
 import type { Member } from "./data";
 
@@ -29,7 +30,14 @@ export type Creature = {
   held?: ItemId;
   /** Raid boss: its HP is multiplied (only while the raid lasts) */
   boss?: number;
+  /** Gender (none for genderless Pokémon) */
+  gender?: Gender;
+  /** How much it likes its trainer (0 to 255): it grows walking and leveling up together, and some Pokémon evolve when it's high */
+  friendship?: number;
 };
+
+/** Gender of a Pokémon */
+export type Gender = "male" | "female";
 
 /** Trainer profile (shared across all visited cities) */
 export type Trainer = {
@@ -63,6 +71,12 @@ export type Trainer = {
   raids?: Record<string, number>;
   /** Pokémon left at the Day Care, and the step count when it was left */
   daycare?: { creature: Creature; steps: number };
+  /** Games started (city ids): their opening has played */
+  started?: string[];
+  /** Exp. Share turned on: Pokémon that didn't battle get half the experience too */
+  share?: boolean;
+  /** Steps left before a repel wears off, and the repel used (to offer another) */
+  repel?: { steps: number; item: ItemId };
 };
 
 /** Bring an older saved trainer up to date (the bag used to count only Poké Balls and Potions) */
@@ -81,7 +95,52 @@ export function upgrade(profile: Trainer | null) {
   }
   profile.items ??= {};
   profile.money = Number.isFinite(profile.money) ? profile.money : 3000;
+  profile.party ??= [];
+  profile.box ??= [];
+  //Pokémon caught before genders existed get one now
+  for (const creature of [...profile.party, ...profile.box]) {
+    if (!("gender" in creature) && species(creature.species)) {
+      const gender = genderOf(creature.species);
+      if (gender) creature.gender = gender;
+    }
+  }
   return profile;
+}
+
+/** A random gender for a new Pokémon of a species (none for genderless ones) */
+export function genderOf(id: number): Gender | undefined {
+  const rate = species(id)?.gender ?? 4;
+  return rate < 0 ? undefined : Math.random() * 8 < rate ? "female" : "male";
+}
+
+/** Friendship of a creature (older ones without one have the usual 70) */
+export function friendshipOf(creature: Creature) {
+  return creature.friendship ?? 70;
+}
+
+/** Friendship needed by the Pokémon that evolve when friendly */
+export const friendly = 220;
+
+/** Make a creature more (or less) friendly; a held Soothe Bell makes it grow faster */
+export function befriend(creature: Creature, amount: number) {
+  const gain = amount > 0 && creature.held === "soothe-bell" ? Math.ceil(amount * 1.5) : amount;
+  creature.friendship = Math.max(0, Math.min(255, friendshipOf(creature) + gain));
+}
+
+/** What the game says about how friendly a Pokémon is (like the Friendship Checker) */
+export function friendshipText(creature: Creature) {
+  const value = friendshipOf(creature);
+  return value >= 255
+    ? "It adores you! It can't possibly love you any more."
+    : value >= friendly
+      ? "It's extremely friendly toward you."
+      : value >= 150
+        ? "It's quite friendly toward you."
+        : value >= 70
+          ? "It's warming up to you."
+          : value >= 1
+            ? "It's not very used to you yet."
+            : "It doesn't seem to like you at all.";
 }
 
 /** Compute a stat (gen 3 formula, fixed IVs and no EVs) */
@@ -123,9 +182,16 @@ export function learned(id: number, level: number) {
   return known.length ? known : ["tackle"];
 }
 
-/** Learn a move, forgetting the oldest one if four are known (but never the last move that deals damage) */
-function learn(creature: Creature, key: string, messages: string[]) {
-  if (creature.moves.some((move) => move.key === key)) {
+/**
+ * Learn a move. With four moves known it waits in `pending` when there is one (the player picks the move to forget),
+ * otherwise the oldest is forgotten (but never the last move that deals damage), like at the Day Care
+ */
+function learn(creature: Creature, key: string, messages: string[], pending?: string[]) {
+  if (creature.moves.some((move) => move.key === key) || pending?.includes(key)) {
+    return;
+  }
+  if (creature.moves.length >= 4 && pending) {
+    pending.push(key);
     return;
   }
   if (creature.moves.length >= 4) {
@@ -137,11 +203,24 @@ function learn(creature: Creature, key: string, messages: string[]) {
   messages.push(`${named(creature)} learned ${assets.moves[key]?.name}!`);
 }
 
+/** Learn a move that waited (`pending`), forgetting the move at an index (returns the forgotten move's name) */
+export function replaceMove(creature: Creature, index: number, key: string) {
+  const forgotten = assets.moves[creature.moves[index]?.key]?.name ?? "";
+  creature.moves.splice(index, 1, { key, pp: assets.moves[key]?.pp ?? 10 });
+  return forgotten;
+}
+
 /** Create a new creature */
 export function create(
   id: number,
   level: number,
-  { shiny = Math.random() < 1 / 128, nature = randomNature(), ability = "", held }: { shiny?: boolean; nature?: Nature; ability?: string; held?: ItemId } = {},
+  {
+    shiny = Math.random() < 1 / 128,
+    nature = randomNature(),
+    ability = "",
+    held,
+    gender = genderOf(id),
+  }: { shiny?: boolean; nature?: Nature; ability?: string; held?: ItemId; gender?: Gender } = {},
 ): Creature {
   const abilities = species(id).abilities ?? [];
   const creature: Creature = {
@@ -154,6 +233,8 @@ export function create(
     nature,
     ...(ability || abilities.length ? { ability: ability || abilities[Math.floor(Math.random() * abilities.length)] } : {}),
     ...(held ? { held } : {}),
+    ...(gender ? { gender } : {}),
+    friendship: species(id).friendship ?? 70,
   };
   creature.hp = hp(creature);
   return creature;
@@ -177,24 +258,82 @@ export function cure(creature: Creature) {
   delete creature.sleep;
 }
 
-/** Species a creature is ready to evolve into, if any */
-export function evolution(creature: Creature) {
-  const [level, into] = species(creature.species).evolves ?? [];
-  return level && creature.level >= level && species(into!) ? into! : 0;
+/** What makes a Pokémon evolve: leveling up (at a time of day, with its party), an item used on it, or a trade (the Linking Cord) */
+export type Cause = { level: true; time: Period; party: Creature[] } | { item: ItemId } | { trade: true };
+
+/** Does a Pokémon meet the needs of one way to evolve when leveling up */
+function ready(creature: Creature, way: Evolution, { time, party }: { time: Period; party: Creature[] }) {
+  if (way.item || way.trade || way.shed) {
+    return false;
+  }
+  const moves = creature.moves.map(({ key }) => key);
+  const attack = stat(creature, 1),
+    defense = stat(creature, 2);
+  return (
+    (!way.level || creature.level >= way.level) &&
+    (!way.friendship || friendshipOf(creature) >= friendly) &&
+    (!way.time || (way.time === "night") === (time === "night")) &&
+    (!way.held || creature.held === way.held) &&
+    (!way.move || moves.includes(way.move)) &&
+    (!way.moveType || moves.some((key) => assets.moves[key]?.type === way.moveType)) &&
+    (!way.gender || creature.gender === way.gender) &&
+    (way.stat === undefined || Math.sign(attack - defense) === way.stat) &&
+    (!way.partner || party.some((other) => other !== creature && other.species === way.partner))
+  );
 }
 
-/** Evolve a creature, returns messages to display (it keeps its damage taken and learns the new form's moves for this level) */
-export function evolve(creature: Creature, into: number) {
+/** The way a Pokémon evolves now (null when it doesn't): an Everstone stops it evolving by level or trade, and of two ways (Wurmple) one is picked at random */
+export function evolution(creature: Creature, cause: Cause): Evolution | null {
+  const ways = (species(creature.species)?.evolutions ?? []).filter(({ into }) => species(into));
+  const held = creature.held === "everstone";
+  const matching =
+    "item" in cause
+      ? ways.filter(({ item, gender }) => item === cause.item && (!gender || creature.gender === gender))
+      : "trade" in cause
+        ? held
+          ? []
+          : ways.filter(({ trade, held }) => trade && (!held || creature.held === held))
+        : held
+          ? []
+          : ways.filter((way) => ready(creature, way, cause));
+  return matching[Math.floor(Math.random() * matching.length)] ?? null;
+}
+
+/** Can an item make a Pokémon evolve (stones, the Linking Cord) */
+export function evolvesWith(creature: Creature, id: ItemId) {
+  return Boolean(items[id].kind === "evolve" && evolution(creature, (items[id] as { trade?: true }).trade ? { trade: true } : { item: id }));
+}
+
+/**
+ * Evolve a creature, returns messages to display (it keeps its damage taken and learns the new form's moves for this level;
+ * moves that don't fit wait in `pending` when given). An item it needed to hold (Metal Coat, Razor Claw) is used up
+ */
+export function evolve(creature: Creature, into: number | Evolution, pending?: string[]) {
+  const way = typeof into === "number" ? { into } : into;
   const before = { name: named(creature), hp: hp(creature) };
-  creature.species = into;
+  creature.species = way.into;
   creature.hp = Math.max(1, creature.hp + hp(creature) - before.hp);
-  const messages = [`Congratulations! ${before.name} evolved into ${species(into).name}!`];
-  for (const [at, key] of species(into).learnset) {
+  if (way.held && creature.held === way.held) {
+    delete creature.held;
+  }
+  const messages = [`Congratulations! Your ${before.name} evolved into ${species(way.into).name}!`];
+  for (const [at, key] of species(way.into).learnset) {
     if (at === creature.level) {
-      learn(creature, key, messages);
+      learn(creature, key, messages, pending);
     }
   }
   return messages;
+}
+
+/** Shedinja, left in an empty party slot when Nincada evolves (call before it evolves: Shedinja is a copy of it, and takes a Poké Ball from the bag) */
+export function shed(creature: Creature, party: Creature[], count: (id: ItemId) => number): Creature | null {
+  const into = species(creature.species)?.evolutions?.find(({ shed }) => shed)?.into;
+  if (!into || !species(into) || party.length >= 6 || count("poke-ball") <= 0) {
+    return null;
+  }
+  const copy = create(into, creature.level, { shiny: creature.shiny, nature: creature.nature });
+  copy.moves = creature.moves.map((move) => ({ ...move }));
+  return copy;
 }
 
 /** A trainer's team, ready to battle: chosen moves (known moves only), ability (one of the species'), nature, item, nickname and shine */
@@ -206,7 +345,7 @@ export function teamOf(members: Member[]) {
         shiny: Boolean(shiny),
         ...(nature && nature in natures ? { nature } : {}),
         ...(ability && species(id).abilities?.includes(ability) ? { ability } : {}),
-        ...(held && held in items ? { held } : {}),
+        ...(held && holdable.includes(held) ? { held } : {}),
       });
       const chosen = (moves ?? []).filter((key) => key in assets.moves).slice(0, 4);
       if (chosen.length) {
@@ -224,8 +363,11 @@ export function abilityOf(creature: Creature) {
   return creature.ability ?? species(creature.species).abilities?.[0] ?? "";
 }
 
-/** Grant experience, returns messages to display (level ups, new moves). A level cap stops leveling (experience stays below the next level) */
-export function grow(creature: Creature, amount: number, cap = 100) {
+/**
+ * Grant experience, returns messages to display (level ups, new moves). A level cap stops leveling (experience stays below the next level).
+ * Each level makes it friendlier. Moves that don't fit wait in `pending` when given (the oldest is forgotten otherwise)
+ */
+export function grow(creature: Creature, amount: number, cap = 100, pending?: string[]) {
   const messages = [] as string[];
   creature.exp += amount;
   const top = Math.max(creature.level, Math.min(100, cap));
@@ -236,10 +378,11 @@ export function grow(creature: Creature, amount: number, cap = 100) {
     const before = hp(creature);
     creature.level++;
     creature.hp += hp(creature) - before;
+    befriend(creature, friendshipOf(creature) < 100 ? 5 : friendshipOf(creature) < 200 ? 3 : 2);
     messages.push(`${named(creature)} grew to Lv. ${creature.level}!`);
     for (const [at, key] of species(creature.species).learnset) {
       if (at === creature.level) {
-        learn(creature, key, messages);
+        learn(creature, key, messages, pending);
       }
     }
   }
@@ -257,24 +400,24 @@ export const trainer = {
   /** Current profile */
   profile: upgrade(storage.get<Trainer | null>("trainer", null)),
 
-  /** Has a profile */
+  /** Has a profile (a new trainer may have no Pokémon yet, until a Professor hands them one) */
   get exists() {
-    return Boolean(this.profile?.party?.length);
+    return Boolean(this.profile?.name);
   },
 
-  /** Create a new profile */
-  start(name: string, sprite: string, starter: number) {
+  /** Create a new profile, with a first partner unless the game hands one out */
+  start(name: string, sprite: string, starter?: number) {
     this.profile = {
       name,
       sprite,
-      party: [create(starter, 5, { shiny: false })],
+      party: starter ? [create(starter, 5, { shiny: false })] : [],
       box: [],
       items: { "poke-ball": 10, potion: 5 },
       money: 3000,
       badges: [],
       defeated: [],
-      seen: [starter],
-      caught: [starter],
+      seen: starter ? [starter] : [],
+      caught: starter ? [starter] : [],
     };
     this.save();
   },
@@ -359,6 +502,7 @@ export const trainer = {
     }
     delete profile.story?.[city];
     profile.defeated = profile.defeated.filter((key) => !key.startsWith(`${city}:`));
+    profile.started = profile.started?.filter((id) => id !== city);
     this.save();
   },
 
@@ -386,6 +530,17 @@ export const trainer = {
       return false;
     }
     this.profile.items[id] = this.count(id) - 1;
+    return true;
+  },
+
+  /** Use a Repel: weaker wild Pokémon stay away for its steps (false while one still works) */
+  repel(id: ItemId) {
+    const profile = this.profile;
+    if (!profile || (profile.repel?.steps ?? 0) > 0 || !this.take(id)) {
+      return false;
+    }
+    profile.repel = { steps: (items[id] as { amount?: number }).amount ?? 100, item: id };
+    this.save();
     return true;
   },
 
