@@ -410,13 +410,178 @@ kbd {
   animation: blink 1s steps(1) infinite;
 }
 
+/* Landing page "It plays like the real thing": the game's own sprites, moving like they do in the game */
+.feel-ball {
+  width: 32px;
+  height: 32px;
+  background: url(/game/sprites/balls/poke.png) 0 0 / 32px 96px no-repeat;
+  image-rendering: pixelated;
+  animation: feel-wobble 1.4s ease-in-out infinite;
+}
+@keyframes feel-wobble {
+  0%,
+  60%,
+  100% {
+    rotate: 0deg;
+  }
+  70% {
+    rotate: -14deg;
+  }
+  85% {
+    rotate: 14deg;
+  }
+}
+/* Mudkip's overworld sheet: eight 32px frames (down, up, left, right) on two rows; walking left uses frames 4 and 5 */
+.feel-walker {
+  position: absolute;
+  bottom: 18%;
+  width: 96px;
+  height: 96px;
+  background: url(/game/followers/258.png) -384px 0 / 768px 192px no-repeat;
+  image-rendering: pixelated;
+  animation:
+    feel-step 0.5s steps(1) infinite,
+    feel-across 7s linear infinite;
+}
+@keyframes feel-step {
+  50% {
+    background-position-x: -480px;
+  }
+}
+@keyframes feel-across {
+  from {
+    left: 100%;
+  }
+  to {
+    left: -96px;
+  }
+}
+/* Evolving: the Pokémon glows white and swaps forms faster and faster, then the new form stays a while */
+.feel-before,
+.feel-after {
+  animation: feel-before 6s steps(1) infinite;
+}
+.feel-after {
+  animation-name: feel-after;
+}
+@keyframes feel-before {
+  0%,
+  30% {
+    opacity: 1;
+    filter: none;
+  }
+  34%,
+  44%,
+  52%,
+  58%,
+  62% {
+    opacity: 1;
+    filter: brightness(0) invert(1);
+  }
+  40%,
+  48%,
+  55%,
+  60%,
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes feel-after {
+  0%,
+  34%,
+  44%,
+  52%,
+  58%,
+  62% {
+    opacity: 0;
+  }
+  40%,
+  48%,
+  55%,
+  60% {
+    opacity: 1;
+    filter: brightness(0) invert(1);
+  }
+  64%,
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+/* Ember: Emerald's flame sprite (five 32px frames stacked), flying at the target */
+.feel-ember {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  background: url(/game/battle/anims/small_ember.png) 0 0 / 64px 320px no-repeat;
+  image-rendering: pixelated;
+  animation:
+    feel-flame 0.4s steps(5) infinite,
+    feel-fly 1.8s ease-in infinite;
+}
+@keyframes feel-flame {
+  to {
+    background-position-y: -320px;
+  }
+}
+@keyframes feel-fly {
+  0% {
+    left: 2%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  70% {
+    left: 62%;
+    opacity: 1;
+  }
+  80%,
+  100% {
+    left: 66%;
+    opacity: 0;
+  }
+}
+/* The healing machine's Poké Balls flash bright */
+.feel-glow {
+  animation: feel-glow 2.4s steps(1) infinite;
+}
+@keyframes feel-glow {
+  0%,
+  40% {
+    filter: none;
+  }
+  50%,
+  70% {
+    filter: brightness(1.9);
+  }
+  60%,
+  80%,
+  100% {
+    filter: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .float,
   .twinkle,
   .blink,
   .slide-left,
-  .slide-right {
+  .slide-right,
+  .feel-ball,
+  .feel-walker,
+  .feel-ember,
+  .feel-glow,
+  .feel-before {
     animation: none !important;
+  }
+  .feel-walker {
+    left: 40%;
+  }
+  .feel-after {
+    animation: none !important;
+    opacity: 0;
   }
 
   *,

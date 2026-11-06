@@ -28,7 +28,8 @@ export function PartyWall() {
         ))}
       </div>
       <p className="mx-auto mt-12 max-w-[50ch] px-4 text-center font-game text-[16px] leading-relaxed text-[#c9b8f5]">
-        All 1,025 Pokémon with their real types, stats and moves. They level up, evolve at the right level, and travel with you to every friend&apos;s game.
+        All 1,025 Pokémon with their real types, stats, genders and moves. They level up, grow friendly, evolve every way they do in the games, and travel with
+        you to every friend&apos;s game.
       </p>
     </section>
   );

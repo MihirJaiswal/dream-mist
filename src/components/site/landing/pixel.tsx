@@ -41,7 +41,8 @@ export function PixelButton({
 }) {
   const content = <span>{children}</span>;
   const props = { className: cn("pixel-button", `pixel-button-${tone}`, small && "pixel-button-small", className) };
-  return href.startsWith("/editor") ? (
+  //The editor and plain files (the agent guide) load as whole pages
+  return href.startsWith("/editor") || /\.\w+$/.test(href) ? (
     <a href={href} {...props}>
       {content}
     </a>
