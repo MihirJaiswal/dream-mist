@@ -10,7 +10,7 @@ import { ToolRail } from "@/components/editor/rail";
 import { Sidebar } from "@/components/editor/sidebar";
 import { Topbar } from "@/components/editor/topbar";
 import { shop } from "@/components/editor/trainer-dialogs";
-import { evolutionScreen, nameScreen, opening, starterScreen } from "@/components/editor/gba-scenes";
+import { evolutionScreen, nameScreen, opening, starterScreen, titleScreen } from "@/components/editor/gba-scenes";
 import { CommandPalette } from "@/components/editor/command-palette";
 import { useAppShortcuts } from "@/components/editor/shortcuts";
 import { Tour } from "@/components/editor/tour";
@@ -60,6 +60,7 @@ export function EditorApp() {
       confirm,
       signIn,
       opening,
+      title: titleScreen,
       evolve: evolutionScreen,
       name: nameScreen,
       starter: (choices) => starterScreen(choices),
@@ -86,6 +87,8 @@ export function EditorApp() {
   useAppShortcuts({ onPanels: togglePanels });
 
   const edit = session.ready && session.mode === "edit";
+  //Someone else's game (/play/{id}) shows just the game: no map tools or status bar
+  const tools = session.ready && !session.visiting;
   return (
     <TooltipProvider delayDuration={350}>
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
@@ -95,16 +98,16 @@ export function EditorApp() {
           {edit && panels && !collapsed ? <Sidebar onImportTileset={() => importTileset()} onSprite={importSprite} /> : null}
           <div className="relative min-w-0 flex-1 overflow-hidden">
             <div ref={viewport} className="absolute inset-0 [&_canvas]:block" />
-            {session.ready && minimap && panels ? <Minimap /> : null}
-            {session.ready ? <MapControls minimap={minimap} onMinimap={() => setMinimap(!minimap)} onPanel={() => setCollapsed(!collapsed)} /> : null}
+            {tools && minimap && panels ? <Minimap /> : null}
+            {tools ? <MapControls minimap={minimap} onMinimap={() => setMinimap(!minimap)} onPanel={() => setCollapsed(!collapsed)} /> : null}
             {session.ready ? <MapMenu /> : null}
-            {session.ready ? <Tour /> : null}
+            {tools ? <Tour /> : null}
             <MapBanner />
             <SaveNudge onLogin={() => signIn("save")} />
             {session.ready ? null : <Loading progress={progress} />}
           </div>
         </main>
-        {session.ready ? <StatusBar /> : null}
+        {tools ? <StatusBar /> : null}
       </div>
       <DialogueBox />
       <StartMenu />

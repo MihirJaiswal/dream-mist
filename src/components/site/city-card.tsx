@@ -43,7 +43,7 @@ export function CityCard({ city: initial, user, progress }: { city: Card; user?:
   return (
     <article className="group stepped flex min-w-0 flex-col bg-[#3f2c74] p-[3px] transition-colors hover:bg-[#b9a6ff]">
       <div className="stepped flex flex-1 flex-col bg-[#1d1038]">
-        <a href={edit(`visit=${city.id}`)} className="relative block aspect-[16/10] overflow-hidden bg-[#0d0720]" title={`Play ${city.name}`}>
+        <a href={`/g/${city.id}`} className="relative block aspect-[16/10] overflow-hidden bg-[#0d0720]" title={`About ${city.name}`}>
           {city.thumb ? (
             <img src={city.thumb} alt={`Map of ${city.name}`} loading="lazy" className="flyover pixelated h-full w-full object-cover" />
           ) : (
@@ -57,7 +57,11 @@ export function CityCard({ city: initial, user, progress }: { city: Card; user?:
         </a>
         <div className="flex flex-1 flex-col gap-1.5 p-4">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="truncate font-pixel text-[14px] text-white">{city.name}</h3>
+            <h3 className="truncate font-pixel text-[14px] text-white">
+              <a href={`/g/${city.id}`} className="hover:text-[#f06aa6]">
+                {city.name}
+              </a>
+            </h3>
             {mine ? <Badge className="bg-[#f06aa6] text-[#2a0a1e]">Yours</Badge> : null}
           </div>
           <p className="font-game text-[13px] text-[#8a7bb8]">
@@ -65,7 +69,7 @@ export function CityCard({ city: initial, user, progress }: { city: Card; user?:
           </p>
           {city.description ? <p className="line-clamp-2 font-game text-[14px] text-[#c9b8f5]">{city.description}</p> : null}
           {city.forkOf ? (
-            <a href={edit(`visit=${city.forkOf.id}`)} className="inline-flex items-center gap-1 font-game text-[13px] text-[#8a7bb8] hover:text-white">
+            <a href={`/g/${city.forkOf.id}`} className="inline-flex items-center gap-1 font-game text-[13px] text-[#8a7bb8] hover:text-white">
               <GitFork size={12} /> Forked from {city.forkOf.name} by {city.forkOf.owner}
             </a>
           ) : null}
@@ -76,7 +80,7 @@ export function CityCard({ city: initial, user, progress }: { city: Card; user?:
             ))}
           </div>
           <div className="mt-auto flex items-center gap-2.5 pt-4">
-            <PixelButton href={edit(`visit=${city.id}`)} small>
+            <PixelButton href={`/play/${city.id}`} small>
               <span className="inline-flex items-center gap-1.5">
                 <Play weight="fill" size={11} /> {progress ? "Continue" : "Play"}
               </span>

@@ -201,6 +201,32 @@ export class Session {
 
   /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
   async setMode(mode: "edit" | "play", from: null | { x: number; y: number; dir?: Direction } = null): Promise<void> {
+    //A saved game opens on the title screen: Continue where it was saved, or start a New Game (after a warning)
+    const profile = trainer.profile;
+    if (mode === "play" && this.mode !== "play" && !from && profile?.places?.[this.city.id]) {
+      for (;;) {
+        const choice = await ui.title({
+          game: this.city.name,
+          player: profile.name,
+          saved: profile.places[this.city.id].at,
+          badges: profile.badges.filter(({ world }) => world === this.city.id).length,
+          pokedex: profile.caught.length,
+          party: profile.party.map(({ species }) => species),
+        });
+        if (choice === "continue") {
+          break;
+        }
+        const restart = await ui.confirm("Start a new game?", {
+          text: `Your story in ${this.city.name}, the trainers you beat and where you saved start over. Your Pokémon, items and Pokédex stay with you.`,
+          action: "New game",
+          danger: true,
+        });
+        if (restart) {
+          trainer.restart(this.city.id);
+          break;
+        }
+      }
+    }
     //A new game: the Professor's opening (a new trainer picks their look and name there), when there's no trainer yet or the game has a speech
     //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose or turned the Professor's gift off
     const fresh = mode === "play" && this.mode !== "play" && !trainer.profile?.started?.includes(this.city.id);
@@ -323,7 +349,7 @@ export class Session {
   saveGame() {
     const profile = trainer.profile;
     if (profile && this.play) {
-      profile.places = { ...profile.places, [this.city.id]: { area: this.#areaId(), ...this.play.place } };
+      profile.places = { ...profile.places, [this.city.id]: { area: this.#areaId(), ...this.play.place, at: Date.now() } };
     }
     trainer.save();
   }
@@ -688,6 +714,13 @@ export class Session {
 
   /** Make your own copy of the city you're visiting */
   async remix() {
+    //A game's own page only plays: building on it happens in the editor
+    if (this.visit && location.pathname.startsWith("/play/")) {
+      //A full page load, so the editor's engine starts clean
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      location.href = `/editor#${cloud.user ? "fork" : "remix"}=${this.visit}`;
+      return;
+    }
     //Online cities are forked into the account (credits the original), others are copied locally
     if (cloud.user && this.visit) {
       return this.fork(this.visit);
@@ -748,7 +781,7 @@ export class Session {
   async links() {
     const base = `${location.origin}/editor`;
     if (this.online) {
-      return { visit: `${base}#visit=${this.online.id}`, remix: `${base}#remix=${this.online.id}`, packed: false };
+      return { visit: `${location.origin}/g/${this.online.id}`, remix: `${base}#remix=${this.online.id}`, packed: false };
     }
     const { link } = await import("./data");
     return { visit: await link(this.city, "visit"), remix: await link(this.city, "remix"), packed: true };
@@ -1554,7 +1587,15 @@ export class Session {
 
   /** Open the city a link points to (#visit, #remix, #fork, #open, #room), resolves false when there is none */
   async #route() {
-    const [mode, value = ""] = location.hash.slice(1).split("=");
+    let [mode, value = ""] = location.hash.slice(1).split("=");
+    //A game on its own page (/play/{id}); older #visit links to online games move there
+    const played = location.pathname.match(/^\/play\/([^/]+)/);
+    if (played) {
+      [mode, value] = ["visit", decodeURIComponent(played[1])];
+    } else if (mode === "visit" && isCloudId(value)) {
+      location.replace(`/play/${value}`);
+      return true;
+    }
     if (mode === "room") {
       const [id, invite] = value.split(".");
       if (cloud.available && isCloudId(id) && invite) {
@@ -1604,6 +1645,11 @@ export class Session {
         }
         return true;
       } catch (error) {
+        //A game page that doesn't exist (any more): its page says so
+        if (played) {
+          location.replace(`/g/${encodeURIComponent(value)}`);
+          return true;
+        }
         ui.toast(`This city link looks broken (${message(error)})`, "error");
       }
     }

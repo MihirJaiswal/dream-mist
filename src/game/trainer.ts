@@ -74,7 +74,7 @@ export type Trainer = {
   /** Games started (city ids): their opening has played */
   started?: string[];
   /** Where the game was last saved, per game (city id): the map ("" outside), tile and facing. Playing again starts there */
-  places?: Record<string, { area: string; x: number; y: number; dir: Direction }>;
+  places?: Record<string, { area: string; x: number; y: number; dir: Direction; at?: number }>;
   /** Exp. Share turned on: Pokémon that didn't battle get half the experience too */
   share?: boolean;
   /** Steps left before a repel wears off, and the repel used (to offer another) */

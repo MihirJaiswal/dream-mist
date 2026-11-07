@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * Scenes drawn like the Game Boy Advance games: the new game's opening with the Professor, choosing a starter
+ * Scenes drawn like the Game Boy Advance games: the title screen of a saved game, the new game's opening with the Professor, choosing a starter
  * from the Professor's bag, the naming screen, and the evolution screen.
  * Like the other GBA screens, the keyboard drives them: arrows (or WASD) move, Z, Space, Enter or E pick, X or Escape go back.
  */
 
 import { openDialog } from "@/components/editor/dialogs";
 import { girlish, type Key, TypeTag, useKeys, useTyping } from "@/components/editor/gba-screens";
-import { artwork, species } from "@/game/assets";
+import { artwork, battleSprite, species } from "@/game/assets";
 import { sound } from "@/game/audio";
 import { cloud } from "@/game/cloud";
 import { session } from "@/game/session";
 import { type Creature, named, starters, trainer } from "@/game/trainer";
-import type { Opening } from "@/game/ui-bridge";
+import type { Opening, SaveSummary } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
@@ -239,6 +239,61 @@ function OpeningScene({ options, close }: { options: Opening; close: () => void 
           <div className="platform" aria-hidden="true" />
         </div>
         <TextBox talk={talk} onChoose={choose} onTap={tap} />
+      </div>
+    </div>
+  );
+}
+
+//=================================================================================================
+// Title screen
+
+/** A saved game's title screen, like Emerald's: CONTINUE (with the save's details) or NEW GAME */
+export function titleScreen(save: SaveSummary) {
+  return openDialog<"continue" | "new">((close) => <TitleScene save={save} close={close} />).then((choice) => choice ?? "continue");
+}
+
+function TitleScene({ save, close }: { save: SaveSummary; close: (choice: "continue" | "new") => void }) {
+  const [cursor, setCursor] = useState(0);
+  const options = ["continue", "new"] as const;
+  useKeys((key) => {
+    if (key === "up" || key === "down") {
+      setCursor(cursor ? 0 : 1);
+    } else if (key === "a") {
+      close(options[cursor]);
+    }
+  });
+  const when = save.saved ? new Date(save.saved).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
+  return (
+    <div className="gba-screen gba-full" role="dialog" aria-label={save.game}>
+      <div className="gba-frame gba-title">
+        <p className="game">{save.game}</p>
+        <button className={cn("option continue", cursor === 0 && "picked")} onMouseEnter={() => setCursor(0)} onClick={() => close("continue")}>
+          <b>CONTINUE</b>
+          <dl>
+            <dt>PLAYER</dt>
+            <dd>{save.player}</dd>
+            {when ? (
+              <>
+                <dt>SAVED</dt>
+                <dd>{when}</dd>
+              </>
+            ) : null}
+            <dt>POKéDEX</dt>
+            <dd>{save.pokedex}</dd>
+            <dt>BADGES</dt>
+            <dd>{save.badges}</dd>
+          </dl>
+          {save.party.length ? (
+            <span className="party">
+              {save.party.map((id, i) => (
+                <img key={i} src={battleSprite(id).src} alt={species(id).name} draggable={false} />
+              ))}
+            </span>
+          ) : null}
+        </button>
+        <button className={cn("option", cursor === 1 && "picked")} onMouseEnter={() => setCursor(1)} onClick={() => close("new")}>
+          <b>NEW GAME</b>
+        </button>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ export type Card = {
   height: number;
   interiors: number;
   story: number;
+  published?: boolean;
   publishedAt: number;
   updated: number;
   forkOf?: null | { id: string; name: string; owner: string };
@@ -49,6 +50,11 @@ export async function loginWithEmail(email: string) {
   if (error) {
     throw error;
   }
+}
+
+/** Log out of the account on this device */
+export async function logout() {
+  await supabase().auth.signOut();
 }
 
 /** Current user (null when logged out, undefined when online features aren't set up or unreachable) */

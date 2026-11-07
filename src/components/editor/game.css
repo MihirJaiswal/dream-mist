@@ -3021,3 +3021,76 @@
     rotate: 18deg;
   }
 }
+
+/* Title screen of a saved game (Emerald's CONTINUE / NEW GAME): white windows with a blue rim on a deep blue, the picked one ringed red */
+.gba-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.4cqi;
+  padding: 4cqi 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 40%, rgb(120 160 255 / 0.25), transparent 70%),
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.04) 0 0.5cqi, transparent 0.5cqi 1cqi), linear-gradient(#182868, #284088 60%, #1c2c70);
+  font-family: var(--font-game);
+}
+.gba-title .game {
+  margin: 0 0 1cqi;
+  color: #fff;
+  font-size: 4.4cqi;
+  text-shadow: 0.4cqi 0.4cqi 0 #101848;
+  letter-spacing: 0.05em;
+}
+.gba-title .option {
+  position: relative;
+  width: 70%;
+  padding: 2cqi 3.6cqi;
+  border: 0.8cqi solid #6878b8;
+  border-radius: 1.2cqi;
+  background: #f8f8f8;
+  box-shadow:
+    inset 0 0 0 0.5cqi #c8d0f0,
+    0 0.6cqi 0 #101848;
+  color: #383838;
+  text-align: left;
+  font-size: 3.6cqi;
+  text-shadow: 0.25cqi 0.25cqi 0 #d0d0c8;
+  cursor: pointer;
+}
+.gba-title .option.picked {
+  border-color: #e04838;
+  box-shadow:
+    inset 0 0 0 0.5cqi #f8b0a0,
+    0 0.6cqi 0 #101848;
+}
+.gba-title .option b {
+  font-weight: 400;
+  color: #505090;
+}
+.gba-title dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4cqi 4cqi;
+  margin: 1.4cqi 0 0;
+}
+.gba-title dt {
+  color: #6070b0;
+}
+.gba-title dd {
+  margin: 0;
+  text-align: right;
+}
+.gba-title .party {
+  position: absolute;
+  top: 1.2cqi;
+  right: 3cqi;
+  display: flex;
+  gap: 0.4cqi;
+}
+.gba-title .party img {
+  width: 5.6cqi;
+  height: 5.6cqi;
+  object-fit: contain;
+  image-rendering: pixelated;
+}

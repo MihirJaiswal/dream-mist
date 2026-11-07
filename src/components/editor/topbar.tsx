@@ -34,6 +34,7 @@ import {
   MapTrifold,
   Notebook,
   PawPrint,
+  Info,
   PencilSimple,
   Play,
   Plus,
@@ -174,30 +175,54 @@ export function Topbar() {
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem onSelect={() => cities()}>
-            <Folder />
-            Your cities
-          </DropdownMenuItem>
+          {visiting ? (
+            <>
+              {session.visit ? (
+                <DropdownMenuItem asChild>
+                  <a href={`/g/${session.visit}`}>
+                    <Info />
+                    About this game
+                  </a>
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem asChild>
+                <a href="/editor">
+                  <PencilSimple />
+                  Open the editor
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : (
+            <DropdownMenuItem onSelect={() => cities()}>
+              <Folder />
+              Your cities
+            </DropdownMenuItem>
+          )}
           {session.online && !visiting ? (
             <DropdownMenuItem onSelect={() => versionHistory()}>
               <ClockCounterClockwise />
               Version history
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem onSelect={() => newCity()}>
-            <Plus />
-            New city
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => session.exportImage()}>
-            <Export />
-            Export image
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => session.exportJson()}>
-            <DownloadSimple />
-            Export .json
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {visiting ? null : (
+            <>
+              <DropdownMenuItem onSelect={() => newCity()}>
+                <Plus />
+                New city
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => session.exportImage()}>
+                <Export />
+                Export image
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => session.exportJson()}>
+                <DownloadSimple />
+                Export .json
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem onSelect={() => (sound.toggle(), session.notify())}>
             {sound.muted ? <SpeakerHigh /> : <SpeakerSlash />}
             {sound.muted ? "Turn sound on" : "Turn sound off"}
@@ -231,7 +256,7 @@ export function Topbar() {
       {visiting ? null : <SaveBadge />}
       {session.online?.forkOf && !visiting ? (
         <a
-          href={`/editor#visit=${session.online.forkOf.id}`}
+          href={`/g/${session.online.forkOf.id}`}
           title={`Forked from ${session.online.forkOf.name} by ${session.online.forkOf.owner}`}
           className="hidden items-center gap-1 text-xs text-subtle-fg hover:text-foreground md:flex"
         >
@@ -240,32 +265,34 @@ export function Topbar() {
         </a>
       ) : null}
 
-      <div className="flex shrink-0 rounded-lg bg-muted p-0.5 xl:absolute xl:left-1/2 xl:-translate-x-1/2">
-        {visiting ? null : (
+      {visiting ? null : (
+        <div className="flex shrink-0 rounded-lg bg-muted p-0.5 xl:absolute xl:left-1/2 xl:-translate-x-1/2">
+          {
+            <button
+              aria-label="Build"
+              onClick={() => session.setMode("edit")}
+              className={cn(
+                "flex h-8 items-center gap-1.5 rounded-md px-3 text-sm",
+                mode === "edit" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <PencilSimple size={14} />
+              <span className="hidden sm:inline">Build</span>
+            </button>
+          }
           <button
-            aria-label="Build"
-            onClick={() => session.setMode("edit")}
+            aria-label="Play"
+            onClick={() => session.setMode("play")}
             className={cn(
               "flex h-8 items-center gap-1.5 rounded-md px-3 text-sm",
-              mode === "edit" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              mode === "play" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <PencilSimple size={14} />
-            <span className="hidden sm:inline">Build</span>
+            <Play size={14} />
+            <span className="hidden sm:inline">Play</span>
           </button>
-        )}
-        <button
-          aria-label="Play"
-          onClick={() => session.setMode("play")}
-          className={cn(
-            "flex h-8 items-center gap-1.5 rounded-md px-3 text-sm",
-            mode === "play" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Play size={14} />
-          <span className="hidden sm:inline">Play</span>
-        </button>
-      </div>
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
         {/* Wide screens: every action as an icon, named in its tooltip */}

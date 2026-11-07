@@ -38,6 +38,8 @@ export type UiBridge = {
   name(title: string, options?: { initial?: string; creature?: Creature }): Promise<string>;
   /** Choose one of a few Pokémon, like the Professor's bag of starters: resolves with its index */
   starter(choices: number[], options?: { speaker?: string; portrait?: Portrait }): Promise<number>;
+  /** Title screen of a saved game: Continue it, or start a New Game */
+  title(save: SaveSummary): Promise<"continue" | "new">;
   /** New game opening: the Professor's welcome speech, then a new trainer picks their look and name (and a partner when `partner`) */
   opening(options: Opening): Promise<void>;
   /** Close the dialogue box right away, dropping pending lines (their conversation never continues) */
@@ -55,6 +57,9 @@ export type UiBridge = {
   /** Offer to save towns that only live in this browser to the account */
   bring(cities: { id: string; name: string; width: number; height: number; people: number; updated: number }[]): Promise<void>;
 };
+
+/** What the title screen tells about a saved game: who, when, and how far (badges of this game, Pokémon caught) */
+export type SaveSummary = { game: string; player: string; saved?: number; badges: number; pokedex: number; party: number[] };
 
 /** What the new game's opening shows: the game's name, its welcome speech (blank lines split pages), and whether it hands out a first partner */
 export type Opening = { game: string; speech?: string; professor?: string; partner: boolean; newTrainer: boolean };
@@ -74,6 +79,7 @@ export const ui: UiBridge = {
   evolve: async () => true,
   name: async () => "",
   starter: async () => 0,
+  title: async () => "continue",
   opening: async () => {},
   hush: () => {},
   shop: async () => {},
