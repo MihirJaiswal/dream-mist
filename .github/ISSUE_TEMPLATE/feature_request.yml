@@ -1,0 +1,23 @@
+name: Idea
+description: Suggest something DreamMist could do
+labels: ["idea"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to make
+      description: The game or town you are building, and what's missing or hard today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How it could work. Mention the Emerald behavior if it copies one.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Mockups, examples from other games, or links.

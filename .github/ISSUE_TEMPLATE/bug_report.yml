@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in the editor, the game or the website doesn't work
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open /editor
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: city
+    attributes:
+      label: City
+      description: A share link or the name of a city on Explore, if the bug happens in one. You can also attach its .city.json file below.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Editor
+        - Play mode or battles
+        - Story and events
+        - Accounts, saving or Explore
+        - Live rooms
+        - Website or docs
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 140 on Windows, Safari on iPhone…
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, console errors or files

@@ -60,7 +60,11 @@ export function SiteFooter() {
         </div>
         <div className="border-t-[3px] border-dashed border-[#2d1a52]">
           <p className="px-4 py-6 font-game text-[13px] text-[#8a7bb8] md:px-8">
-            Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a non-commercial fan project.
+            Pokémon and its assets belong to Nintendo, Game Freak and The Pokémon Company. This is a non-commercial fan project.{" "}
+            <a href="https://github.com/MihirJaiswal/dream-mist" className="underline underline-offset-2 hover:text-[#f06aa6]">
+              Source code
+            </a>{" "}
+            under the GNU AGPL v3.
           </p>
         </div>
       </div>
