@@ -202,9 +202,9 @@ export class Session {
   /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
   async setMode(mode: "edit" | "play", from: null | { x: number; y: number } = null): Promise<void> {
     //A new game: the Professor's opening (a new trainer picks their look and name there), when there's no trainer yet or the game has a speech
-    //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose
+    //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose or turned the Professor's gift off
     const fresh = mode === "play" && this.mode !== "play" && !trainer.profile?.started?.includes(this.city.id);
-    const partner = !trainer.profile?.party.length && !trainer.profile?.box.length && !handsOutStarter(this.city);
+    const partner = !trainer.profile?.party.length && !trainer.profile?.box.length && !handsOutStarter(this.city) && this.city.rules?.partner !== false;
     if (mode === "play" && (!trainer.exists || partner || (fresh && this.city.intro?.speech.trim()))) {
       await ui.opening({
         game: this.city.name,
@@ -1441,6 +1441,7 @@ export class Session {
       if (!next.difficulty || next.difficulty === "normal") delete next.difficulty;
       if (!next.caps?.length) delete next.caps;
       if (next.followers !== false) delete next.followers;
+      if (next.partner !== false) delete next.partner;
       if (Object.keys(next).length) this.city.rules = next;
       else delete this.city.rules;
       this.broadcastCity();

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   CaretDown,
   CheckCircle,
+  Gift,
   ClockCounterClockwise,
   Copy,
   Image as ImageIcon,
@@ -550,9 +551,19 @@ function NewGame({ update }: { update: () => void }) {
           onBlur={() => speech !== (city.intro?.speech ?? "") && (session.setNewGame({ speech }), update())}
         />
       </Field>
+      <label className="flex cursor-pointer items-center gap-3 rounded-md border border-border p-2.5">
+        <Gift size={16} />
+        <div className="min-w-0 flex-1">
+          <b className="block text-sm">Professor gives a partner</b>
+          <small className="text-xs text-subtle-fg">
+            When no one in the game hands out a starter with a &quot;Choose a starter&quot; action, new players pick one from his bag
+          </small>
+        </div>
+        <Switch checked={city.rules?.partner !== false} onCheckedChange={(on) => (session.setRules({ partner: on ? undefined : false }), update())} />
+      </label>
       <Hint>
-        A new player hears the Professor first, picks a boy or a girl and a name, then starts on the spawn of the map above (set it with the Spawn layer). If no
-        one in the game hands out a starter with a &quot;Choose a starter&quot; action, the Professor gives one from his bag.
+        A new player hears the Professor first, picks a boy or a girl and a name, then starts on the spawn of the map above (set it with the Spawn layer). With
+        the partner off and no starter to choose, players start with no Pokémon until a script gives them one.
       </Hint>
     </section>
   );

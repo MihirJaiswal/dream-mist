@@ -110,7 +110,7 @@ export const difficulties = ["easy", "normal", "hard"] as const;
 export type Difficulty = (typeof difficulties)[number];
 
 /** Battle rules of a town: how smart trainers are, and the highest level Pokémon reach for each number of badges earned there */
-export type Rules = { difficulty?: Difficulty; caps?: number[]; followers?: false };
+export type Rules = { difficulty?: Difficulty; caps?: number[]; followers?: false; partner?: false };
 
 /** Highest level a Pokémon can reach with a number of badges of the town (100 without caps, the last cap past the end of the list) */
 export function levelCap(rules: Rules | undefined, badges: number) {
@@ -548,6 +548,7 @@ export function sanitize(raw: Partial<City>, root?: City): City {
       ...(rules.difficulty === "easy" || rules.difficulty === "hard" ? { difficulty: rules.difficulty } : {}),
       ...(caps.length ? { caps } : {}),
       ...(rules.followers === false ? { followers: false as const } : {}),
+      ...(rules.partner === false ? { partner: false as const } : {}),
     };
   }
   if (raw.start && typeof raw.start === "string") {
