@@ -172,7 +172,8 @@ export function BattleDesigner() {
               {trainer.name} · {levels.find(({ key }) => key === level)!.label}
             </span>
           </div>
-          <Dialogue key={who} className="mt-3" speaker={trainer.name} pages={[trainer.line]} />
+          {/* Over the bottom of the scene like the games' text box: Gen 3 back sprites are cut off at the bottom, hidden behind it */}
+          <Dialogue key={who} className="z-10 mx-1 -mt-6 sm:mx-2 sm:-mt-8" speaker={trainer.name} pages={[trainer.line]} />
           {/* Their whole team, in the order they send it out */}
           <ol className="mt-3 grid grid-cols-6 gap-2" aria-label={`${trainer.name}'s team`}>
             {Array.from({ length: 6 }, (_, i) => trainer.team[i]).map((member, i) => (
