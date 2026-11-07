@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { edit, logout, me } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { BookOpen, Compass, House, PencilSimple, SignOut } from "@phosphor-icons/react";
+import { House, SignOut } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+/** Account menu rows: pixel text that lights up lilac */
+const item =
+  "rounded-none px-3 py-2.5 font-pixel text-[11px] uppercase tracking-wide text-[#c9b8f5] focus:bg-[#2a1a52] focus:text-white [&_svg]:size-4 [&_svg]:text-[#8a7bb8] focus:[&_svg]:text-white";
 
 /** Navigation links */
 const links = [
@@ -78,41 +82,28 @@ export function SiteHeader() {
             >
               {user.username[0].toUpperCase()}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <span className="block text-xs text-muted-foreground">Signed in as</span>
-                <span className="block truncate font-semibold">{user.username}</span>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={10}
+              className="stepped w-56 rounded-none border-0 bg-[#1d1038] p-[3px] text-[#c9b8f5] shadow-[inset_0_0_0_3px_#3f2c74,0_6px_0_rgb(0_0_0/0.35)]"
+            >
+              <DropdownMenuLabel className="px-4 pb-3 pt-3.5 font-normal">
+                <span className="block font-game text-[13px] text-[#8a7bb8]">Signed in as</span>
+                <span className="mt-1 block truncate font-pixel text-[14px] text-white">{user.username}</span>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/">
-                  <House />
-                  Your games and cities
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a href={edit()}>
-                  <PencilSimple />
-                  Open the editor
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/explore">
-                  <Compass />
-                  Explore games
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/docs">
-                  <BookOpen />
-                  Docs
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => void leave()}>
-                <SignOut />
-                Log out
-              </DropdownMenuItem>
+              <DropdownMenuSeparator className="mx-[3px] my-0 h-[3px] bg-[#3f2c74]" />
+              <div className="p-1.5">
+                <DropdownMenuItem asChild className={item}>
+                  <Link href="/">
+                    <House />
+                    Your games
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void leave()} className={cn(item, "focus:bg-[#f06aa6] focus:text-[#2a0a1e] focus:[&_svg]:text-[#2a0a1e]")}>
+                  <SignOut />
+                  Log out
+                </DropdownMenuItem>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : user === null ? (
