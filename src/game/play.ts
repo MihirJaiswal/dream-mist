@@ -289,6 +289,11 @@ export class Play {
     return { x: Math.round(this.#player.x), y: Math.round(this.#player.y) };
   }
 
+  /** Where the player stands and faces (saving the game keeps it) */
+  get place() {
+    return { ...this.position, dir: this.#player.dir };
+  }
+
   /** Progress key of a person (outside map keeps the original format) */
   #key(index: number) {
     return this.#city === this.#world ? `${this.#world.id}:${index}` : `${this.#world.id}:${this.#city.id}/${index}`;

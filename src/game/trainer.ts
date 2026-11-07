@@ -1,7 +1,7 @@
 //Imports
 import { assets, type Evolution, species } from "./assets";
 import type { Period } from "./atmosphere";
-import { storage } from "./data";
+import { type Direction, storage } from "./data";
 import { holdable, type ItemId, itemIds, items } from "./items";
 import { type Nature, natureMultiplier, natures, randomNature } from "./natures";
 import type { Member } from "./data";
@@ -73,6 +73,8 @@ export type Trainer = {
   daycare?: { creature: Creature; steps: number };
   /** Games started (city ids): their opening has played */
   started?: string[];
+  /** Where the game was last saved, per game (city id): the map ("" outside), tile and facing. Playing again starts there */
+  places?: Record<string, { area: string; x: number; y: number; dir: Direction }>;
   /** Exp. Share turned on: Pokémon that didn't battle get half the experience too */
   share?: boolean;
   /** Steps left before a repel wears off, and the repel used (to offer another) */
@@ -509,6 +511,7 @@ export const trainer = {
     delete profile.story?.[city];
     profile.defeated = profile.defeated.filter((key) => !key.startsWith(`${city}:`));
     profile.started = profile.started?.filter((id) => id !== city);
+    delete profile.places?.[city];
     this.save();
   },
 

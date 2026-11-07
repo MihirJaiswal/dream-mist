@@ -2,6 +2,7 @@
 
 import { bag, party } from "@/components/editor/gba-screens";
 import { card, journalDialog, pokedex, townMap } from "@/components/editor/trainer-dialogs";
+import { session } from "@/game/session";
 import { trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
@@ -43,7 +44,7 @@ function entries() {
     {
       label: "Save",
       open: async () => {
-        trainer.save();
+        session.saveGame();
         toast.success(`${trainer.profile?.name ?? "You"} saved the game.`);
       },
     },

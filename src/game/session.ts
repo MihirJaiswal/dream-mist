@@ -200,7 +200,7 @@ export class Session {
   }
 
   /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
-  async setMode(mode: "edit" | "play", from: null | { x: number; y: number } = null): Promise<void> {
+  async setMode(mode: "edit" | "play", from: null | { x: number; y: number; dir?: Direction } = null): Promise<void> {
     //A new game: the Professor's opening (a new trainer picks their look and name there), when there's no trainer yet or the game has a speech
     //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose or turned the Professor's gift off
     const fresh = mode === "play" && this.mode !== "play" && !trainer.profile?.started?.includes(this.city.id);
@@ -224,8 +224,16 @@ export class Session {
     if (mode === "play" && this.mode === "edit") {
       this.#building = { area: this.#areaId(), x: this.map.world.x, y: this.map.world.y, scale: this.map.world.scale.x };
     }
-    //It starts in the game's first map (and visitors always start there)
-    if (mode === "play" && !from && (fresh || this.visiting) && trainer.profile) {
+    //A saved game goes on where it was saved, a new one starts in the game's first map (visitors without a save start there too)
+    const saved = mode === "play" && !from && this.mode !== "play" && !fresh ? trainer.profile?.places?.[this.city.id] : undefined;
+    const resume = saved && area(this.city, saved.area);
+    if (saved && resume) {
+      if (resume !== this.area) {
+        this.area = resume;
+        this.map.load(resume);
+      }
+      from = this.map.inside(saved) ? saved : null;
+    } else if (mode === "play" && !from && (fresh || this.visiting) && trainer.profile) {
       trainer.profile.started = [...new Set([...(trainer.profile.started ?? []), this.city.id])];
       trainer.save();
       const start = area(this.city, this.city.start ?? "");
@@ -255,7 +263,7 @@ export class Session {
       }
     } else {
       this.map.scale(3);
-      this.#play(from ? { ...from, dir: "down" } : null);
+      this.#play(from ? { dir: "down", ...from } : null);
     }
     this.#scene();
     this.notify();
@@ -309,6 +317,15 @@ export class Session {
   /** Id of the open map ("" = outside) */
   #areaId() {
     return this.area === this.city ? "" : this.area.id;
+  }
+
+  /** Save the game: the trainer's progress, and where they stand to go on from there next time */
+  saveGame() {
+    const profile = trainer.profile;
+    if (profile && this.play) {
+      profile.places = { ...profile.places, [this.city.id]: { area: this.#areaId(), ...this.play.place } };
+    }
+    trainer.save();
   }
 
   /** Play from a tile of the open map (the spawn when none is given) */
