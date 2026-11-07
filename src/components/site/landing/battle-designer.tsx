@@ -72,6 +72,29 @@ const levels = [
   { key: "hard", label: "Hard", hint: "Always uses the move that hurts most." },
 ];
 
+/** Centers of the 64×64 Pokémon sprites on the 240×112 battle scene (single, then double), as in Emerald */
+const foeSpots = [
+  [[176, 40]],
+  [
+    [148, 38],
+    [204, 42],
+  ],
+];
+const allySpots = [
+  [[72, 80]],
+  [
+    [44, 80],
+    [100, 84],
+  ],
+];
+
+/** Place a sprite by its center on the scene, in percentages so it scales with it */
+const place = ([x, y]: number[]) => ({
+  left: `${((x - 32) / 240) * 100}%`,
+  top: `${((y - 32) / 112) * 100}%`,
+  width: `${(64 / 240) * 100}%`,
+});
+
 /** A labeled row of pixel toggle buttons */
 function Choice<T extends string>({
   label,
@@ -138,17 +161,13 @@ export function BattleDesigner() {
           <div className="relative aspect-[240/112] overflow-hidden border-4 border-[#0b0616] bg-[#0e0820]" aria-hidden="true">
             <img src={`/game/battle/${scene}.png`} alt="" className="pixelated absolute inset-0 size-full object-cover" />
             {overlay ? <div className={cn("pointer-events-none absolute inset-0", overlay)} /> : null}
-            {/* Their Pokémon on the far ground, yours with its back turned */}
-            <div className="absolute right-[6%] top-[8%] flex w-[44%] justify-center">
-              {foes.map(({ id }) => (
-                <img key={id} src={sprite(id)} alt="" width={64} height={64} className="pixelated w-1/2 max-w-32" />
-              ))}
-            </div>
-            <div className="absolute -bottom-[4%] left-[6%] flex w-[44%] justify-center">
-              {(double === "double" ? [258, 252] : [258]).map((id) => (
-                <img key={id} src={back(id)} alt="" width={64} height={64} className="pixelated w-1/2 max-w-36" />
-              ))}
-            </div>
+            {/* Their Pokémon on the far platform, yours with its back turned on the near one, where Emerald draws them */}
+            {foes.map(({ id }, i) => (
+              <img key={id} src={sprite(id)} alt="" width={64} height={64} className="pixelated absolute" style={place(foeSpots[foes.length - 1][i])} />
+            ))}
+            {(double === "double" ? [258, 252] : [258]).map((id, i, all) => (
+              <img key={id} src={back(id)} alt="" width={64} height={64} className="pixelated absolute" style={place(allySpots[all.length - 1][i])} />
+            ))}
             <span className="absolute left-2 top-2 border-[3px] border-[#5a3a20] bg-[#f4e2b0] px-2 py-0.5 font-game text-[12px] font-bold text-[#4a3018] shadow-[2px_2px_0_rgb(0_0_0/0.4)] sm:text-[13px]">
               {trainer.name} · {levels.find(({ key }) => key === level)!.label}
             </span>
