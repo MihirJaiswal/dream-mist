@@ -128,7 +128,7 @@ export function GameFeel() {
       <Heading lead="All the little things from the Game Boy Advance games">
         It plays like <Pink>the real thing.</Pink>
       </Heading>
-      <div className="mx-auto mt-14 grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto mt-14 grid max-w-7xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <Tile accent="#f06aa6" title="Meet the Professor" screen={<Opening />}>
           A new game opens like Emerald: the Professor&apos;s welcome, boy or girl, your name, and a starter picked from his bag.
         </Tile>
