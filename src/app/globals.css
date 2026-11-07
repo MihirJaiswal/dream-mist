@@ -364,27 +364,6 @@ kbd {
     linear-gradient(transparent 0 22px, #2a1d4f 22px 24px, transparent 24px), #3d2f6e;
   box-shadow: 0 6px 0 #1a1033;
 }
-/* Rows of Pokémon sliding past each other */
-@keyframes slide-left {
-  to {
-    transform: translateX(-50%);
-  }
-}
-@keyframes slide-right {
-  from {
-    transform: translateX(-50%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-.slide-left {
-  animation: slide-left 50s linear infinite;
-}
-.slide-right {
-  animation: slide-right 50s linear infinite;
-}
-
 /* Stepped (choppy, retro) motion */
 @keyframes float {
   0%,
@@ -576,8 +555,6 @@ kbd {
   .float,
   .twinkle,
   .blink,
-  .slide-left,
-  .slide-right,
   .feel-ball,
   .feel-walker,
   .feel-ember,
