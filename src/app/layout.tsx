@@ -1,9 +1,10 @@
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { ScrollbarActivity } from "@/components/scrollbars";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Pixelify_Sans, Silkscreen } from "next/font/google";
 import type { ReactNode } from "react";
+import { siteDescription, siteName, siteTitle, siteUrl } from "@/lib/site";
 
 const plex = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
@@ -11,11 +12,27 @@ const pixel = Silkscreen({ subsets: ["latin"], weight: ["400"], variable: "--fon
 const game = Pixelify_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-pixelify" });
 
 export const metadata: Metadata = {
-  title: { default: "DreamMist: make your own Pokémon game", template: "%s | DreamMist" },
-  description:
-    "Make your own Pokémon game in the browser: real Gen 3 tiles, towns and routes, a story, trainers, gyms and battles. Share it with friends to play, like and fork.",
-  icons: { icon: "/site/dreammist.png" },
+  metadataBase: new URL(siteUrl),
+  title: { default: siteTitle, template: `%s | ${siteName}` },
+  description: siteDescription,
+  applicationName: siteName,
+  keywords: [
+    "Pokémon game maker",
+    "make your own Pokémon game",
+    "Pokémon fan game",
+    "Gen 3",
+    "Pokémon Emerald",
+    "RPG maker",
+    "browser game maker",
+    "pixel art",
+  ],
+  category: "games",
+  icons: { icon: "/site/dreammist.png", apple: "/site/dreammist.png" },
+  openGraph: { type: "website", siteName, locale: "en_US", title: siteTitle, description: siteDescription },
+  twitter: { card: "summary_large_image", title: siteTitle, description: siteDescription },
 };
+
+export const viewport: Viewport = { themeColor: "#140b2a", colorScheme: "dark" };
 
 /** Root layout (dark only, like the editor) */
 export default function RootLayout({ children }: { children: ReactNode }) {
