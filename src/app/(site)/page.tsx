@@ -27,14 +27,14 @@ function Landing() {
   return (
     <div className="night overflow-hidden" data-landing>
       <Hero />
-      <BattleStage />
-      <section className="px-4 py-16">
-        <StoryScrolls />
-      </section>
       <GameFeel />
+      <BattleStage />
       <BattleDesigner />
       <Features />
       <LatestCities />
+      <section className="px-4 py-16">
+        <StoryScrolls />
+      </section>
       <PressStart />
     </div>
   );
