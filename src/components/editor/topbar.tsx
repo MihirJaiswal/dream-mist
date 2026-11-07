@@ -144,9 +144,9 @@ export function Topbar() {
         <img src="/game/images/dreammist.png" alt="DreamMist" width={24} height={24} className="[image-rendering:pixelated]" />
       </a>
       {visiting ? (
-        <div className="min-w-0">
-          <b className="block truncate text-sm">{city.name}</b>
-          <small className="text-xs text-subtle-fg">{city.author ? `by ${city.author}` : ""}</small>
+        <div className="flex min-w-0 flex-col justify-center px-2 leading-tight">
+          <b className="truncate text-sm font-semibold">{city.name}</b>
+          {city.author ? <small className="truncate text-[11px] text-subtle-fg">by {city.author}</small> : null}
         </div>
       ) : (
         <TextInput
