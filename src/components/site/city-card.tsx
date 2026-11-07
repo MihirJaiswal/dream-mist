@@ -20,8 +20,8 @@ function short(value: number) {
   return value >= 1000 ? `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k` : `${value}`;
 }
 
-/** Published city card */
-export function CityCard({ city: initial, user }: { city: Card; user?: string | null }) {
+/** Published city card (`progress`: how far you got in it, for the games you're playing) */
+export function CityCard({ city: initial, user, progress }: { city: Card; user?: string | null; progress?: string }) {
   const [city, setCity] = useState(initial);
   const mine = city.mine ?? (Boolean(user) && city.owner === user);
   const meta = [
@@ -61,7 +61,7 @@ export function CityCard({ city: initial, user }: { city: Card; user?: string | 
             {mine ? <Badge className="bg-[#f06aa6] text-[#2a0a1e]">Yours</Badge> : null}
           </div>
           <p className="font-game text-[13px] text-[#8a7bb8]">
-            by {city.owner} · {ago(city.publishedAt)}
+            by {city.owner} · {ago(city.publishedAt || city.updated)}
           </p>
           {city.description ? <p className="line-clamp-2 font-game text-[14px] text-[#c9b8f5]">{city.description}</p> : null}
           {city.forkOf ? (
@@ -70,6 +70,7 @@ export function CityCard({ city: initial, user }: { city: Card; user?: string | 
             </a>
           ) : null}
           <div className="flex flex-wrap gap-1">
+            {progress ? <Badge className="bg-[#b9a6ff] text-[#1c1240]">{progress}</Badge> : null}
             {meta.map((text) => (
               <Badge key={text}>{text}</Badge>
             ))}
@@ -77,7 +78,7 @@ export function CityCard({ city: initial, user }: { city: Card; user?: string | 
           <div className="mt-auto flex items-center gap-2.5 pt-4">
             <PixelButton href={edit(`visit=${city.id}`)} small>
               <span className="inline-flex items-center gap-1.5">
-                <Play weight="fill" size={11} /> Play
+                <Play weight="fill" size={11} /> {progress ? "Continue" : "Play"}
               </span>
             </PixelButton>
             {mine ? (

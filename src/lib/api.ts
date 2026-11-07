@@ -89,3 +89,34 @@ export async function like(id: string) {
   }
   return data as { liked: boolean; likes: number };
 }
+
+/** Cities of the signed-in account (owned or joined as a builder), last edited first */
+export async function myCities() {
+  const { data, error } = await supabase().rpc("my_cities");
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data as Card[];
+}
+
+/** Progress in a game someone else made: badges won there and story steps done */
+export type Playing = { city: Card; badges: number; steps: number };
+
+/** Games the signed-in trainer started, most recent first (their account save, or this browser's) */
+export async function playing(cards: Card[]): Promise<Playing[]> {
+  type Save = { started?: string[]; badges?: { world?: string }[]; story?: Record<string, string[]> };
+  const { data } = await supabase().from("trainers").select("data").maybeSingle();
+  let save = (data?.data ?? null) as Save | null;
+  if (!save) {
+    try {
+      save = JSON.parse(localStorage.getItem("dreammist.trainer") ?? "null");
+    } catch {
+      save = null;
+    }
+  }
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  return [...(save?.started ?? [])].reverse().flatMap((id) => {
+    const city = byId.get(id);
+    return city ? [{ city, badges: save!.badges?.filter(({ world }) => world === id).length ?? 0, steps: save!.story?.[id]?.length ?? 0 }] : [];
+  });
+}
