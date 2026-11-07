@@ -216,7 +216,7 @@ function OpeningScene({ options, close }: { options: Opening; close: () => void 
         await say(`${name}, you'll need a Pokémon by your side out there.\n\nTake one from my bag!`);
         const partner = starters[await starterScreen(starters, { message: "Choose a Pokémon to be your partner." })] ?? starters[0];
         session.givePartner(partner);
-        sound.play("victory");
+        sound.jingle("victory");
         await say(`${name} received ${species(partner).name}!`);
       }
       //A game that hands out its own starter: tell them to go and get it
@@ -435,7 +435,7 @@ function EvolutionScene({ creature, into, cancel, close }: { creature: Creature;
       }
       setAfter(true);
       setPhase("done");
-      sound.play("victory");
+      sound.jingle("victory");
       await say(`Congratulations! Your ${name} evolved into ${species(into).name}!`);
       close(true);
     })();

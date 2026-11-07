@@ -1289,7 +1289,7 @@ export class Battle {
       }
       for (const message of messages) {
         if (message.includes("grew")) {
-          sound.play("victory");
+          sound.jingle("victory");
         }
         await this.#say(message);
       }
@@ -1317,6 +1317,8 @@ export class Battle {
     if (this.#standing("foe").length) {
       return null;
     }
+    //The battle music ends with the fight (the town's comes back as the battle closes)
+    sound.stop();
     sound.play("victory");
     if (this.#opponent) {
       await this.#say(`You defeated ${this.#opponent.name}!`);
@@ -1444,6 +1446,7 @@ export class Battle {
     if (shakes >= 4) {
       this.view.ball = { state: "caught", key: ++key, kind };
       this.#emit();
+      sound.stop();
       sound.play("victory");
       await this.#say(`Gotcha! ${named(this.#foe)} was caught!`);
       //Raid bosses keep the name of their den

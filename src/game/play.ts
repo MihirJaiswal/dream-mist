@@ -1478,7 +1478,7 @@ export class Play {
         if (action.item in items && action.count > 0) {
           trainer.give(action.item, action.count);
           trainer.save();
-          sound.play("victory");
+          sound.jingle("victory");
           await ui.say(`${profile.name} received ${itemCount(action.item, action.count)}!`);
         }
         return true;
@@ -1492,7 +1492,7 @@ export class Play {
           const creature = create(id, action.level, { shiny: false });
           const where = trainer.catch(creature);
           trainer.save();
-          sound.play("victory");
+          sound.jingle("victory");
           await ui.say(`${profile.name} received ${species(id).name}!`);
           await nickname(creature, field, "received");
           if (where === "box") {
@@ -1537,7 +1537,7 @@ export class Play {
       case "heal": {
         trainer.heal();
         trainer.save();
-        sound.play("victory");
+        sound.jingle("victory");
         await ui.say("Your Pokémon are fully healed!");
         return true;
       }
@@ -1670,7 +1670,7 @@ export class Play {
     if (id && species(id)) {
       const creature = create(id, level, { shiny: false });
       const where = trainer.catch(creature);
-      sound.play("victory");
+      sound.jingle("victory");
       await ui.say(`${profile.name} received ${species(id).name}!${where === "box" ? "\n\nIt was sent to the PC box." : ""}`);
     }
     if (balls || potions) {
@@ -1714,7 +1714,7 @@ export class Play {
       profile.picked = { ...profile.picked, [this.#key(index)]: Date.now() };
       trainer.save();
       this.#refresh();
-      sound.play("victory");
+      sound.jingle("victory");
       await ui.say(`${profile.name} picked ${itemCount(item, count)}!`);
       await this.#progress(data);
       return;
@@ -1726,7 +1726,7 @@ export class Play {
     profile.received = [...(profile.received ?? []), this.#key(index)];
     trainer.save();
     this.#refresh();
-    sound.play("victory");
+    sound.jingle("victory");
     await ui.say(`${profile.name} found ${itemCount(data.gift.item, data.gift.count)}!`);
     await this.#progress(data);
   }
@@ -1883,7 +1883,7 @@ export class Play {
       trainer.give(data.gift.item, data.gift.count);
       profile.received = [...(profile.received ?? []), this.#key(index)];
       trainer.save();
-      sound.play("victory");
+      sound.jingle("victory");
       await ui.say(`${profile.name} received ${itemCount(data.gift.item, data.gift.count)}!`);
     }
     await this.#progress(data);
@@ -1947,7 +1947,7 @@ export class Play {
       delete profile.daycare;
       const where = trainer.catch(raised);
       trainer.save();
-      sound.play("victory");
+      sound.jingle("victory");
       await ui.say(`${profile.name} got ${name} back from the Day Care.${where === "box" ? "\n\nIt was sent to the PC box." : ""}`, voice);
       for (const message of messages.filter((line) => line.includes("learned"))) {
         await ui.say(message);
@@ -2010,7 +2010,7 @@ export class Play {
     //They flash bright while the jingle plays
     const glow = new PIXI.filters.ColorMatrixFilter();
     glow.brightness(1.9, false);
-    sound.play("victory");
+    sound.jingle("victory");
     for (let flash = 0; flash < 6; flash++) {
       balls.forEach((ball) => (ball.filters = flash % 2 ? null : [glow]));
       await wait(260);
