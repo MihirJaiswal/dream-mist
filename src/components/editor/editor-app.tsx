@@ -91,7 +91,11 @@ export function EditorApp() {
   const tools = session.ready && !session.visiting;
   return (
     <TooltipProvider delayDuration={350}>
-      <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+      <div
+        className="flex h-dvh flex-col overflow-hidden bg-background text-foreground"
+        data-topbar={session.ready ? "" : undefined}
+        data-statusbar={tools ? "" : undefined}
+      >
         {session.ready ? <Topbar /> : null}
         <main className="flex min-h-0 flex-1">
           {edit && panels ? <ToolRail /> : null}

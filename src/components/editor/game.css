@@ -2729,14 +2729,24 @@
 }
 
 /* New game: the Professor (then the player) on a platform over the Emerald opening's teal */
-/* The new game's opening fills the space between the editor's top bar (h-12) and status bar (h-7), on black like a GBA screen */
+/* Full-screen scenes (the new game's opening, the title screen) fill the window around whichever of the editor's bars are showing
+   (the top bar is h-12, the status bar h-7; while the game loads there are none), on black like a GBA screen */
 .gba-screen.gba-full {
-  inset: 48px 0 28px;
+  --bars: 0px;
+  inset: 0;
   padding: 0;
   background: #000;
 }
+body:has([data-topbar]) .gba-screen.gba-full {
+  --bars: 48px;
+  top: 48px;
+}
+body:has([data-statusbar]) .gba-screen.gba-full {
+  --bars: 76px;
+  bottom: 28px;
+}
 .gba-full .gba-frame {
-  width: min(100%, calc((100vh - 76px) * 1.5));
+  width: min(100%, calc((100dvh - var(--bars)) * 1.5));
   border-radius: 0;
   box-shadow: none;
 }
