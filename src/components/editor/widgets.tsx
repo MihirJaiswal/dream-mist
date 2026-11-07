@@ -130,7 +130,8 @@ export function Tip({
       <TooltipContent side={side} className="max-w-60">
         <div className="flex items-center gap-2">
           <span className="font-medium">{label}</span>
-          {shortcut ? <kbd className="rounded border border-white/20 px-1 font-mono text-[10px] opacity-80">{shortcut}</kbd> : null}
+          {/* `!`: the global kbd style (outside Tailwind's layers) is grey for dark backgrounds, and this tooltip is light */}
+          {shortcut ? <kbd className="rounded border-background/30! px-1 font-mono text-[10px] font-semibold text-background!">{shortcut}</kbd> : null}
         </div>
         {description ? <p className="mt-0.5 text-[11px] opacity-75">{description}</p> : null}
       </TooltipContent>

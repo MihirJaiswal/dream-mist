@@ -22,6 +22,7 @@ import {
   Check,
   ClockCounterClockwise,
   Cloud,
+  DotsThree,
   DownloadSimple,
   Export,
   Folder,
@@ -36,23 +37,25 @@ import {
   PencilSimple,
   Play,
   Plus,
+  ShareNetwork,
   Sparkle,
   SpeakerHigh,
   SpeakerSlash,
   Upload,
   Warning,
 } from "@phosphor-icons/react";
+import { Fragment, type ReactNode } from "react";
 import { toast } from "sonner";
 
 /** Where the city is saved, and what to do about it */
 function SaveBadge() {
   const session = useSession();
-  const pill = "flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs";
+  const pill = "grid size-7 shrink-0 place-items-center rounded-full border";
   if (session.room) {
     return (
-      <span title="Live room" className={cn(pill, "border-transparent text-success")}>
+      <span title="Live room: everyone here builds together" className={cn(pill, "border-transparent text-success")}>
         <Cloud size={13} />
-        <span className="hidden lg:inline">Live</span>
+        <span className="sr-only">Live</span>
       </span>
     );
   }
@@ -61,7 +64,7 @@ function SaveBadge() {
       <Tip label={session.online.mine ? "Saved to your account" : "Saved to the owner's account"} description="Changes save on their own">
         <button onClick={() => cities()} className={cn(pill, "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground")}>
           <Cloud size={13} />
-          <span className="hidden lg:inline">Saved</span>
+          <span className="sr-only">Saved</span>
         </button>
       </Tip>
     );
@@ -70,7 +73,7 @@ function SaveBadge() {
     return (
       <span title="Saved on this device" className={cn(pill, "border-transparent text-muted-foreground")}>
         <Folder size={13} />
-        <span className="hidden lg:inline">Saved on this device</span>
+        <span className="sr-only">Saved on this device</span>
       </span>
     );
   }
@@ -82,7 +85,7 @@ function SaveBadge() {
           className={cn(pill, "border-select/35 bg-select/10 text-select hover:bg-select/20")}
         >
           <Upload size={13} />
-          <span className="hidden lg:inline">Save to account</span>
+          <span className="sr-only">Save to account</span>
         </button>
       </Tip>
     );
@@ -91,7 +94,7 @@ function SaveBadge() {
     <Tip label="Only saved in this browser" description="Log in so you don't lose it">
       <button onClick={() => signIn("save")} className={cn(pill, "border-select/35 bg-select/10 text-select hover:bg-select/20")}>
         <Warning size={13} />
-        <span className="hidden lg:inline">Only on this device</span>
+        <span className="sr-only">Only on this device</span>
       </button>
     </Tip>
   );
@@ -104,9 +107,40 @@ export function Topbar() {
   if (!city) {
     return null;
   }
+  const published = Boolean(session.online?.published);
+  //Top bar actions: icons on wide screens, a menu on phones (the play tools only show while playing)
+  const actions: { label: string; description: string; shortcut?: string; icon: ReactNode; onClick: () => void; separate?: boolean }[] = [
+    {
+      label: "Search commands",
+      description: "Find any action, tool, stamp, map or person",
+      shortcut: "⌘K",
+      icon: <MagnifyingGlass size={17} />,
+      onClick: openSearch,
+    },
+    ...(mode === "play"
+      ? [
+          { label: "Party", description: "Your Pokémon, PC box and bag", icon: <Backpack size={17} />, onClick: () => party(), separate: true },
+          { label: "Journal", description: "What to do next, and your side quests (J)", icon: <Notebook size={17} />, onClick: () => journalDialog() },
+          { label: "Pokémon here", description: "Wild Pokémon living on this map (N)", icon: <PawPrint size={17} />, onClick: () => wildDialog() },
+          { label: "Town Map", description: "Where you are in the town (M)", icon: <MapTrifold size={17} />, onClick: () => townMap() },
+          { label: "Trainer card", description: "Badges, Pokédex and progress", icon: <IdentificationCard size={17} />, onClick: () => card() },
+        ]
+      : []),
+    ...(visiting
+      ? []
+      : [
+          { label: "Share", description: "Share or invite friends", icon: <ShareNetwork size={17} />, onClick: () => share(), separate: true },
+          {
+            label: published ? "Published on Explore" : "Publish",
+            description: published ? "Update or unpublish your city on Explore" : "Share your finished city on Explore",
+            icon: published ? <Check size={17} /> : <Export size={17} />,
+            onClick: () => publish(),
+          },
+        ]),
+  ];
   return (
-    <header className="relative flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-2">
-      <a href="/" title="DreamMist home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-muted">
+    <header className="relative flex h-12 shrink-0 items-center gap-1 border-b border-border bg-card px-2">
+      <a href="/" title="DreamMist home" className="hidden size-9 shrink-0 place-items-center rounded-md hover:bg-muted sm:grid">
         <img src="/game/images/dreammist.png" alt="DreamMist" width={24} height={24} className="[image-rendering:pixelated]" />
       </a>
       {visiting ? (
@@ -121,7 +155,7 @@ export function Topbar() {
           value={city.name}
           maxLength={40}
           onCommit={(name) => session.rename(name)}
-          className="h-8 w-28 shrink-0 border-transparent bg-transparent px-2 font-semibold shadow-none md:w-44 hover:border-input focus-visible:border-input"
+          className="h-8 w-24 shrink-0 border-transparent sm:w-28 bg-transparent px-2 font-semibold shadow-none md:w-44 hover:border-input focus-visible:border-input"
         />
       )}
       <DropdownMenu>
@@ -233,47 +267,36 @@ export function Topbar() {
         </button>
       </div>
 
-      <div className="ml-auto flex items-center gap-1.5">
-        <Tip label="Search commands" shortcut="⌘K" description="Find any action, tool, stamp, map or person">
-          <Button variant="ghost" size="icon" aria-label="Search commands" onClick={openSearch}>
-            <MagnifyingGlass size={17} />
-          </Button>
-        </Tip>
-        {mode === "play" ? (
-          <Tip label="Party" description="Your Pokémon, PC box and bag">
-            <Button variant="ghost" size="icon" aria-label="Party" onClick={() => party()}>
-              <Backpack size={17} />
+      <div className="ml-auto flex items-center gap-1">
+        {/* Wide screens: every action as an icon, named in its tooltip */}
+        <div className="hidden items-center gap-1 md:flex">
+          {actions.map(({ label, description, shortcut, icon, onClick }) => (
+            <Tip key={label} label={label} description={description} shortcut={shortcut}>
+              <Button variant="ghost" size="icon" aria-label={label} onClick={onClick}>
+                {icon}
+              </Button>
+            </Tip>
+          ))}
+        </div>
+        {/* Phones: the same actions in one menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="md:hidden" aria-label="More">
+              <DotsThree size={20} weight="bold" />
             </Button>
-          </Tip>
-        ) : null}
-        {mode === "play" ? (
-          <Tip label="Journal" description="What to do next, and your side quests (J)">
-            <Button variant="ghost" size="icon" aria-label="Journal" onClick={() => journalDialog()}>
-              <Notebook size={17} />
-            </Button>
-          </Tip>
-        ) : null}
-        {mode === "play" ? (
-          <Tip label="Pokémon here" description="Wild Pokémon living on this map (N)">
-            <Button variant="ghost" size="icon" aria-label="Pokémon here" onClick={() => wildDialog()}>
-              <PawPrint size={17} />
-            </Button>
-          </Tip>
-        ) : null}
-        {mode === "play" ? (
-          <Tip label="Town Map" description="Where you are in the town (M)">
-            <Button variant="ghost" size="icon" aria-label="Town Map" onClick={() => townMap()}>
-              <MapTrifold size={17} />
-            </Button>
-          </Tip>
-        ) : null}
-        {mode === "play" ? (
-          <Tip label="Trainer card" description="Badges, Pokédex and progress">
-            <Button variant="ghost" size="icon" aria-label="Trainer card" onClick={() => card()}>
-              <IdentificationCard size={17} />
-            </Button>
-          </Tip>
-        ) : null}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {actions.map(({ label, icon, onClick, separate }) => (
+              <Fragment key={label}>
+                {separate ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem onSelect={onClick}>
+                  {icon}
+                  {label}
+                </DropdownMenuItem>
+              </Fragment>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         {live ? (
           <button title="Builders in this room" onClick={() => room()} className="flex items-center -space-x-1.5 rounded-full px-1 hover:bg-muted">
             {[live.you, ...live.peers.values()].slice(0, 4).map((peer) => (
@@ -294,45 +317,30 @@ export function Topbar() {
             />
           </button>
         ) : null}
-        {visiting ? null : (
-          <Tip
-            label={session.online?.published ? "Published on Explore" : "Publish"}
-            description={session.online?.published ? "Update or unpublish your city on Explore" : "Share your finished city on Explore"}
-          >
-            <Button variant="ghost" size="sm" onClick={() => publish()}>
-              {session.online?.published ? <Check /> : <Export />}
-              <span className="hidden sm:inline">{session.online?.published ? "Published" : "Publish"}</span>
-            </Button>
-          </Tip>
-        )}
         {visiting ? (
           <Tip label="Fork" description="Make your own copy to build on top of">
             <Button size="sm" onClick={() => session.remix()}>
               <GitFork />
-              Fork
+              <span className="hidden sm:inline">Fork</span>
             </Button>
           </Tip>
-        ) : (
-          <Tip label="Share" description="Share or invite friends">
-            <Button size="sm" onClick={() => share()}>
-              Share
-            </Button>
-          </Tip>
-        )}
+        ) : null}
         {cloud.available ? (
           cloud.user ? (
             <Tip label={`Signed in as ${cloud.user.username}`}>
               <button
                 onClick={() => profile(cities)}
-                className="grid size-8 place-items-center rounded-full bg-foreground text-sm font-semibold text-background"
+                className="ml-1 grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-sm font-semibold text-background"
               >
                 {cloud.user.username[0].toUpperCase()}
               </button>
             </Tip>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => signIn()}>
-              Log in
-            </Button>
+            <Tip label="Log in" description="Keep your towns safe and open them on any device">
+              <Button size="sm" className="ml-1" onClick={() => signIn()}>
+                Log in
+              </Button>
+            </Tip>
           )
         ) : null}
       </div>
