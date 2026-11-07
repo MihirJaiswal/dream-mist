@@ -1,3 +1,4 @@
+import { LoginHost } from "@/components/login";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { source } from "@/lib/source";
@@ -5,7 +6,7 @@ import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
-/** Docs layout: the site header on top, then the Fumadocs sidebar, page and table of contents, and the site footer */
+/** Docs layout: the site header on top, then the Fumadocs sidebar, page and table of contents, and the site footer (plus the login window the header's "Log in" opens) */
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <>
@@ -29,6 +30,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </DocsLayout>
       <SiteFooter />
+      <LoginHost />
     </>
   );
 }
