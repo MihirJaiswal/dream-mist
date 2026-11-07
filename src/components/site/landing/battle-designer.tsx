@@ -47,12 +47,12 @@ const trainers = [
   },
 ];
 
-/** Weather over the scene, the way the battle draws it */
+/** Weather over the scene, moving the way the games draw it (styles in globals.css) */
 const weathers = [
   { key: "clear", label: "Clear", overlay: "" },
-  { key: "rain", label: "Rain", overlay: "bg-[repeating-linear-gradient(105deg,transparent_0_14px,rgb(190_215_255/0.6)_14px_16px)] bg-[#18305a]/40" },
-  { key: "sand", label: "Sandstorm", overlay: "bg-[radial-gradient(rgb(240_200_120/0.5)_1px,transparent_2px)] bg-[length:9px_7px] bg-[#c09048]/35" },
-  { key: "snow", label: "Snow", overlay: "bg-[radial-gradient(#fff_1.5px,transparent_2.5px)] bg-[length:22px_18px] bg-[#c8d8f0]/20" },
+  { key: "rain", label: "Rain", overlay: "weather-rain" },
+  { key: "sand", label: "Sandstorm", overlay: "weather-sand" },
+  { key: "snow", label: "Snow", overlay: "weather-snow" },
 ];
 
 /** A few of the Emerald battle scenes */
@@ -132,12 +132,12 @@ export function BattleDesigner() {
         Pick their team, the scene, the weather and how smart they are. Try it here, then do it for real in the editor.
       </p>
 
-      <div className="mx-auto mt-12 grid max-w-6xl border-4 border-[#0b0616] bg-[#1d1038] shadow-[inset_0_4px_0_#3f2c74,6px_6px_0_#0b0616] lg:grid-cols-[1.25fr_1fr]">
+      <div className="mx-auto mt-12 grid max-w-7xl border-4 border-[#0b0616] bg-[#1d1038] shadow-[inset_0_4px_0_#3f2c74,6px_6px_0_#0b0616] lg:grid-cols-[1.25fr_1fr]">
         {/* The battle as it will look */}
         <div className="flex flex-col justify-center p-3 lg:pr-0">
           <div className="relative aspect-[240/112] overflow-hidden border-4 border-[#0b0616] bg-[#0e0820]" aria-hidden="true">
             <img src={`/game/battle/${scene}.png`} alt="" className="pixelated absolute inset-0 size-full object-cover" />
-            <div className={cn("absolute inset-0", overlay)} />
+            {overlay ? <div className={cn("pointer-events-none absolute inset-0", overlay)} /> : null}
             {/* Their Pokémon on the far ground, yours with its back turned */}
             <div className="absolute right-[6%] top-[8%] flex w-[44%] justify-center">
               {foes.map(({ id }) => (
