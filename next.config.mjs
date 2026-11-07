@@ -1,3 +1,4 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import { createMDX } from "fumadocs-mdx/next";
 
 /** @type {import("next").NextConfig} */
@@ -9,3 +10,6 @@ const config = {
 };
 
 export default createMDX()(config);
+
+//Gives `next dev` the Cloudflare bindings from wrangler.jsonc
+initOpenNextCloudflareForDev();
