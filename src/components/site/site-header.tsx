@@ -2,10 +2,19 @@
 
 import { openLogin } from "@/components/login";
 import { PixelButton } from "@/components/site/landing/pixel";
-import { edit, me } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { edit, logout, me } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { BookOpen, Compass, House, PencilSimple, SignOut } from "@phosphor-icons/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 /** Navigation links */
@@ -17,10 +26,23 @@ const links = [
 /** Site header: the night sky's top edge, with the pink logo and a pixel button into the editor */
 export function SiteHeader() {
   const path = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState<{ username: string } | null | undefined>(undefined);
   useEffect(() => {
-    me().then(setUser);
-  }, []);
+    me().then((account) => {
+      setUser(account);
+      //Signed in, but the server showed the landing page (a session that just moved to cookies): show the home instead
+      if (account && location.pathname === "/" && document.querySelector("[data-landing]")) {
+        router.refresh();
+      }
+    });
+  }, [router]);
+  const leave = async () => {
+    await logout().catch(() => null);
+    setUser(null);
+    router.push("/");
+    router.refresh();
+  };
   return (
     <header className="sticky top-0 z-30 border-b-[3px] border-[#2d1a52] bg-[#130f2e] backdrop-blur">
       <div className="flex h-16 items-center gap-4 px-4 sm:gap-8 md:px-8">
@@ -48,13 +70,51 @@ export function SiteHeader() {
           })}
         </nav>
         {user ? (
-          <a
-            href={edit()}
-            title={`Signed in as ${user.username}`}
-            className="stepped grid size-9 shrink-0 place-items-center bg-[#b9a6ff] font-pixel text-[13px] text-[#1c1240]"
-          >
-            {user.username[0].toUpperCase()}
-          </a>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              title={`Signed in as ${user.username}`}
+              aria-label="Account menu"
+              className="stepped grid size-9 shrink-0 place-items-center bg-[#b9a6ff] font-pixel text-[13px] text-[#1c1240] outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-[#f06aa6]"
+            >
+              {user.username[0].toUpperCase()}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <span className="block text-xs text-muted-foreground">Signed in as</span>
+                <span className="block truncate font-semibold">{user.username}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/">
+                  <House />
+                  Your games and cities
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={edit()}>
+                  <PencilSimple />
+                  Open the editor
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/explore">
+                  <Compass />
+                  Explore games
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/docs">
+                  <BookOpen />
+                  Docs
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void leave()}>
+                <SignOut />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : user === null ? (
           <button onClick={() => openLogin()} className="shrink-0 font-pixel text-[12px] uppercase tracking-wide text-[#c9b8f5] hover:text-white">
             Log in

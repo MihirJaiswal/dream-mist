@@ -667,14 +667,3 @@ kbd {
     transform: scale(1.03);
   }
 }
-
-/* Home: signed-in players see their games and cities instead of the landing page (the flag is set before paint from the saved session) */
-.signed-in-home {
-  display: none;
-}
-html[data-signed-in] .signed-in-home {
-  display: block;
-}
-html[data-signed-in] .landing {
-  display: none;
-}

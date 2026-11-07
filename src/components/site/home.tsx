@@ -6,25 +6,17 @@ import { type Card, edit, explore, me, myCities, type Playing, playing } from "@
 import { Compass, Plus } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useState } from "react";
 
-/** Before paint: a saved Supabase session shows the signed-in home instead of the landing page (no flash of the landing for players) */
-export const signedInProbe = `try{if(Object.keys(localStorage).some(function(k){return /^sb-.+-auth-token$/.test(k)}))document.documentElement.dataset.signedIn=""}catch(e){}`;
-
-/** Show the landing page again (signed out, expired session, or online features unreachable) */
-function landing() {
-  delete document.documentElement.dataset.signedIn;
-}
-
-/** Signed-in home, like a dashboard: the games you're playing and your cities (hidden by CSS for visitors) */
-export function SignedInHome() {
+/** Signed-in home, like a dashboard: the games you're playing and your cities (`fallback` when the session turns out to be gone) */
+export function SignedInHome({ fallback }: { fallback: ReactNode }) {
   const [user, setUser] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
   const [cities, setCities] = useState<Card[] | null>(null);
   const [games, setGames] = useState<Playing[] | null>(null);
   useEffect(() => {
     me().then(async (account) => {
       if (!account) {
-        return landing();
+        return setGone(true);
       }
-      document.documentElement.dataset.signedIn = "";
       setUser(account.username);
       const [mine, published] = await Promise.all([myCities().catch(() => []), explore().catch(() => [])]);
       setCities(mine);
@@ -33,8 +25,11 @@ export function SignedInHome() {
       setGames(await playing(published.filter(({ id }) => !own.has(id))).catch(() => []));
     });
   }, []);
+  if (gone) {
+    return fallback;
+  }
   return (
-    <div className="signed-in-home mx-auto max-w-7xl px-4 pb-24 pt-12 md:px-6">
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-12 md:px-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-0 flex-1">
           <p className="font-game text-[15px] text-[#8a7bb8]">Welcome back,</p>
