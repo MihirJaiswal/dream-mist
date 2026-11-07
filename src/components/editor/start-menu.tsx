@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
-/** Start menu, like the Game Boy Advance games: opened with Enter in play mode, closed with X, Escape or EXIT */
+/** Start menu, like the Game Boy Advance games: opened with Enter in play mode, closed with X, Escape or Exit */
 let pending = null as null | (() => void);
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => (listeners.add(listener), () => void listeners.delete(listener));
@@ -30,24 +30,24 @@ export function close() {
   done?.();
 }
 
-/** Entries, in the games' order (EXIT closes the menu) */
+/** Entries, in the games' order (Exit closes the menu) */
 function entries() {
-  const name = (trainer.profile?.name ?? "Trainer").toUpperCase();
+  const name = trainer.profile?.name ?? "Trainer";
   return [
-    { label: "POKéDEX", open: pokedex },
-    { label: "POKéMON", open: () => party() },
-    { label: "BAG", open: () => bag() },
-    { label: "POKéNAV", open: townMap },
+    { label: "Pokédex", open: pokedex },
+    { label: "Pokémon", open: () => party() },
+    { label: "Bag", open: () => bag() },
+    { label: "PokéNav", open: townMap },
     { label: name, open: card },
-    { label: "JOURNAL", open: journalDialog },
+    { label: "Journal", open: journalDialog },
     {
-      label: "SAVE",
+      label: "Save",
       open: async () => {
         trainer.save();
         toast.success(`${trainer.profile?.name ?? "You"} saved the game.`);
       },
     },
-    { label: "EXIT", open: null },
+    { label: "Exit", open: null },
   ];
 }
 
@@ -74,7 +74,7 @@ export function StartMenu() {
     if (away) {
       return;
     }
-    const key = event.key.toLowerCase();
+    const key = event.key?.toLowerCase();
     const handled = ["arrowup", "arrowdown", "w", "s", "x", "escape", " ", "enter", "z", "e"];
     if (!handled.includes(key)) {
       return;

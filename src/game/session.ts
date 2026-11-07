@@ -1,6 +1,6 @@
 //Imports
 import * as PIXI from "pixi.js";
-import { load as loadAssets, size } from "./assets";
+import { load as loadAssets, size, warmSprites } from "./assets";
 import { sound } from "./audio";
 import { frames, starterDoors, template } from "./brushes";
 import { type Card, cloud, isCloudId } from "./cloud";
@@ -26,6 +26,8 @@ import {
   uid,
 } from "./data";
 import { EditorEngine } from "./editor/engine";
+import type { MapKind } from "./generator";
+import { living } from "./encounters";
 import { load as hoenn, type Section } from "./hoenn";
 import { CityMap } from "./map";
 import { Play, portraitOf } from "./play";
@@ -369,6 +371,13 @@ export class Session {
       live: () => Boolean(this.room),
     });
     this.play.start();
+    //Fetch the battle sprites of this map's wild Pokémon and of the lead now, so encounters don't wait on them
+    const found = living(this.area);
+    const lead = trainer.lead;
+    warmSprites([
+      ...[...found.walk, ...found.surf, ...found.fish].map(({ species }) => ({ id: species })),
+      ...(lead && !lead.art ? [{ id: lead.species, back: true, shiny: lead.shiny }] : []),
+    ]);
   }
 
   /** Walk off the edge of an outdoor map onto the map touching it there (false when there's none, or the way is blocked) */
@@ -1108,6 +1117,33 @@ export class Session {
       this.notify();
       return sheet;
     });
+  }
+
+  /**
+   * Generate a route or town from a seed next to the open outdoor map, give its buildings Emerald's rooms
+   * (their doors lead back to it) and open it. Null when there's no free space beside the map
+   */
+  async generateOutdoor(kind: MapKind, seed: string) {
+    const made = this.editor.generateOutdoor(kind, seed);
+    if (!made) {
+      return null;
+    }
+    for (const { room: key, door } of made.made.buildings) {
+      const room = await this.newInterior(key);
+      const entry = made.map.doors.find(({ x, y, to }) => x === door.x && y === door.y && to === "?");
+      if (entry) {
+        entry.to = room.id;
+      }
+      //Rooms lead out to the outside map by default: these lead back to the generated map
+      for (const back of room.doors) {
+        if (back.to === "") {
+          back.to = made.map.id;
+        }
+      }
+    }
+    this.openArea(made.map.id);
+    this.changed();
+    return made;
   }
 
   /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { openDialog } from "@/components/editor/dialogs";
+import { generateMap } from "@/components/editor/generate-map";
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { Hint } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { collides, edge, outdoors, type Placed, walkable } from "@/game/region";
 import { session } from "@/game/session";
 import { ui } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
-import { House, Path, Plus } from "@phosphor-icons/react";
+import { House, Path, Plus, Sparkle } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 
 /** Open the region map: the outside map, routes and other towns, joined where they touch */
@@ -151,7 +152,7 @@ function RegionMap({ close }: { close: () => void }) {
         </DialogHeader>
         <div className="overflow-auto rounded-lg border border-border bg-[#0a0a0a]">
           <div
-            className="relative"
+            className="relative mx-auto"
             style={{
               width: (maxX - minX) * scale,
               height: (maxY - minY) * scale,
@@ -222,6 +223,10 @@ function RegionMap({ close }: { close: () => void }) {
           <Button variant="outline" size="sm" onClick={() => (close(), addOutdoor("town"))}>
             <Plus />
             New town
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => (close(), generateMap())}>
+            <Sparkle />
+            Generate…
           </Button>
         </div>
       </DialogContent>

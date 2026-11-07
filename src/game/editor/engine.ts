@@ -3,11 +3,12 @@ import * as PIXI from "pixi.js";
 import { assets, columns, creatureSprite, layerOf, npc as texture, size, sprite } from "../assets";
 import { brushes, joint, piece, route, type Terrain, terrainOf, terrains, tops, town } from "../brushes";
 import { arrow, ICE } from "../behaviors";
-import { type Action, type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
+import { type Action, blank, type City, interior, outdoor, type Layer, layers, type Npc, type NpcStory, type Step, storage, type Trigger, uid } from "../data";
 import { berryTree, type CityMap, drawDen, itemBall } from "../map";
 import { flatten, reindex } from "../scripts";
 import { fields } from "../fields";
-import { collides, isOutdoor, type Side, spot } from "../region";
+import { collides, edge, isOutdoor, placement, type Side, spot, walkable } from "../region";
+import { generate, type Generated, type MapKind, sizeOf, townName } from "../generator";
 import { scaleOf } from "../sprites";
 import { buildRoom, type Interior } from "../interiors";
 import { custom as sheets, decode, encode, range, ruleOf } from "../tilesets";
@@ -971,7 +972,7 @@ export class EditorEngine {
     if ((event.target as HTMLElement)?.closest?.("input, textarea, select, [contenteditable]") || document.querySelector("[role=dialog], [role=alertdialog]")) {
       return;
     }
-    const key = event.key.toLowerCase();
+    const key = event.key?.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === "z") {
       event.preventDefault();
       return event.shiftKey ? this.redo() : this.undo();
@@ -1380,6 +1381,63 @@ export class EditorEngine {
       return { map: map!, side: place.side, beside };
     }
     return null;
+  }
+
+  /**
+   * Where a generated route or town goes next to the open outdoor map (or the outside map): its spot, size, name,
+   * the edge facing that map and the tiles along it the player can walk across there (the generator lines its way in up with them)
+   */
+  #generatedSpot(kind: MapKind, seed: string) {
+    const world = this.#world;
+    const beside = isOutdoor(world, this.#city) ? this.#city : world;
+    const facing = { up: "down", down: "up", left: "right", right: "left" } as const;
+    for (const side of (kind === "town" ? ["up", "right", "down", "left"] : ["up", "down", "right", "left"]) as Side[]) {
+      const entrance = facing[side];
+      const size = sizeOf(kind, entrance, seed);
+      const place = spot(world, size, beside, [side]);
+      if (!place) {
+        continue;
+      }
+      const self = { map: size as City, x: place.x, y: place.y };
+      const other = placement(world, beside)!;
+      const shared = edge(self, other);
+      const openings = (shared?.tiles ?? [])
+        .filter(({ x, y }) => walkable(beside, x + self.x - other.x + shared!.dx, y + self.y - other.y + shared!.dy))
+        .map(({ x, y }) => (entrance === "up" || entrance === "down" ? x : y));
+      const count = world.interiors.filter((map) => map.outdoor && map.name.startsWith("Route")).length;
+      const name = kind === "town" ? townName(seed) : `Route ${101 + count}`;
+      return { place, size, entrance, openings, name, beside };
+    }
+    return null;
+  }
+
+  /** A generated route or town as it would be made from a seed, without adding it (for previews) */
+  previewOutdoor(kind: MapKind, seed: string) {
+    const at = this.#generatedSpot(kind, seed);
+    if (!at) {
+      return null;
+    }
+    const map = blank({ ...at.size, name: at.name });
+    const made = generate(map, [...this.#world.zones], { kind, seed, entrance: at.entrance, openings: at.openings });
+    return { map, made, side: at.place.side, beside: at.beside };
+  }
+
+  /** Make a generated route or town next to the open outdoor map; its doors lead nowhere until their interiors are made */
+  generateOutdoor(kind: MapKind, seed: string) {
+    const at = this.#generatedSpot(kind, seed);
+    if (!at) {
+      return null;
+    }
+    const world = this.#world;
+    let map = null as null | City;
+    let made = null as null | Generated;
+    this.#town(() => {
+      map = outdoor(world, { name: at.name, ...at.size, x: at.place.x, y: at.place.y });
+      made = generate(map, world.zones, { kind, seed, entrance: at.entrance, openings: at.openings });
+    });
+    this.onmaps?.();
+    this.#notify();
+    return { map: map!, made: made!, side: at.place.side, beside: at.beside };
   }
 
   /** Move an outdoor map on the region grid (false when it would overlap another map) */

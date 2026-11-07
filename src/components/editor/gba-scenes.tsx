@@ -24,6 +24,39 @@ import { useEffect, useRef, useState } from "react";
 type Talk = { text: string; shown: number; menu: { options: string[]; cursor: number; back?: number } | null };
 
 /**
+ * Split a page into pages of at most two lines, the most the text box holds (like the games, a long sentence goes on after A).
+ * Measured in a hidden copy of the box inside the open scene, so the font and the screen's size are the real ones
+ */
+async function fit(page: string) {
+  const frames = document.querySelectorAll(".gba-screen .gba-frame");
+  const frame = frames[frames.length - 1];
+  if (!frame) {
+    return [page];
+  }
+  await document.fonts?.ready;
+  const box = frame.appendChild(Object.assign(document.createElement("div"), { className: "gba-text" }));
+  box.style.visibility = "hidden";
+  box.setAttribute("aria-hidden", "true");
+  const p = box.appendChild(document.createElement("p"));
+  p.textContent = "A";
+  const most = 2 * p.offsetHeight + 1;
+  const fits = (text: string) => ((p.textContent = text), p.offsetHeight <= most);
+  const pages = [] as string[];
+  let current = "";
+  for (const word of page.split(/ +/)) {
+    const longer = current ? `${current} ${word}` : word;
+    if (current && !fits(longer)) {
+      pages.push(current);
+      current = word;
+    } else {
+      current = longer;
+    }
+  }
+  box.remove();
+  return current ? [...pages, current] : pages;
+}
+
+/**
  * A scene's text box, driven by a script: `say` writes a page and waits for A, `pick` waits for a menu choice.
  * A shows a page at once while it's being written
  */
@@ -68,14 +101,22 @@ function useTalk(onKey?: (key: Key) => boolean) {
         };
       });
     return {
-      /** Write a text (blank lines split pages), each page waiting for A */
+      /** Write a text (blank lines split pages, and pages too long for the box go on over more), each page waiting for A */
       say: async (text: string) => {
         for (const page of text.split(/\n\s*\n/).filter((page) => page.trim())) {
-          await wait<void>({ text: page.trim(), shown: 0, menu: null });
+          for (const part of await fit(page.trim())) {
+            await wait<void>({ text: part, shown: 0, menu: null });
+          }
         }
       },
-      /** Ask with a menu (`back` is the answer B gives) */
-      pick: (text: string, options: string[], back?: number) => wait<number>({ text, shown: 0, menu: { options, cursor: 0, back } }),
+      /** Ask with a menu (`back` is the answer B gives); a question too long for the box is said first, its last page asked */
+      pick: async (text: string, options: string[], back?: number) => {
+        const parts = await fit(text);
+        for (const part of parts.slice(0, -1)) {
+          await wait<void>({ text: part, shown: 0, menu: null });
+        }
+        return wait<number>({ text: parts[parts.length - 1] ?? text, shown: 0, menu: { options, cursor: 0, back } });
+      },
       /** A menu entry was clicked */
       choose: (index: number) => next.current?.(index),
       /** Empty the text box */
@@ -191,7 +232,7 @@ function OpeningScene({ options, close }: { options: Opening; close: () => void 
   //While choosing BOY or GIRL, the one pointed at stands there
   const shown = talk?.menu?.options[0] === "BOY" ? (talk.menu.cursor ? "may" : "brendan") : stage;
   return (
-    <div className="gba-screen" role="dialog" aria-label="New game">
+    <div className="gba-screen gba-full" role="dialog" aria-label="New game">
       <div className="gba-frame gba-opening">
         <div className="stage">
           {shown ? <img key={shown} className="who" src={`/game/intro/${shown === "professor" ? "birch" : shown}.png`} alt="" draggable={false} /> : null}

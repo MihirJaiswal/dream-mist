@@ -134,7 +134,8 @@ export function useAppShortcuts({ onPanels }: { onPanels: () => void }) {
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       const command = event.metaKey || event.ctrlKey;
-      const key = event.key.toLowerCase();
+      //Autofill and some extensions send key events without a key
+      const key = event.key?.toLowerCase();
       const typing = (event.target as HTMLElement)?.closest?.("input, textarea, select, [contenteditable]");
       if (command && key === "s") {
         //Never the browser's "Save page" window

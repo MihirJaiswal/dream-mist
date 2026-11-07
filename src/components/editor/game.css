@@ -33,7 +33,7 @@
     0 0 0 9px var(--rim),
     0 0 0 11px var(--rim-dark),
     0 16px 34px rgba(0, 0, 0, 0.45);
-  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-game);
   font-size: 24px;
   line-height: 1.45;
   letter-spacing: 0.01em;
@@ -81,7 +81,7 @@
     0 0 0 8px var(--rim),
     0 0 0 10px var(--rim-dark),
     0 10px 24px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-game);
   animation: dialogue-in 0.12s ease-out;
 }
 .game-dialogue .choices button {
@@ -107,34 +107,33 @@
   border-bottom: 7px solid transparent;
   border-left: 9px solid #e04838;
 }
-/* Start menu: a white window on the right, like the Game Boy Advance games */
+/* Start menu: a tall white window on the right with a lavender double border, like the Game Boy Advance games (sized by the screen height) */
 .game-menu {
-  --rim: #4a4e5e;
-  --rim-dark: #2c2f3a;
-  --trim: #e0b44c;
-  --paper: #f8f8f4;
-  --paper-shade: #e4e4dc;
-  --ink: #4a4a52;
-  --ink-shadow: #d4d4cc;
+  --rim: #6c6c94;
+  --rim-light: #a8a8c8;
+  --paper: #f8f8f8;
+  --paper-shade: #e0e0e8;
+  --ink: #505058;
+  --ink-shadow: #d0d0d8;
   position: fixed;
-  top: max(72px, env(safe-area-inset-top, 0px));
-  right: max(24px, env(safe-area-inset-right, 0px));
+  top: max(64px, env(safe-area-inset-top, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
   z-index: 70;
   display: grid;
-  gap: 2px;
-  min-width: 190px;
-  max-height: calc(100% - 96px);
+  min-width: 7.2em;
+  max-height: calc(100% - 88px);
   overflow-y: auto;
-  padding: 14px 20px 14px 38px;
-  border-radius: 10px;
+  padding: 0.35em 0.7em 0.35em 1.25em;
+  border-radius: 0.3em;
   background: var(--paper);
   box-shadow:
-    inset -3px -3px 0 var(--paper-shade),
-    0 0 0 3px var(--trim),
-    0 0 0 8px var(--rim),
-    0 0 0 10px var(--rim-dark),
-    0 10px 24px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+    inset -0.12em -0.12em 0 var(--paper-shade),
+    0 0 0 0.12em var(--rim-light),
+    0 0 0 0.24em var(--rim),
+    0 0 0 0.3em #3c3c58,
+    0 0.4em 1em rgba(0, 0, 0, 0.4);
+  font-family: var(--font-game);
+  font-size: clamp(22px, 5.4vh, 46px);
   user-select: none;
   animation: dialogue-in 0.12s ease-out;
 }
@@ -144,22 +143,21 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 22px;
-  line-height: 1.45;
+  line-height: 1.5;
   text-align: left;
   color: var(--ink);
-  text-shadow: 2px 2px 0 var(--ink-shadow);
+  text-shadow: 0.07em 0.07em 0 var(--ink-shadow);
   cursor: pointer;
 }
 .game-menu button.picked::before {
   content: "";
   position: absolute;
-  left: -22px;
+  left: -0.85em;
   top: 50%;
   translate: 0 -50%;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  border-left: 9px solid #4a4a52;
+  border-top: 0.32em solid transparent;
+  border-bottom: 0.32em solid transparent;
+  border-left: 0.4em solid var(--ink);
 }
 /* Red arrow: bounces down when the message continues, blinks at the end */
 .game-dialogue .next {
@@ -266,7 +264,7 @@
   grid-template-rows: 1fr auto;
   background: #283048;
   color: var(--ink);
-  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-game);
   overflow: hidden;
 }
 @media (max-height: 760px), (max-width: 720px) {
@@ -514,12 +512,48 @@
     opacity 0.5s,
     translate 0.5s;
 }
+/* Caught in the ball: a white flash, then it shrinks into the ball in red light (the sprite is remounted for each effect, so keyframes, not transitions) */
 .battle .mon.captured {
-  opacity: 0;
-  scale: 0.2;
-  transition:
-    opacity 0.3s,
-    scale 0.3s;
+  animation: captured 0.45s ease-in forwards;
+}
+@keyframes captured {
+  30% {
+    scale: 1;
+    opacity: 1;
+    filter: brightness(3);
+  }
+  60% {
+    filter: brightness(0.7) sepia(1) saturate(6) hue-rotate(-30deg);
+  }
+  to {
+    scale: 0.1;
+    opacity: 0;
+    translate: 0 30%;
+    filter: brightness(0.7) sepia(1) saturate(6) hue-rotate(-30deg);
+  }
+}
+/* Broke free: it bursts back out of the ball, red then white, back to full size */
+.battle .mon.released {
+  animation: released 0.5s ease-out;
+}
+@keyframes released {
+  from {
+    scale: 0.1;
+    opacity: 0;
+    translate: 0 30%;
+    filter: brightness(0.7) sepia(1) saturate(6) hue-rotate(-30deg);
+  }
+  40% {
+    opacity: 1;
+    filter: brightness(3);
+  }
+  70% {
+    scale: 1.08;
+    translate: 0 0;
+  }
+  to {
+    scale: 1;
+  }
 }
 @keyframes enter {
   from {
@@ -674,6 +708,8 @@
 
 /* Bottom panel: the message box and the command box, framed like the dialogue box */
 .battle .panel {
+  /* Message, move and PP text: grows with the screen so it reads like the games' big pixel text */
+  --battle-text: clamp(24px, 3.2vw, 36px);
   position: relative;
   display: grid;
   grid-template-columns: 1fr minmax(280px, 42%);
@@ -699,9 +735,9 @@
     0 0 0 3px var(--trim),
     0 0 0 7px var(--rim);
   margin: 7px;
-  padding: 14px 20px;
-  font-size: 23px;
-  line-height: 1.4;
+  padding: 14px 22px;
+  font-size: var(--battle-text);
+  line-height: 1.35;
   color: var(--ink);
   text-shadow: 2px 2px 0 var(--ink-shadow);
   white-space: pre-wrap;
@@ -800,14 +836,14 @@
     0 0 0 7px var(--rim);
   color: var(--ink);
   text-shadow: 2px 2px 0 var(--ink-shadow);
-  font-size: 23px;
+  font-size: var(--battle-text);
 }
 .battle .moves {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-content: center;
-  gap: 6px 20px;
-  padding: 14px 20px 14px 40px;
+  gap: 6px 24px;
+  padding: 14px 20px 14px 1.6em;
 }
 .battle .moves button {
   position: relative;
@@ -827,19 +863,19 @@
 .battle .moves button.picked::before {
   content: "";
   position: absolute;
-  left: -22px;
+  left: -0.85em;
   top: 50%;
   translate: 0 -50%;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  border-left: 9px solid #4a4a52;
+  border-top: 0.3em solid transparent;
+  border-bottom: 0.3em solid transparent;
+  border-left: 0.38em solid #4a4a52;
 }
 .battle .move-info {
   display: grid;
   grid-template-columns: auto 1fr;
   align-content: center;
-  gap: 8px 14px;
-  padding: 14px 20px;
+  gap: 6px 14px;
+  padding: 14px 22px;
 }
 .battle .move-info b {
   font-weight: inherit;
@@ -979,26 +1015,119 @@
   background-position: 0 0;
   image-rendering: pixelated;
   z-index: 4;
-  right: 29%;
-  top: 34%;
+  /* Rests on the ground at the foe's feet (the side's anchor) */
+  left: 0;
+  top: 0;
+  margin: -30px 0 0 -16px;
 }
 .battle .pokeball.throw {
   animation: throw 0.6s ease-out;
 }
+/* Open (the sheet's second frame) while it pulls the Pokémon in, and when it breaks free */
+.battle .pokeball.open,
+.battle .pokeball.break {
+  background-position: 0 -32px;
+}
+.battle .pokeball.drop {
+  animation: drop 0.55s linear;
+}
+/* Shakes rock it on its base, like the games */
 .battle .pokeball.shake {
+  transform-origin: 50% 90%;
   animation: shake 0.6s ease-in-out;
+}
+.battle .pokeball.break {
+  animation: ball-break 0.5s ease-out forwards;
 }
 .battle .pokeball.caught {
   filter: brightness(0.7);
 }
+/* A burst of light from the open ball */
+.battle .pokeball.open::before,
+.battle .pokeball.break::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 30%, rgb(255 140 140 / 0.6) 45%, transparent 70%);
+  animation: ball-burst 0.45s ease-out forwards;
+}
+/* Caught: stars pop out of the locked ball */
+.battle .pokeball.caught::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 6px;
+  height: 6px;
+  translate: -50% -50%;
+  animation: ball-stars 0.8s steps(5) forwards;
+}
+@keyframes drop {
+  0% {
+    translate: 0 -40px;
+  }
+  45% {
+    translate: 0 0;
+  }
+  65% {
+    translate: 0 -14px;
+  }
+  82% {
+    translate: 0 0;
+  }
+  92% {
+    translate: 0 -4px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+@keyframes ball-break {
+  30% {
+    translate: 0 -10px;
+    opacity: 1;
+  }
+  to {
+    translate: 0 -26px;
+    opacity: 0;
+  }
+}
+@keyframes ball-burst {
+  from {
+    scale: 0.2;
+    opacity: 1;
+  }
+  to {
+    scale: 2.4;
+    opacity: 0;
+  }
+}
+@keyframes ball-stars {
+  from {
+    box-shadow:
+      0 0 #f8e060,
+      0 0 #fff,
+      0 0 #f8e060;
+    opacity: 1;
+  }
+  to {
+    box-shadow:
+      -26px -22px #f8e060,
+      0 -34px #fff,
+      26px -22px #f8e060;
+    opacity: 0;
+  }
+}
+/* From the player's side, up in an arc, down onto the foe */
 @keyframes throw {
   from {
-    right: 80%;
-    top: 85%;
+    translate: -45vw 40vh;
     rotate: -720deg;
   }
   50% {
-    top: 20%;
+    translate: -20vw -16vh;
   }
 }
 @keyframes shake {
@@ -1109,7 +1238,7 @@
     0 0 0 7px #4a4e5e,
     0 0 0 9px #2c2f3a,
     0 12px 28px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-game);
   color: #4a4a52;
   text-align: center;
   pointer-events: none;
@@ -1247,7 +1376,7 @@
   place-items: center;
   padding: 12px;
   background: rgb(8 10 20 / 0.72);
-  font-family: var(--font-pixelify), var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-game);
   user-select: none;
   animation: dialogue-in 0.12s ease-out;
 }
@@ -1426,7 +1555,9 @@
   border: 0.5cqi solid #1c5824;
   border-radius: 1.6cqi 1.6cqi 1.6cqi 0.4cqi;
   background: linear-gradient(#50a850, #388838);
-  box-shadow: inset 0 0 0 0.4cqi #70c070;
+  box-shadow:
+    inset 0 0 0 0.4cqi #70c070,
+    0 0.6cqi 0 rgb(16 64 56 / 0.35);
   color: #fff;
   text-align: left;
   text-shadow: 0.25cqi 0.25cqi 0 #184818;
@@ -1482,6 +1613,16 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-size: 3cqi;
+}
+/* Gender marks on the green panels: a light outline so blue and red read */
+.gba-party .name .gba-gender {
+  margin-left: 0.6cqi;
+  text-shadow:
+    0.2cqi 0 0 #fff,
+    -0.2cqi 0 0 #fff,
+    0 0.2cqi 0 #fff,
+    0 -0.2cqi 0 #fff;
 }
 .gba-party .held {
   width: 3.2cqi;
@@ -1498,6 +1639,17 @@
   grid-column: 2 / span 2;
   grid-row: 3;
   justify-self: end;
+  font-size: 3cqi;
+  letter-spacing: 0.1em;
+}
+/* The picked Pokémon hops, like in the games */
+.gba-party .slot.picked .icon :is(canvas, img) {
+  animation: party-hop 0.5s steps(1) infinite;
+}
+@keyframes party-hop {
+  50% {
+    translate: 0 -0.8cqi;
+  }
 }
 
 /* PC box: a grid of box icons */
@@ -1789,7 +1941,10 @@
 
 /* Bag: the bag and its pocket on the left, the items on the right, what the item does at the bottom */
 .gba-bag {
-  background: linear-gradient(90deg, #a8d8f0 0 40%, #98d870 40%);
+  background:
+    repeating-linear-gradient(135deg, rgb(255 255 255 / 0.12) 0 1.5cqi, transparent 1.5cqi 3cqi) right top / 60% 100% no-repeat,
+    radial-gradient(rgb(255 255 255 / 0.35) 0.3cqi, transparent 0.35cqi) 0 0 / 2.4cqi 2.4cqi,
+    linear-gradient(90deg, #a8d8f0 0 40%, #98d870 40%);
 }
 .gba-bag .side {
   position: absolute;
@@ -1817,6 +1972,17 @@
   background-size: 100% 600%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
+  filter: drop-shadow(0 0.8cqi 0 rgb(40 80 120 / 0.25));
+  /* Shakes when the pocket changes, like in the games */
+  animation: bag-shake 0.24s steps(4);
+}
+@keyframes bag-shake {
+  25% {
+    rotate: -6deg;
+  }
+  75% {
+    rotate: 6deg;
+  }
 }
 .gba-bag .pockets {
   margin-top: auto;
@@ -1893,7 +2059,12 @@
   text-align: left;
 }
 .gba-bag .list button.picked {
-  outline: 0.5cqi solid #f04040;
+  background: #e4e8f8;
+  box-shadow: inset 0 0 0 0.4cqi #f05848;
+}
+.gba-bag .list .count {
+  color: #686878;
+  letter-spacing: 0.08em;
 }
 .gba-bag .about {
   position: absolute;
@@ -1905,8 +2076,9 @@
   align-items: center;
   gap: 2cqi;
   padding: 0 2.4cqi;
-  background: #6048c0;
+  background: linear-gradient(#6850c8, #5038a8);
   border-top: 0.5cqi solid #8878e0;
+  box-shadow: inset 0 0.5cqi 0 #7a64d8;
   color: #fff;
   text-shadow: 0.25cqi 0.25cqi 0 #302070;
 }
@@ -1918,6 +2090,9 @@
   height: 10cqi;
   border-radius: 1cqi;
   background: #f8f8f8;
+  box-shadow:
+    inset 0 0 0 0.4cqi #c8c8e0,
+    0 0.5cqi 0 #302070;
   color: #484850;
   text-shadow: none;
 }
@@ -1930,6 +2105,577 @@
 }
 .gba-bag .gba-choices {
   bottom: 22cqi;
+}
+
+/* =================================================================================================
+   Start menu windows (GbaWindow): Pokédex, trainer card, journal, wild Pokémon and town map.
+   A dark title bar, then the body on a themed backdrop; white "paper" panels with the games' blue double border */
+.gba-window {
+  --paper: #f8f8f8;
+  --border: #6868a0;
+  --border-light: #c8c8e0;
+  --ink: #484850;
+  --ink-shadow: #d0d0c8;
+}
+/* On the children: the frame's own cqi would measure the page, not the frame */
+.gba-window :is(.bar, .body) {
+  font-size: 2.8cqi;
+}
+.gba-window .bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 7.5cqi;
+  display: flex;
+  align-items: center;
+  gap: 2cqi;
+  padding: 0 1.6cqi 0 0;
+  background: #101420;
+  border-bottom: 0.5cqi solid #f8c838;
+  color: #fff;
+  text-shadow: 0.25cqi 0.25cqi 0 #303850;
+}
+.gba-window .bar .title {
+  padding: 0.6cqi 3cqi 0.6cqi 2cqi;
+  border-radius: 0 3cqi 3cqi 0;
+  background: var(--accent, #f04040);
+  box-shadow: inset 0 -0.6cqi 0 rgb(0 0 0 / 0.2);
+  font-size: 3.2cqi;
+  text-shadow: 0.25cqi 0.25cqi 0 rgb(0 0 0 / 0.35);
+}
+.gba-window .bar .info {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #c8d0e8;
+}
+.gba-window .bar .info b {
+  margin: 0 1.6cqi 0 0.6cqi;
+  color: #f8c838;
+  font-weight: inherit;
+}
+.gba-window .bar .close {
+  flex: none;
+  margin-left: auto;
+  padding: 0.5cqi 1.6cqi;
+  border: 0.35cqi solid #8890a8;
+  border-radius: 2cqi;
+  background: #283048;
+  font-size: 2.2cqi;
+}
+.gba-window .bar .close:hover {
+  border-color: #fff;
+}
+.gba-window .body {
+  position: absolute;
+  inset: 7.5cqi 0 0;
+  overflow-y: auto;
+  padding: 2cqi;
+  scrollbar-width: thin;
+}
+/* Shared pieces: white panels, section labels, notes */
+.gba-window :is(.paper, .entry, .list, .card, .case, li) {
+  color: var(--ink);
+  text-shadow: 0.2cqi 0.2cqi 0 var(--ink-shadow);
+}
+.gba-window h3 {
+  margin: 0 0 1cqi;
+  font-size: 2.4cqi;
+  font-weight: inherit;
+  letter-spacing: 0.1em;
+}
+.gba-window .note {
+  margin: 0 0 1.6cqi;
+  padding: 1.6cqi 2cqi;
+  border-radius: 1.2cqi;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 0.5cqi var(--border),
+    inset 0 0 0 0.9cqi var(--border-light);
+  color: var(--ink);
+  text-shadow: 0.2cqi 0.2cqi 0 var(--ink-shadow);
+  line-height: 1.35;
+}
+
+/* Pokédex: red, with the picked Pokémon on a little screen and the list on the right */
+.gba-dex {
+  --accent: #e84838;
+  background:
+    radial-gradient(rgb(255 255 255 / 0.12) 0.35cqi, transparent 0.4cqi) 0 0 / 2.4cqi 2.4cqi,
+    linear-gradient(#e85848, #b82828);
+}
+.gba-dex .body {
+  display: grid;
+  grid-template-columns: 40cqi 1fr;
+  gap: 2cqi;
+  overflow: hidden;
+}
+.gba-dex .entry {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4cqi;
+  min-height: 0;
+}
+.gba-dex .screen {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 1.6cqi;
+  border: 1cqi solid #303040;
+  border-radius: 1.6cqi 1.6cqi 1.6cqi 5cqi;
+  background:
+    radial-gradient(rgb(0 0 0 / 0.06) 0.3cqi, transparent 0.35cqi) 0 0 / 1.6cqi 1.6cqi,
+    linear-gradient(#d8f0c0, #a8d090);
+  box-shadow: 0 0 0 0.5cqi #f8f8f8;
+}
+.gba-dex .screen img {
+  height: 100%;
+  max-height: 24cqi;
+  max-width: 100%;
+  object-fit: contain;
+  animation: dialogue-in 0.15s ease-out;
+}
+.gba-dex .screen p {
+  margin: 0;
+  color: #38583a;
+  text-align: center;
+  text-shadow: none;
+}
+.gba-dex .plate {
+  display: flex;
+  align-items: center;
+  gap: 1.4cqi;
+  padding: 1cqi 1.8cqi;
+  border-radius: 1.2cqi;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 0.5cqi var(--border),
+    inset 0 0 0 0.9cqi var(--border-light);
+  color: var(--ink);
+  text-shadow: 0.2cqi 0.2cqi 0 var(--ink-shadow);
+}
+.gba-dex .plate b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: inherit;
+}
+.gba-dex .plate img {
+  width: 3.6cqi;
+}
+.gba-dex .types {
+  display: flex;
+  gap: 1cqi;
+  min-height: 3.4cqi;
+  color: #f8e0d8;
+  text-shadow: 0.2cqi 0.2cqi 0 #802018;
+}
+.gba-dex .list {
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 1.2cqi 1.2cqi 1.2cqi 4cqi;
+  list-style: none;
+  border-radius: 1.2cqi;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 0.5cqi var(--border),
+    inset 0 0 0 0.9cqi var(--border-light);
+  scrollbar-width: thin;
+}
+.gba-dex .list button {
+  position: relative;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3.6cqi auto 1fr;
+  align-items: center;
+  gap: 1.4cqi;
+  padding: 0.5cqi 1cqi;
+  border: 0;
+  border-radius: 0.6cqi;
+  background: none;
+  text-align: left;
+}
+.gba-dex .list .ball img {
+  width: 3cqi;
+  display: block;
+}
+.gba-dex .list .no {
+  color: #787888;
+}
+.gba-dex .list .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gba-dex .list button.picked {
+  background: #fce4e0;
+  box-shadow: inset 0 0 0 0.4cqi #f05848;
+}
+.gba-dex .list button.picked::before {
+  content: "";
+  position: absolute;
+  left: -2.6cqi;
+  top: 50%;
+  translate: 0 -50%;
+  border-top: 1cqi solid transparent;
+  border-bottom: 1cqi solid transparent;
+  border-left: 1.3cqi solid #484850;
+}
+
+/* Trainer card: a gold card with the trainer's facts and picture, the badge case and caught Pokémon under it */
+.gba-card {
+  --accent: #3878d0;
+  background: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.08) 0 2cqi, transparent 2cqi 4cqi), linear-gradient(#5890d8, #3060a8);
+}
+.gba-card .body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 1.6cqi;
+}
+.gba-card .card {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 2cqi;
+  padding: 2cqi 2.6cqi;
+  border-radius: 2cqi;
+  background:
+    linear-gradient(rgb(255 255 255 / 0.5) 0.2cqi, transparent 0.2cqi) 0 0 / 100% 5.4cqi,
+    linear-gradient(#f8e8b0, #f0d088);
+  box-shadow:
+    inset 0 0 0 0.6cqi #c89838,
+    inset 0 0 0 1cqi #f8f0d0,
+    0 0.8cqi 0 rgb(16 32 72 / 0.4);
+}
+.gba-card dl {
+  flex: 1;
+  display: grid;
+  gap: 0.6cqi;
+  margin: 0;
+}
+.gba-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 2cqi;
+  padding-bottom: 0.5cqi;
+  border-bottom: 0.3cqi dashed #d0a850;
+}
+.gba-card dt {
+  color: #8a6828;
+}
+.gba-card dd {
+  margin: 0;
+}
+.gba-card dd small {
+  color: #8a6828;
+  font-size: 2.2cqi;
+}
+.gba-card .photo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20cqi;
+  height: 22cqi;
+  border-radius: 1.4cqi;
+  background: radial-gradient(ellipse 60% 20% at 50% 82%, rgb(0 0 0 / 0.15), transparent), linear-gradient(#a8d8f0, #d8f0f8);
+  box-shadow:
+    inset 0 0 0 0.5cqi #c89838,
+    inset 0 0 0 0.9cqi #f8f0d0;
+}
+.gba-card .photo canvas {
+  width: auto !important;
+  height: 16cqi !important;
+}
+.gba-card .case {
+  min-width: 0;
+  padding: 1.6cqi 2cqi;
+  border-radius: 1.4cqi;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 0.5cqi var(--border),
+    inset 0 0 0 0.9cqi var(--border-light);
+}
+.gba-card .case p {
+  margin: 1cqi 0 0;
+  font-size: 2.2cqi;
+  line-height: 1.3;
+  color: #787888;
+}
+.gba-card .badges {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.2cqi;
+}
+.gba-card .badge {
+  aspect-ratio: 1;
+  max-height: 6cqi;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  background: #d8d8e0;
+  box-shadow: inset 0 0 0 0.5cqi rgb(0 0 0 / 0.1);
+}
+.gba-card .badge.won {
+  box-shadow:
+    inset 0.6cqi 0.6cqi 0 rgb(255 255 255 / 0.55),
+    inset -0.6cqi -0.6cqi 0 rgb(0 0 0 / 0.25);
+}
+.gba-card .caught {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4cqi;
+  max-height: 17cqi;
+  overflow-y: auto;
+}
+.gba-card .caught p {
+  margin: 0;
+}
+.gba-card .caught canvas,
+.gba-card .caught img {
+  width: auto !important;
+  height: 6cqi !important;
+}
+.gba-card .start-over {
+  grid-column: 1 / -1;
+  justify-self: end;
+  padding: 0.6cqi 2.4cqi;
+  border: 0.4cqi solid #701818;
+  border-radius: 1.2cqi;
+  background: linear-gradient(#e86050, #c03830);
+  box-shadow: inset 0 0 0 0.35cqi #f8a090;
+  color: #fff;
+  font-size: 2.4cqi;
+  text-shadow: 0.2cqi 0.2cqi 0 #601010;
+}
+.gba-card .start-over:hover {
+  filter: brightness(1.1);
+}
+
+/* Journal: ruled paper on a leather cover */
+.gba-journal {
+  --accent: #c87838;
+  background:
+    radial-gradient(rgb(0 0 0 / 0.1) 0.35cqi, transparent 0.4cqi) 0 0 / 1.8cqi 1.8cqi,
+    linear-gradient(#8a5a34, #6a4024);
+}
+.gba-journal .paper {
+  min-height: 100%;
+  padding: 2.4cqi 3cqi 2.4cqi 6cqi;
+  border-radius: 1.2cqi;
+  background:
+    linear-gradient(90deg, transparent 4cqi, #f0a0a0 4cqi 4.3cqi, transparent 4.3cqi), repeating-linear-gradient(transparent 0 4.6cqi, #c8d8f0 4.6cqi 4.8cqi),
+    #fbf5e2;
+  box-shadow: 0 0.8cqi 0 rgb(0 0 0 / 0.3);
+}
+.gba-journal h3 {
+  margin-top: 2cqi;
+  color: #a06030;
+}
+.gba-journal .note {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.gba-journal .quest {
+  display: grid;
+  gap: 0.8cqi;
+  margin-bottom: 1.6cqi;
+  padding: 1.4cqi 1.8cqi;
+  border-radius: 1.2cqi;
+  background: #fff;
+  box-shadow:
+    inset 0 0 0 0.4cqi #e0c890,
+    0 0.4cqi 0 rgb(160 120 60 / 0.25);
+}
+.gba-journal .quest.main {
+  box-shadow:
+    inset 0 0 0 0.5cqi #e0a830,
+    0 0.4cqi 0 rgb(160 120 60 / 0.25);
+}
+.gba-journal .quest.done {
+  opacity: 0.7;
+}
+.gba-journal .quest header {
+  display: flex;
+  align-items: center;
+  gap: 1.2cqi;
+}
+.gba-journal .quest header i {
+  font-style: normal;
+  color: #e0a830;
+}
+.gba-journal .quest header b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: inherit;
+}
+.gba-journal .quest header span {
+  color: #787888;
+}
+.gba-journal .progress {
+  height: 1.6cqi;
+  padding: 0.3cqi;
+  border-radius: 0.8cqi;
+  background: #384038;
+}
+.gba-journal .progress i {
+  display: block;
+  height: 100%;
+  border-radius: 0.5cqi;
+  background: linear-gradient(#78e078 0 50%, #48b048 50%);
+}
+.gba-journal .quest p {
+  margin: 0;
+  font-size: 2.5cqi;
+  line-height: 1.35;
+  color: #585868;
+}
+
+/* Pokémon here: green like the grass, a card for each wild Pokémon */
+.gba-wild {
+  --accent: #48a058;
+  background: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.08) 0 2cqi, transparent 2cqi 4cqi), linear-gradient(#78c880, #489858);
+}
+.gba-wild section {
+  margin-bottom: 2cqi;
+}
+.gba-wild h3 {
+  display: inline-block;
+  padding: 0.4cqi 2cqi;
+  border-radius: 1.2cqi;
+  background: #285838;
+  color: #fff;
+  text-shadow: 0.2cqi 0.2cqi 0 #102818;
+}
+.gba-wild ul {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.2cqi;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gba-wild li {
+  display: grid;
+  grid-template-columns: 9cqi 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 1.4cqi;
+  padding: 1cqi 1.6cqi 1cqi 1cqi;
+  border-radius: 1.2cqi;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 0.5cqi var(--border),
+    inset 0 0 0 0.9cqi var(--border-light),
+    0 0.5cqi 0 rgb(16 64 32 / 0.3);
+}
+.gba-wild li.out {
+  opacity: 0.55;
+}
+.gba-wild .icon {
+  grid-row: 1 / span 2;
+  width: 9cqi;
+  height: 7.4cqi;
+  overflow: hidden;
+}
+.gba-wild .icon :is(canvas, img) {
+  width: auto !important;
+  height: 100% !important;
+}
+.gba-wild .icon.unknown {
+  filter: brightness(0) opacity(0.55);
+}
+.gba-wild .name {
+  display: flex;
+  align-items: center;
+  gap: 0.8cqi;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.gba-wild .name img {
+  width: 2.8cqi;
+}
+.gba-wild small {
+  font-size: 2.2cqi;
+  color: #787888;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Town map: the town's maps on the PokéNav's blue grid */
+.gba-map {
+  --accent: #3898d8;
+  background:
+    linear-gradient(rgb(120 180 255 / 0.12) 0.2cqi, transparent 0.2cqi) 0 0 / 3cqi 3cqi,
+    linear-gradient(90deg, rgb(120 180 255 / 0.12) 0.2cqi, transparent 0.2cqi) 0 0 / 3cqi 3cqi,
+    linear-gradient(#183058, #102040);
+}
+.gba-map .body {
+  overflow: hidden;
+  padding: 3cqi;
+}
+.gba-map .fit {
+  height: 100%;
+  container-type: size;
+  display: grid;
+  place-items: center;
+}
+.gba-map .area {
+  position: relative;
+  max-height: 100%;
+  border-radius: 1cqmin;
+  box-shadow:
+    0 0 0 0.6cqmin #f8c838,
+    0 0 0 1.2cqmin #102040,
+    0 1.5cqmin 3cqmin rgb(0 0 0 / 0.5);
+}
+.gba-map .piece {
+  position: absolute;
+  overflow: hidden;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  box-shadow: inset 0 0 0 0.4cqmin rgb(0 0 0 / 0.3);
+}
+.gba-map .piece.here {
+  box-shadow: inset 0 0 0 0.6cqmin #f8c838;
+}
+.gba-map .piece span {
+  position: absolute;
+  left: 1cqmin;
+  top: 1cqmin;
+  padding: 0.4cqmin 1.4cqmin;
+  border-radius: 0.8cqmin;
+  background: rgb(16 20 32 / 0.75);
+  color: #fff;
+  font-size: max(11px, 3.4cqmin);
+  text-shadow: 0.2cqmin 0.2cqmin 0 #000;
+  white-space: nowrap;
+}
+.gba-map .town-map-you {
+  position: absolute;
+  width: max(12px, 2.6cqmin);
+  height: max(12px, 2.6cqmin);
+  translate: -50% -50%;
+  border: 0.5cqmin solid #fff;
+  border-radius: 50%;
+  background: #f04040;
+}
+@media (max-width: 640px) {
+  .gba-window .bar .close span {
+    display: none;
+  }
+  .gba-dex .body {
+    grid-template-columns: 34cqi 1fr;
+  }
 }
 
 /* =================================================================================================
@@ -1983,6 +2729,17 @@
 }
 
 /* New game: the Professor (then the player) on a platform over the Emerald opening's teal */
+/* The new game's opening fills the space between the editor's top bar (h-12) and status bar (h-7), on black like a GBA screen */
+.gba-screen.gba-full {
+  inset: 48px 0 28px;
+  padding: 0;
+  background: #000;
+}
+.gba-full .gba-frame {
+  width: min(100%, calc((100vh - 76px) * 1.5));
+  border-radius: 0;
+  box-shadow: none;
+}
 .gba-opening {
   background:
     radial-gradient(ellipse 60% 40% at 50% 58%, rgb(255 255 255 / 0.25), transparent 70%), linear-gradient(#2c5870 0%, #4a8898 46%, #6aa8a0 47%, #8cc0a8 100%);

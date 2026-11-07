@@ -3,11 +3,12 @@
 import { confirm } from "@/components/editor/account-dialogs";
 import { openDialog } from "@/components/editor/dialogs";
 import { useSession } from "@/components/editor/hooks";
-import { CanvasView, Hint } from "@/components/editor/widgets";
+import { GbaWindow, TypeTag, trainerId } from "@/components/editor/gba-screens";
+import { CanvasView } from "@/components/editor/widgets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { npc as texture, portrait, preview, species } from "@/game/assets";
-import { bestRod, type ItemId, itemCount, items } from "@/game/items";
+import { artwork, npc as texture, portrait, preview, species } from "@/game/assets";
+import { bestRod, iconOf, type ItemId, itemCount, items } from "@/game/items";
 import { period } from "@/game/atmosphere";
 import { living } from "@/game/encounters";
 import { outdoors } from "@/game/region";
@@ -16,8 +17,8 @@ import { session } from "@/game/session";
 import { type Entry, goal, journal } from "@/game/story";
 import { trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
-import { Flag, Medal, Minus, Plus, Scroll, Trash } from "@phosphor-icons/react";
-import { useState } from "react";
+import { Minus, Plus } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 //=================================================================================================
@@ -29,36 +30,61 @@ export function pokedex() {
 
 function Pokedex({ close }: { close: () => void }) {
   const profile = trainer.profile;
+  const [cursor, setCursor] = useState(0);
+  const list = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    list.current?.children[cursor]?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
   if (!profile) {
     return null;
   }
   const seen = [...new Set(profile.seen)].sort((a, b) => a - b);
+  const caught = new Set(profile.caught);
+  const id = seen[cursor];
+  const data = id ? species(id) : null;
+  const number = (id: number) => `No.${String(id).padStart(3, "0")}`;
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Pokédex</DialogTitle>
-          <DialogDescription>
-            {seen.length} seen · {profile.caught.length} caught
-          </DialogDescription>
-        </DialogHeader>
-        {seen.length ? null : <Hint>Pokémon you meet show up here.</Hint>}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-1.5">
-          {seen.map((id) => (
-            <div key={id} className="flex items-center gap-1.5 rounded-md border border-border p-1.5">
-              <CanvasView className="h-[34px] w-[40px] shrink-0 overflow-hidden" make={() => portrait(id, 0.6)} deps={[id]} />
-              <div className="min-w-0">
-                <small className="block font-mono text-[10px] text-subtle-fg">No. {String(id).padStart(3, "0")}</small>
-                <b className="block truncate text-xs">
-                  {species(id)?.name}
-                  {profile.caught.includes(id) ? <span className="ml-1 inline-block size-1.5 rounded-full bg-red-500 align-middle" title="Caught" /> : null}
-                </b>
-              </div>
+    <GbaWindow
+      title="POKéDEX"
+      info={
+        <>
+          SEEN <b>{seen.length}</b> OWN <b>{caught.size}</b>
+        </>
+      }
+      theme="gba-dex"
+      close={close}
+      onKey={(key) => {
+        if ((key === "up" || key === "down") && seen.length) {
+          setCursor((cursor + (key === "down" ? 1 : seen.length - 1)) % seen.length);
+          return true;
+        }
+      }}
+    >
+      <div className="entry">
+        <div className="screen">{data ? <img key={id} src={artwork(id)} alt={data.name} draggable={false} /> : <p>Pokémon you meet show up here.</p>}</div>
+        {data ? (
+          <>
+            <div className="plate">
+              <span>{number(id)}</span>
+              <b>{data.name}</b>
+              {caught.has(id) ? <img src={iconOf("poke-ball")} alt="Caught" draggable={false} /> : null}
             </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+            <div className="types">{caught.has(id) ? data.types.map((type) => <TypeTag key={type} type={type} />) : <span>TYPE ?</span>}</div>
+          </>
+        ) : null}
+      </div>
+      <ul className="list" ref={list}>
+        {seen.map((id, i) => (
+          <li key={id}>
+            <button className={cn(i === cursor && "picked")} onClick={() => setCursor(i)}>
+              <span className="ball">{caught.has(id) ? <img src={iconOf("poke-ball")} alt="Caught" draggable={false} /> : null}</span>
+              <span className="no">{number(id)}</span>
+              <span className="name">{species(id)?.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </GbaWindow>
   );
 }
 
@@ -69,77 +95,93 @@ export function card() {
   return openDialog<void>((close) => <TrainerCard close={close} />);
 }
 
+/** Badge colors, in the order they're earned */
+const badgeColors = ["#b0b8c8", "#e86048", "#f8c838", "#58a8e8", "#a868d8", "#e898b8", "#58c078", "#f09838"];
+
 function TrainerCard({ close }: { close: () => void }) {
   const profile = trainer.profile;
+  //Asking to start over: the question hears the keys
+  const [asking, setAsking] = useState(false);
   if (!profile) {
     return null;
   }
+  const slots = Math.max(8, profile.badges.length);
+  const caught = [...new Set(profile.caught)].sort((a, b) => a - b);
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Trainer card</DialogTitle>
-          <DialogDescription className="sr-only">Badges, Pokédex and progress</DialogDescription>
-        </DialogHeader>
-        <div className="flex items-center gap-4 rounded-lg border border-border bg-card p-3">
-          <CanvasView make={() => preview(texture(profile.sprite, "down"), 4)} deps={[profile.sprite]} />
+    <GbaWindow title="TRAINER CARD" info={`IDNo.${trainerId(profile.name)}`} theme="gba-card" close={close} keys={!asking}>
+      <div className="card">
+        <dl>
           <div>
-            <h3 className="text-lg font-semibold">{profile.name}</h3>
-            <p className="text-sm text-muted-foreground">
-              Pokédex: {profile.seen.length} seen · {profile.caught.length} caught
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Trainers defeated: {profile.defeated.length} · Money: ₽{profile.money.toLocaleString()}
-            </p>
+            <dt>NAME</dt>
+            <dd>{profile.name}</dd>
           </div>
-        </div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Badges ({profile.badges.length})</p>
-        {profile.badges.length ? (
-          <div className="grid gap-1">
-            {profile.badges.map(({ badge, city, name }, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-md border border-border p-2">
-                <Medal size={18} className="text-select" />
-                <div>
-                  <b className="block text-sm">{badge}</b>
-                  <small className="text-xs text-subtle-fg">
-                    Beat {name} in {city}
-                  </small>
-                </div>
-              </div>
-            ))}
+          <div>
+            <dt>MONEY</dt>
+            <dd>₽{profile.money.toLocaleString()}</dd>
           </div>
-        ) : (
-          <Hint>Beat gym leaders in your friends&apos; cities to earn badges.</Hint>
-        )}
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Caught Pokémon</p>
-        <div className="flex flex-wrap gap-1">
-          {profile.caught
-            .slice()
-            .sort((a, b) => a - b)
-            .map((id) => (
-              <span key={id} title={species(id)?.name}>
-                <CanvasView className="h-[46px] w-[56px] overflow-hidden" make={() => portrait(id, 0.8)} deps={[id]} />
-              </span>
-            ))}
+          <div>
+            <dt>POKéDEX</dt>
+            <dd>
+              {caught.length}
+              <small> / {new Set(profile.seen).size} seen</small>
+            </dd>
+          </div>
+          <div>
+            <dt>TRAINERS BEATEN</dt>
+            <dd>{profile.defeated.length}</dd>
+          </div>
+        </dl>
+        <div className="photo">
+          <CanvasView make={() => preview(texture(profile.sprite, "down"), 4)} deps={[profile.sprite]} />
         </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={async () => {
-              if (await confirm("Start over?", { text: "This erases your trainer, party, badges and story progress.", action: "Start over", danger: true })) {
-                close();
-                await session.startOver();
-              }
-            }}
-          >
-            <Trash />
-            Start over
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+      <div className="case">
+        <h3>BADGES</h3>
+        <div className="badges">
+          {Array.from({ length: slots }, (_, i) => {
+            const won = profile.badges[i];
+            return (
+              <span
+                key={i}
+                className={cn("badge", won && "won")}
+                style={won ? { background: badgeColors[i % badgeColors.length] } : undefined}
+                title={won ? `${won.badge}: beat ${won.name} in ${won.city}` : undefined}
+              />
+            );
+          })}
+        </div>
+        {profile.badges.length ? null : <p>Beat gym leaders in your friends&apos; cities to earn badges.</p>}
+      </div>
+      <div className="case">
+        <h3>CAUGHT</h3>
+        <div className="caught">
+          {caught.length ? null : <p>Pokémon you catch show up here.</p>}
+          {caught.map((id) => (
+            <span key={id} title={species(id)?.name}>
+              <CanvasView make={() => portrait(id, 0.8)} deps={[id]} />
+            </span>
+          ))}
+        </div>
+      </div>
+      <button
+        className="start-over"
+        onClick={async () => {
+          setAsking(true);
+          const sure = await confirm("Start over?", {
+            text: "This erases your trainer, party, badges and story progress.",
+            action: "Start over",
+            danger: true,
+          });
+          setAsking(false);
+          if (sure) {
+            close();
+            await session.startOver();
+          }
+        }}
+      >
+        START OVER
+      </button>
+    </GbaWindow>
   );
 }
 
@@ -155,46 +197,42 @@ function Journal({ close }: { close: () => void }) {
   const city = session.city;
   const page = journal(city, (id) => trainer.done(city.id, id));
   const entry = ({ name, next, done, total, quest }: Entry) => (
-    <div key={quest?.id ?? "main"} className={cn("grid gap-1 rounded-lg border p-3", next ? "border-border bg-card" : "border-transparent bg-muted/50")}>
-      <div className="flex items-center gap-2">
-        {quest ? <Scroll size={16} className="shrink-0 text-select" /> : <Flag size={16} className="shrink-0" />}
-        <b className="min-w-0 flex-1 truncate text-sm">{name}</b>
-        <span className="font-mono text-xs text-subtle-fg">
+    <article key={quest?.id ?? "main"} className={cn("quest", !next && "done", !quest && "main")}>
+      <header>
+        <i>{quest ? "◆" : "★"}</i>
+        <b>{name}</b>
+        <span>
           {done}/{total}
         </span>
+      </header>
+      <div className="progress">
+        <i style={{ width: `${(done / total) * 100}%` }} />
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-select" style={{ width: `${(done / total) * 100}%` }} />
-      </div>
-      <p className="text-sm text-muted-foreground">
-        {next ? goal(next) : quest ? "Complete!" : total > 1 ? "The main story is complete!" : "Done! More is on its way."}
-      </p>
-    </div>
+      <p>{next ? goal(next) : quest ? "Complete!" : total > 1 ? "The main story is complete!" : "Done! More is on its way."}</p>
+    </article>
   );
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Journal</DialogTitle>
-          <DialogDescription>{city.name}</DialogDescription>
-        </DialogHeader>
-        {!page.main && !page.active.length && !page.complete.length ? <Hint>This town has no story yet. Explore, battle and catch Pokémon!</Hint> : null}
+    <GbaWindow title="JOURNAL" info={city.name} theme="gba-journal" close={close}>
+      <div className="paper">
+        {!page.main && !page.active.length && !page.complete.length ? (
+          <p className="note">This town has no story yet. Explore, battle and catch Pokémon!</p>
+        ) : null}
         {page.main ? entry(page.main) : null}
         {page.active.length ? (
           <>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Side quests</p>
-            <div className="grid gap-2">{page.active.map(entry)}</div>
+            <h3>SIDE QUESTS</h3>
+            {page.active.map(entry)}
           </>
         ) : null}
         {page.complete.length ? (
           <>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">Completed</p>
-            <div className="grid gap-2">{page.complete.map(entry)}</div>
+            <h3>COMPLETED</h3>
+            {page.complete.map(entry)}
           </>
         ) : null}
-        {page.main || page.active.length ? null : <Hint>Talk to people around town: some of them need your help.</Hint>}
-      </DialogContent>
-    </Dialog>
+        {page.main || page.active.length ? null : <p className="note">Talk to people around town: some of them need your help.</p>}
+      </div>
+    </GbaWindow>
   );
 }
 
@@ -213,62 +251,44 @@ function WildHere({ close }: { close: () => void }) {
   const seen = new Set(profile?.seen ?? []),
     caught = new Set(profile?.caught ?? []);
   const groups = [
-    { key: "walk", label: "In the grass and on foot", list: found.walk },
-    { key: "surf", label: "Surfing", list: found.surf },
-    { key: "fish", label: "Fishing", list: found.fish },
+    { key: "walk", label: "GRASS AND ON FOOT", list: found.walk },
+    { key: "surf", label: "SURFING", list: found.surf },
+    { key: "fish", label: "FISHING", list: found.fish },
   ] as const;
   const times = { morning: "Mornings", day: "Daytime", night: "Nights" };
   const rodNames = { good: "Good Rod", super: "Super Rod" };
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Pokémon here</DialogTitle>
-          <DialogDescription>
-            {map.name} · it&apos;s {now === "morning" ? "morning" : now === "night" ? "night" : "daytime"}
-          </DialogDescription>
-        </DialogHeader>
-        {groups.every(({ list }) => !list.length) ? <Hint>No wild Pokémon live on this map.</Hint> : null}
-        {groups
-          .filter(({ list }) => list.length)
-          .map(({ key, label, list }) => (
-            <div key={key} className="grid gap-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle-fg">{label}</p>
-              <ul className="grid grid-cols-2 gap-1.5">
-                {list.map((wild, i) => {
-                  const known = seen.has(wild.species) || caught.has(wild.species);
-                  const out = Boolean(wild.time && wild.time !== now);
-                  return (
-                    <li
-                      key={i}
-                      className={cn("flex items-center gap-2 rounded-md border border-border bg-card p-1.5", out && "opacity-50")}
-                      title={out ? `Only ${times[wild.time!].toLowerCase()}` : undefined}
-                    >
-                      <CanvasView
-                        className={cn("h-[30px] w-[34px] shrink-0 overflow-hidden", !known && "brightness-0 opacity-60")}
-                        make={() => portrait(wild.species, 1)}
-                        deps={[wild.species]}
-                      />
-                      <span className="grid min-w-0 flex-1">
-                        <span className="flex items-center gap-1 truncate text-sm">
-                          {known ? species(wild.species)?.name : "???"}
-                          {caught.has(wild.species) ? <span className="size-2 shrink-0 rounded-full bg-red-500" title="Caught" /> : null}
-                        </span>
-                        <span className="truncate text-[11px] text-subtle-fg">
-                          Lv {wild.min === wild.max ? wild.min : `${wild.min}–${wild.max}`}
-                          {wild.time ? ` · ${times[wild.time]}` : ""}
-                          {wild.rod ? ` · ${rodNames[wild.rod]}` : ""}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        {found.fish.length && !bestRod((id) => trainer.count(id)) ? <Hint>You need a fishing rod to hook the Pokémon in the water.</Hint> : null}
-      </DialogContent>
-    </Dialog>
+    <GbaWindow title="POKéMON HERE" info={`${map.name} · ${now === "morning" ? "MORNING" : now === "night" ? "NIGHT" : "DAY"}`} theme="gba-wild" close={close}>
+      {groups.every(({ list }) => !list.length) ? <p className="note">No wild Pokémon live on this map.</p> : null}
+      {groups
+        .filter(({ list }) => list.length)
+        .map(({ key, label, list }) => (
+          <section key={key}>
+            <h3>{label}</h3>
+            <ul>
+              {list.map((wild, i) => {
+                const known = seen.has(wild.species) || caught.has(wild.species);
+                const out = Boolean(wild.time && wild.time !== now);
+                return (
+                  <li key={i} className={cn(out && "out")} title={out ? `Only ${times[wild.time!].toLowerCase()}` : undefined}>
+                    <CanvasView className={cn("icon", !known && "unknown")} make={() => portrait(wild.species, 1)} deps={[wild.species]} />
+                    <span className="name">
+                      {known ? species(wild.species)?.name : "???"}
+                      {caught.has(wild.species) ? <img src={iconOf("poke-ball")} alt="Caught" draggable={false} /> : null}
+                    </span>
+                    <small>
+                      Lv.{wild.min === wild.max ? wild.min : `${wild.min}-${wild.max}`}
+                      {wild.time ? ` · ${times[wild.time]}` : ""}
+                      {wild.rod ? ` · ${rodNames[wild.rod]}` : ""}
+                    </small>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      {found.fish.length && !bestRod((id) => trainer.count(id)) ? <p className="note">You need a fishing rod to hook the Pokémon in the water.</p> : null}
+    </GbaWindow>
   );
 }
 
@@ -303,7 +323,9 @@ function TownMap({ close }: { close: () => void }) {
     minY = Math.min(...placed.map(({ y }) => y));
   const maxX = Math.max(...placed.map(({ x, map }) => x + map.width)),
     maxY = Math.max(...placed.map(({ y, map }) => y + map.height));
-  const scale = Math.max(1, Math.min(8, 640 / (maxX - minX), 420 / (maxY - minY)));
+  const width = maxX - minX,
+    height = maxY - minY;
+  const scale = Math.max(1, Math.min(8, 640 / width, 420 / height));
   const [pictures] = useState(() => new Map(placed.map(({ map }) => [map, session.map.picture(map, Math.min(1, scale / 16)).toDataURL()])));
   //Where the player is: their tile outdoors, or the door of the building they're in
   const spot = (() => {
@@ -312,51 +334,43 @@ function TownMap({ close }: { close: () => void }) {
     const tile = here.door ?? (session.area === here.outdoor ? session.play?.position : null);
     return item && tile ? { x: item.x + tile.x + 0.5, y: item.y + tile.y + 0.5 } : null;
   })();
+  const percent = (value: number, of: number) => `${(value / of) * 100}%`;
   return (
-    <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Town Map</DialogTitle>
-          <DialogDescription>
-            {here
-              ? session.area === here.outdoor
-                ? here.outdoor.name || world.name
-                : `${session.area.name}, ${here.outdoor === world ? world.name : here.outdoor.name}`
-              : world.name}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="overflow-auto rounded-lg bg-[#16324a] p-4">
-          <div className="relative mx-auto" style={{ width: (maxX - minX) * scale, height: (maxY - minY) * scale }}>
-            {placed.map(({ map, x, y }) => (
-              <div
-                key={map.id}
-                className={cn("absolute overflow-hidden rounded-sm ring-2", map === here?.outdoor ? "ring-select" : "ring-black/40")}
-                style={{
-                  left: (x - minX) * scale,
-                  top: (y - minY) * scale,
-                  width: map.width * scale,
-                  height: map.height * scale,
-                  backgroundImage: `url(${pictures.get(map)})`,
-                  backgroundSize: "100% 100%",
-                  imageRendering: "pixelated",
-                }}
-              >
-                <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 font-pixel text-[10px] text-white">
-                  {map === world ? world.name : map.name}
-                </span>
-              </div>
-            ))}
-            {spot ? (
-              <span
-                className="town-map-you absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500"
-                style={{ left: (spot.x - minX) * scale, top: (spot.y - minY) * scale }}
-                aria-label="You are here"
-              />
-            ) : null}
-          </div>
+    <GbaWindow
+      title="TOWN MAP"
+      info={
+        here
+          ? session.area === here.outdoor
+            ? here.outdoor.name || world.name
+            : `${session.area.name}, ${here.outdoor === world ? world.name : here.outdoor.name}`
+          : world.name
+      }
+      theme="gba-map"
+      close={close}
+    >
+      <div className="fit">
+        <div className="area" style={{ aspectRatio: `${width} / ${height}`, width: `min(100cqw, 100cqh * ${width / height})` }}>
+          {placed.map(({ map, x, y }) => (
+            <div
+              key={map.id}
+              className={cn("piece", map === here?.outdoor && "here")}
+              style={{
+                left: percent(x - minX, width),
+                top: percent(y - minY, height),
+                width: percent(map.width, width),
+                height: percent(map.height, height),
+                backgroundImage: `url(${pictures.get(map)})`,
+              }}
+            >
+              <span>{map === world ? world.name : map.name}</span>
+            </div>
+          ))}
+          {spot ? (
+            <span className="town-map-you" style={{ left: percent(spot.x - minX, width), top: percent(spot.y - minY, height) }} aria-label="You are here" />
+          ) : null}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </GbaWindow>
   );
 }
 

@@ -117,7 +117,7 @@ export function DialogueBox() {
     line.done(picked);
   };
   const onKey = useEffectEvent((event: KeyboardEvent) => {
-    const key = event.key.toLowerCase();
+    const key = event.key?.toLowerCase();
     //Questions: up and down move between the answers, X or Escape answers the last one (NO)
     if (asking && line?.choices && ["arrowup", "arrowdown", "w", "s", "x", "escape"].includes(key)) {
       event.preventDefault();
@@ -252,8 +252,8 @@ function Info({ view, foe, slot }: { view: BattleSide; foe: boolean; slot: Slot 
   );
 }
 
-/** A Pokémon standing on its platform: animated battle sprite at a whole-pixel size, the still artwork if it can't load */
-function Side({ side, view, foe }: { side: Slot; view: BattleSide; foe: boolean }) {
+/** A Pokémon standing on its platform: animated battle sprite at a whole-pixel size, the still artwork if it can't load (and the thrown Poké Ball, at the foe's feet) */
+function Side({ side, view, foe, ball }: { side: Slot; view: BattleSide; foe: boolean; ball?: BattleView["ball"] }) {
   const creature = view.creature;
   const sprite = battleSprite(creature.species, { back: !foe, shiny: creature.shiny });
   const [failed, setFailed] = useState("");
@@ -280,6 +280,7 @@ function Side({ side, view, foe }: { side: Slot; view: BattleSide; foe: boolean 
           style={{ scale: custom && !foe ? "-1 1" : undefined }}
         />
       </div>
+      {ball ? <div key={ball.key} className={`pokeball ${ball.state}`} style={{ backgroundImage: `url(/game/sprites/balls/${ball.kind}.png)` }} /> : null}
     </div>
   );
 }
@@ -459,7 +460,7 @@ export function BattleScreen() {
       >
         <Scene overlays={overlays} picture={background.image} scene={scene} />
         <div className="arena">
-          <Side side="foe" view={view.foe} foe />
+          <Side side="foe" view={view.foe} foe ball={view.ball} />
           {view.foe2 ? <Side side="foe2" view={view.foe2} foe /> : null}
           <Side side="ally" view={view.ally} foe={false} />
           {view.ally2 ? <Side side="ally2" view={view.ally2} foe={false} /> : null}
@@ -505,9 +506,6 @@ export function BattleScreen() {
         ) : null}
       </div>
       {view.anim ? <Attack key={view.anim.key} anim={view.anim} /> : null}
-      {view.ball ? (
-        <div key={view.ball.key} className={`pokeball ${view.ball.state}`} style={{ backgroundImage: `url(/game/sprites/balls/${view.ball.kind}.png)` }} />
-      ) : null}
     </div>
   );
 }

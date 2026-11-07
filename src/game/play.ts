@@ -527,7 +527,7 @@ export class Play {
     if ((event.target as HTMLElement)?.closest?.("input, textarea, select") || document.querySelector("[role=dialog], [role=alertdialog]")) {
       return;
     }
-    const key = event.key.toLowerCase();
+    const key = event.key?.toLowerCase();
     if (key in keys) {
       event.preventDefault();
       if (!event.repeat) {
@@ -564,7 +564,7 @@ export class Play {
 
   /** Key released */
   #keyup(event: KeyboardEvent) {
-    const key = event.key.toLowerCase();
+    const key = event.key?.toLowerCase();
     if (key in keys) {
       this.#hold(keys[key], false);
     } else if (key === "shift") {

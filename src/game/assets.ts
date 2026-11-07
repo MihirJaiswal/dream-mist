@@ -300,6 +300,25 @@ export function battleSprite(id: number, { back = false, shiny = false } = {}) {
     : { src: `${sprites}/${view}${id}.png`, animated: false };
 }
 
+/** Battle sprites already requested, kept so the browser holds them ready */
+const warmed = new Map<string, HTMLImageElement>();
+
+/** Start downloading battle sprites before a battle needs them (they come from GitHub, which can be slow) */
+export function warmSprites(list: { id: number; back?: boolean; shiny?: boolean }[]) {
+  if (typeof Image === "undefined") {
+    return;
+  }
+  for (const { id, back = false, shiny = false } of list) {
+    const { src } = battleSprite(id, { back, shiny });
+    if (!warmed.has(src)) {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = src;
+      warmed.set(src, image);
+    }
+  }
+}
+
 /** Overworld look of a creature placed on the map (custom sprite, packed box icon, or its PokeAPI sprite scaled to the same size) */
 export function creatureSprite(id: number, look?: string) {
   const custom = creatureLook(look);

@@ -1,5 +1,5 @@
 //Imports
-import { assets, battleSprite, type Move, species, type Stage } from "./assets";
+import { assets, type Move, species, type Stage, warmSprites } from "./assets";
 import { abilityOf, befriend, type Creature, cure, grow, hp, named, stat, type Status, trainer } from "./trainer";
 import { apply, helps, nickname, type Talk, teachAll } from "./growth";
 import { sound } from "./audio";
@@ -228,7 +228,7 @@ export type BattleSide = {
   /** Increments when the creature is sent out (replays the entrance animation) */
   entered: number;
   /** Current animation and a counter to replay it */
-  fx: "" | "lunge" | "hurt" | "fainted" | "captured";
+  fx: "" | "lunge" | "hurt" | "fainted" | "captured" | "released";
   fxKey: number;
   /** Info box shown */
   info: boolean;
@@ -260,7 +260,7 @@ export type BattleView = {
   /** Attack animation: who uses it on whom, its move (game/battle/anims/moves.json) and type, how it travels */
   anim: null | { from: Slot; to: Slot; move: string; type: string; mode: "contact" | "projectile" | "self"; key: number; protect?: boolean };
   /** A thrown Poké Ball (`kind`: its Emerald sprite, game/sprites/balls/<kind>.png) */
-  ball: null | { state: "throw" | "shake" | "caught"; key: number; kind: string };
+  ball: null | { state: "throw" | "open" | "drop" | "shake" | "caught" | "break"; key: number; kind: string };
   /** Opponent trainer sliding in to say something mid-battle */
   slide: null | { sprite: string; key: number };
 };
@@ -518,7 +518,7 @@ export class Battle {
       };
       const steps: Record<string, number> = { arrowleft: -1, a: -1, arrowright: 1, d: 1, arrowup: -columns, w: -columns, arrowdown: columns, s: columns };
       const keys = (event: KeyboardEvent) => {
-        const key = event.key.toLowerCase();
+        const key = event.key?.toLowerCase();
         const number = Number(event.key) - 1;
         const handled = (key in steps || [" ", "enter", "z", "e", "x", "escape"].includes(key) || choices[number]) && this.view.menu;
         if (!handled) {
@@ -558,18 +558,11 @@ export class Battle {
   /** Run the battle */
   /** Start downloading the battle sprites of the opening Pokémon on both sides */
   #preload() {
-    if (typeof Image === "undefined") {
-      return;
-    }
-    const lead = trainer.lead;
-    for (const [creature, back] of [
-      [this.#foe, false],
-      [lead, true],
-    ] as const) {
-      if (creature && !creature.art) {
-        new Image().src = battleSprite(creature.species, { back, shiny: creature.shiny }).src;
-      }
-    }
+    const sides = [
+      { creature: this.#foe, back: false },
+      { creature: trainer.lead, back: true },
+    ];
+    warmSprites(sides.flatMap(({ creature, back }) => (creature && !creature.art ? [{ id: creature.species, back, shiny: creature.shiny }] : [])));
   }
 
   async start(): Promise<Outcome> {
@@ -1431,7 +1424,13 @@ export class Battle {
     this.view.ball = { state: "throw", key, kind };
     this.#emit();
     await wait(600);
+    //The ball opens and pulls the Pokémon in, then drops to the ground and bounces
+    this.view.ball = { state: "open", key: ++key, kind };
     this.#fx("foe", "captured");
+    await wait(450);
+    this.view.ball = { state: "drop", key: ++key, kind };
+    this.#emit();
+    await wait(550);
     const { a, b } = catchOdds(this.#foe, ((items[ball] as { rate?: number }).rate ?? 1) * bonus);
     let shakes = 0;
     while (shakes < 4 && (a >= 255 || Math.random() * 65536 < b)) {
@@ -1459,8 +1458,12 @@ export class Battle {
       this.#emit();
       return true;
     }
+    //It bursts out of the ball
+    this.view.ball = { state: "break", key: ++key, kind };
+    this.#fx("foe", "released");
+    await wait(500);
     this.view.ball = null;
-    this.#fx("foe", "");
+    this.#emit();
     await this.#say(
       ["Oh no! The Pokémon broke free!", "Aww! It appeared to be caught!", "Aargh! Almost had it!", "Shoot! It was so close, too!"][Math.min(3, shakes)],
     );

@@ -19,7 +19,7 @@ import { natureLabel } from "@/game/natures";
 import { session } from "@/game/session";
 import { abilityOf, type Creature, experience, friendshipText, hp, named, stat, trainer } from "@/game/trainer";
 import { cn } from "@/lib/utils";
-import { useEffect, useEffectEvent, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 
 //=================================================================================================
 // Keys
@@ -48,7 +48,7 @@ const stack = [] as (((key: Key) => void) | null)[];
 let listening = false;
 
 function onKeydown(event: KeyboardEvent) {
-  const key = keyOf[event.key.toLowerCase()];
+  const key = keyOf[event.key?.toLowerCase()];
   const top = stack[stack.length - 1];
   if (top === null) {
     return;
@@ -119,6 +119,57 @@ export function steer(choices: Choices, key: Key, set: (choices: Choices | null)
     set(null);
     choices.options[key === "a" ? choices.cursor : count - 1].run();
   }
+}
+
+/**
+ * A GBA window with a title bar, for the start menu's Pokédex, trainer card, journal, town map and wild Pokémon.
+ * B closes it; up and down scroll its body unless `onKey` takes the key (returns true).
+ */
+export function GbaWindow({
+  title,
+  info,
+  theme,
+  close,
+  keys = true,
+  onKey,
+  children,
+}: {
+  title: string;
+  info?: ReactNode;
+  theme: string;
+  close: () => void;
+  keys?: boolean;
+  onKey?: (key: Key) => boolean | void;
+  children: ReactNode;
+}) {
+  const body = useRef<HTMLDivElement>(null);
+  useKeys((key) => {
+    if (key === "b") {
+      return close();
+    }
+    if (onKey?.(key)) {
+      return;
+    }
+    if (key === "up" || key === "down") {
+      body.current?.scrollBy({ top: (key === "down" ? 1 : -1) * body.current.clientHeight * 0.4, behavior: "smooth" });
+    }
+  }, keys);
+  return (
+    <div className="gba-screen" role="dialog" aria-label={title} onPointerDown={(event) => event.target === event.currentTarget && close()}>
+      <div className={cn("gba-frame gba-window", theme)}>
+        <header className="bar">
+          <span className="title">{title}</span>
+          {info ? <span className="info">{info}</span> : null}
+          <button className="close" onClick={close}>
+            ✕<span> CLOSE</span>
+          </button>
+        </header>
+        <div ref={body} className="body">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** HP bar with its "HP" tag */
@@ -514,7 +565,7 @@ function moveAbout(move: Move) {
 }
 
 /** Trainer ID shown on the summary (made from the trainer's name, so it stays the same) */
-function trainerId(name: string) {
+export function trainerId(name: string) {
   let hash = 7;
   for (const char of name) {
     hash = (hash * 31 + char.charCodeAt(0)) % 65536;
@@ -813,7 +864,7 @@ function BagScreen({ options, close }: { options: BagOptions; close: (value?: It
       <div className="gba-frame gba-bag">
         <div className="side">
           <div className="label">BAG</div>
-          <div className="picture" style={{ backgroundImage: `url(/game/items/${gender}.png)`, backgroundPositionY: `${frame * 20}%` }} />
+          <div key={pocket} className="picture" style={{ backgroundImage: `url(/game/items/${gender}.png)`, backgroundPositionY: `${frame * 20}%` }} />
           <div className="pockets">
             <div className="tabs">
               <button aria-label="Previous pocket" onClick={() => setPocket((pocket + pockets.length - 1) % pockets.length)}>

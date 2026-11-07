@@ -21,6 +21,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`dark ${plex.variable} ${mono.variable} ${pixel.variable} ${game.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Pokémon sprites come from PokeAPI's GitHub: open the connection early */}
+        <link rel="preconnect" href="https://raw.githubusercontent.com" />
+      </head>
       <body className="min-h-screen">
         <RootProvider theme={{ forcedTheme: "dark", defaultTheme: "dark" }} search={{ options: { type: "static" } }}>
           {children}

@@ -3,6 +3,7 @@
 import { useEditor, useSession } from "@/components/editor/hooks";
 import { targetIcons } from "@/components/editor/icons";
 import { Pane, TextInput, Tip } from "@/components/editor/widgets";
+import { generateMap } from "@/components/editor/generate-map";
 import { addOutdoor, regionMap } from "@/components/editor/region-map";
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import {
 import { type Target, targets, templates } from "@/game/editor/constants";
 import { ui } from "@/game/ui-bridge";
 import { cn } from "@/lib/utils";
-import { DoorOpen, Eye, EyeSlash, GlobeHemisphereWest, Lock, LockOpen, MapTrifold, Path, Plus, Trash } from "@phosphor-icons/react";
+import { DoorOpen, Eye, EyeSlash, GlobeHemisphereWest, Lock, LockOpen, MapTrifold, Path, Plus, Sparkle, Trash } from "@phosphor-icons/react";
 
 /** Maps of the city: outside and interiors */
 export function MapsPane() {
@@ -111,6 +112,10 @@ export function MapsPane() {
               <DropdownMenuItem onSelect={() => addOutdoor("town")}>
                 <MapTrifold />
                 Town
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => generateMap()}>
+                <Sparkle />
+                Generate…
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-subtle-fg">Interiors, through a door</DropdownMenuLabel>
