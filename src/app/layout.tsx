@@ -4,7 +4,7 @@ import { ScrollbarActivity } from "@/components/scrollbars";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Pixelify_Sans, Silkscreen } from "next/font/google";
 import type { ReactNode } from "react";
-import { siteDescription, siteName, siteTitle, siteUrl } from "@/lib/site";
+import { repoUrl, siteDescription, siteName, siteTitle, siteUrl } from "@/lib/site";
 
 const plex = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
@@ -34,6 +34,40 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#140b2a", colorScheme: "dark" };
 
+/** What search engines read about the site: its name (for the result title), the free browser game maker it is, and who made it (the same Person as on mihirjaiswal.com) */
+const person = "https://mihirjaiswal.com/#person";
+const structured = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      url: siteUrl,
+      name: siteName,
+      description: siteDescription,
+      inLanguage: "en",
+      author: { "@id": person },
+    },
+    {
+      "@type": ["VideoGame", "WebApplication"],
+      "@id": `${siteUrl}/#game`,
+      name: siteName,
+      url: siteUrl,
+      description: siteDescription,
+      author: { "@id": person },
+      applicationCategory: "GameApplication",
+      operatingSystem: "Any (runs in the browser)",
+      browserRequirements: "Requires JavaScript and WebGL",
+      gamePlatform: "Web browser",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      image: `${siteUrl}/opengraph-image`,
+      sameAs: [repoUrl],
+      isPartOf: { "@id": `${siteUrl}/#website` },
+    },
+    { "@type": "Person", "@id": person, name: "Mihir Jaiswal", url: "https://mihirjaiswal.com", sameAs: ["https://github.com/mihirjaiswal"] },
+  ],
+};
+
 /** Root layout (dark only, like the editor) */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -43,6 +77,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://raw.githubusercontent.com" />
       </head>
       <body className="min-h-screen">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} />
         <RootProvider theme={{ forcedTheme: "dark", defaultTheme: "dark" }} search={{ options: { type: "static" } }}>
           {children}
         </RootProvider>

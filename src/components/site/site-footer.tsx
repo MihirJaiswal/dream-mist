@@ -21,6 +21,12 @@ const columns = [
   },
 ];
 
+/** Mihir's other sites */
+const sisters = [
+  { href: "https://nyxui.com", label: "Nyx UI" },
+  { href: "https://nyxstudio.design", label: "NYX Studio" },
+];
+
 /** Site footer: the ground the night sky ends on */
 export function SiteFooter() {
   return (
@@ -57,6 +63,22 @@ export function SiteFooter() {
               </ul>
             </nav>
           ))}
+        </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 border-t-[3px] border-dashed border-[#2d1a52] px-4 py-5 font-game text-[15px] text-[#c9b8f5] md:px-8">
+          <p>
+            Made by{" "}
+            <a href="https://mihirjaiswal.com" target="_blank" rel="noopener" className="text-white hover:text-[#f06aa6]">
+              Mihir Jaiswal
+            </a>
+          </p>
+          <p>
+            <span className="font-pixel text-[11px] uppercase tracking-wide text-[#8a7bb8]">Also by Mihir</span>
+            {sisters.map(({ href, label }) => (
+              <a key={href} href={href} target="_blank" rel="noopener" className="ml-4 hover:text-[#f06aa6]">
+                {label}
+              </a>
+            ))}
+          </p>
         </div>
         <div className="border-t-[3px] border-dashed border-[#2d1a52]">
           <p className="px-4 py-6 font-game text-[13px] text-[#8a7bb8] md:px-8">
