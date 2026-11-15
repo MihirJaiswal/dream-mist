@@ -14,8 +14,9 @@ const subscribe = (listener: () => void) => (listeners.add(listener), () => void
 /**
  * Open a dialog from anywhere (engine bridge, menus, other dialogs) and wait for its answer.
  * `render` returns a dialog component and gives it `close(value)`, which resolves the promise.
+ * Aborting `signal` closes it without an answer.
  */
-export function openDialog<T = void>(render: (close: (value?: T) => void) => ReactNode) {
+export function openDialog<T = void>(render: (close: (value?: T) => void) => ReactNode, signal?: AbortSignal) {
   return new Promise<T | undefined>((solve) => {
     const id = ++counter;
     const close = (value?: T) => {
@@ -26,6 +27,10 @@ export function openDialog<T = void>(render: (close: (value?: T) => void) => Rea
       emit();
       solve(value);
     };
+    if (signal?.aborted) {
+      return solve(undefined);
+    }
+    signal?.addEventListener("abort", () => close(), { once: true });
     entries = [...entries, { id, node: () => render(close) }];
     emit();
   });

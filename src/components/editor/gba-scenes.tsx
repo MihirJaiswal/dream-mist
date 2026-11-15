@@ -173,8 +173,8 @@ function welcome(game: string) {
 }
 
 /** The new game's opening: the Professor's speech, then a new trainer picks their look, their name and (when the game gives none) a partner */
-export function opening(options: Opening) {
-  return openDialog<void>((close) => <OpeningScene options={options} close={close} />).then(() => undefined);
+export function opening(options: Opening, signal?: AbortSignal) {
+  return openDialog<void>((close) => <OpeningScene options={options} close={close} />, signal).then(() => undefined);
 }
 
 function OpeningScene({ options, close }: { options: Opening; close: () => void }) {
@@ -248,8 +248,8 @@ function OpeningScene({ options, close }: { options: Opening; close: () => void 
 // Title screen
 
 /** A saved game's title screen, like Emerald's: CONTINUE (with the save's details) or NEW GAME */
-export function titleScreen(save: SaveSummary) {
-  return openDialog<"continue" | "new">((close) => <TitleScene save={save} close={close} />).then((choice) => choice ?? "continue");
+export function titleScreen(save: SaveSummary, signal?: AbortSignal) {
+  return openDialog<"continue" | "new">((close) => <TitleScene save={save} close={close} />, signal).then((choice) => choice ?? "continue");
 }
 
 function TitleScene({ save, close }: { save: SaveSummary; close: (choice: "continue" | "new") => void }) {

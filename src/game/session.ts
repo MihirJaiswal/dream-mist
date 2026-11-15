@@ -100,6 +100,8 @@ export class Session {
   menu = null as null | { tile: { x: number; y: number }; left: number; top: number };
   /** Where you were building before pressing Play (map and camera), to come back to it */
   #building = null as null | { area: string; x: number; y: number; scale: number };
+  /** Starting to play: aborted when Build is pressed while the title screen or the opening is still up */
+  #starting = null as null | AbortController;
   readonly #cursors = new Map<string, PIXI.Container>();
   readonly #listeners = new Set<() => void>();
   #version = 0;
@@ -201,49 +203,87 @@ export class Session {
 
   /** Switch between edit and play (play can start from a tile of the current map instead of the spawn) */
   async setMode(mode: "edit" | "play", from: null | { x: number; y: number; dir?: Direction } = null): Promise<void> {
-    //A saved game opens on the title screen: Continue where it was saved, or start a New Game (after a warning)
-    const profile = trainer.profile;
-    if (mode === "play" && this.mode !== "play" && !from && profile?.places?.[this.city.id]) {
-      for (;;) {
-        const choice = await ui.title({
-          game: this.city.name,
-          player: profile.name,
-          saved: profile.places[this.city.id].at,
-          badges: profile.badges.filter(({ world }) => world === this.city.id).length,
-          pokedex: profile.caught.length,
-          party: profile.party.map(({ species }) => species),
-        });
-        if (choice === "continue") {
-          break;
-        }
-        const restart = await ui.confirm("Start a new game?", {
-          text: `Your story in ${this.city.name}, the trainers you beat and where you saved start over. Your Pokémon, items and Pokédex stay with you.`,
-          action: "New game",
-          danger: true,
-        });
-        if (restart) {
-          trainer.restart(this.city.id);
-          break;
+    //Still on the title screen or the opening: Build closes it and stays building, Play again does nothing
+    if (this.#starting) {
+      if (mode === "edit") {
+        this.#starting.abort();
+      }
+      return;
+    }
+    const starting = (this.#starting = new AbortController());
+    const { signal } = starting;
+    let fresh = false;
+    try {
+      //A saved game opens on the title screen: Continue where it was saved, or start a New Game (after a warning)
+      const profile = trainer.profile;
+      if (mode === "play" && this.mode !== "play" && !from && profile?.places?.[this.city.id]) {
+        this.notify();
+        for (;;) {
+          const choice = await ui.title(
+            {
+              game: this.city.name,
+              player: profile.name,
+              saved: profile.places[this.city.id].at,
+              badges: profile.badges.filter(({ world }) => world === this.city.id).length,
+              pokedex: profile.caught.length,
+              party: profile.party.map(({ species }) => species),
+            },
+            signal,
+          );
+          if (signal.aborted) {
+            return;
+          }
+          if (choice === "continue") {
+            break;
+          }
+          const restart = await ui.confirm("Start a new game?", {
+            text: `Your story in ${this.city.name}, the trainers you beat and where you saved start over. Your Pokémon, items and Pokédex stay with you.`,
+            action: "New game",
+            danger: true,
+          });
+          if (signal.aborted) {
+            return;
+          }
+          if (restart) {
+            trainer.restart(this.city.id);
+            break;
+          }
         }
       }
-    }
-    //A new game: the Professor's opening (a new trainer picks their look and name there), when there's no trainer yet or the game has a speech
-    //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose or turned the Professor's gift off
-    const fresh = mode === "play" && this.mode !== "play" && !trainer.profile?.started?.includes(this.city.id);
-    const partner = !trainer.profile?.party.length && !trainer.profile?.box.length && !handsOutStarter(this.city) && this.city.rules?.partner !== false;
-    if (mode === "play" && (!trainer.exists || partner || (fresh && this.city.intro?.speech.trim()))) {
-      await ui.opening({
-        game: this.city.name,
-        speech: this.city.intro?.speech,
-        professor: this.city.intro?.professor,
-        partner,
-        newTrainer: !trainer.exists,
-      });
-      if (!trainer.exists) {
-        if (this.visiting) {
-          return this.setMode("play");
+      //A new game: the Professor's opening (a new trainer picks their look and name there), when there's no trainer yet or the game has a speech
+      //A trainer without Pokémon gets a partner there too, unless this game has a starter to choose or turned the Professor's gift off
+      fresh = mode === "play" && this.mode !== "play" && !trainer.profile?.started?.includes(this.city.id);
+      const partner = !trainer.profile?.party.length && !trainer.profile?.box.length && !handsOutStarter(this.city) && this.city.rules?.partner !== false;
+      if (mode === "play" && (!trainer.exists || partner || (fresh && this.city.intro?.speech.trim()))) {
+        this.notify();
+        await ui.opening(
+          {
+            game: this.city.name,
+            speech: this.city.intro?.speech,
+            professor: this.city.intro?.professor,
+            partner,
+            newTrainer: !trainer.exists,
+          },
+          signal,
+        );
+        if (signal.aborted) {
+          return;
         }
-        mode = "edit";
+        if (!trainer.exists) {
+          if (this.visiting) {
+            this.#starting = null;
+            return this.setMode("play");
+          }
+          mode = "edit";
+        }
+      }
+    } finally {
+      //A visitor's retry above may already be starting again
+      if (this.#starting === starting) {
+        this.#starting = null;
+        if (signal.aborted) {
+          this.notify();
+        }
       }
     }
     //Remember where you were building, to come back to it after playing
@@ -294,6 +334,11 @@ export class Session {
     this.#scene();
     this.notify();
     setTimeout(() => this.map.app.resize(), 0);
+  }
+
+  /** Waiting on the title screen or the opening before playing */
+  get starting() {
+    return this.#starting !== null;
   }
 
   /** Weather and time of day of the open map over it while playing, and neighboring maps faded while building */

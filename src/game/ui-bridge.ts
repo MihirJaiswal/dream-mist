@@ -38,10 +38,10 @@ export type UiBridge = {
   name(title: string, options?: { initial?: string; creature?: Creature }): Promise<string>;
   /** Choose one of a few Pokémon, like the Professor's bag of starters: resolves with its index */
   starter(choices: number[], options?: { speaker?: string; portrait?: Portrait }): Promise<number>;
-  /** Title screen of a saved game: Continue it, or start a New Game */
-  title(save: SaveSummary): Promise<"continue" | "new">;
-  /** New game opening: the Professor's welcome speech, then a new trainer picks their look and name (and a partner when `partner`) */
-  opening(options: Opening): Promise<void>;
+  /** Title screen of a saved game: Continue it, or start a New Game (it closes when `signal` aborts) */
+  title(save: SaveSummary, signal?: AbortSignal): Promise<"continue" | "new">;
+  /** New game opening: the Professor's welcome speech, then a new trainer picks their look and name (and a partner when `partner`); it closes when `signal` aborts */
+  opening(options: Opening, signal?: AbortSignal): Promise<void>;
   /** Close the dialogue box right away, dropping pending lines (their conversation never continues) */
   hush(): void;
   /** Poké Mart: buy items with the trainer's money (resolves when they leave) */

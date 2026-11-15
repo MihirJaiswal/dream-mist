@@ -273,7 +273,7 @@ export function Topbar() {
               onClick={() => session.setMode("edit")}
               className={cn(
                 "flex h-8 items-center gap-1.5 rounded-md px-3 text-sm",
-                mode === "edit" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                mode === "edit" && !session.starting ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <PencilSimple size={14} />
@@ -285,7 +285,7 @@ export function Topbar() {
             onClick={() => session.setMode("play")}
             className={cn(
               "flex h-8 items-center gap-1.5 rounded-md px-3 text-sm",
-              mode === "play" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              mode === "play" || session.starting ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Play size={14} />

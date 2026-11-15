@@ -145,7 +145,7 @@ export function useAppShortcuts({ onPanels }: { onPanels: () => void }) {
       }
       if (command && key === "enter" && session.ready) {
         event.preventDefault();
-        void session.setMode(session.mode === "edit" ? "play" : "edit");
+        void session.setMode(session.mode === "edit" && !session.starting ? "play" : "edit");
         return;
       }
       if (command && key === "f") {
